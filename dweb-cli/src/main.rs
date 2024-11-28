@@ -1,3 +1,4 @@
+mod cli_options;
 mod connect;
 mod helpers;
 

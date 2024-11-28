@@ -1,7 +1,7 @@
 # dweb CLI
 **dweb** is a command line program which enables you to publish and view websites on the decentralised web aboard the [Autonomi](https://autonomi.com) peer-to-peer network.
 
-This is a work-in-progress but is preceded by a working demo called [awe](https://github.com/happybeing/awe) which already allows websites to be published and viewed on Autonomi.
+**WIP NOT YET FUNCTIONAL:** This is a work-in-progress but is preceded by a working demo called [awe](https://github.com/happybeing/awe) which already allows websites to be published and viewed on Autonomi.
 
 Unlike `awe`, **dweb** will work with standard browsers to view decentralised websites directly from the Autonomi peer-to-peer network. Whereas the `awe` demo includes a primitive web viewer instead.
 

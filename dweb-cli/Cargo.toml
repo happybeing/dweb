@@ -1,0 +1,15 @@
+[package]
+name = "dweb-cli"
+edition = "2021"
+version.workspace = true
+authors.workspace = true
+description.workspace = true
+
+[[bin]]
+name = "dweb"
+path = "src/main.rs"
+
+[dependencies]
+
+[lints]
+workspace = true

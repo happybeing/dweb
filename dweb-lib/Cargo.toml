@@ -4,6 +4,8 @@ edition = "2021"
 version.workspace = true
 authors.workspace = true
 description.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [lib]
 name = "dweb"

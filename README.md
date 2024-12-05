@@ -12,7 +12,7 @@ This project is a work-in-progress that will move relatively quickly to begin wi
 
 - **awe** is a demo of both publishing, viewing websites an files on Autonomi which runs on Linux and Mac ([visit the awe repo](https://github.com/happybeing/awe)).
 
-**awe** has been used to publish and view static HTML websites on Autonomi, using standard web tooling. Even WordPress like blogs can be published as demostrated using Publii ([visit getpublii.com](https://getpublii.com/)).
+**awe** has been used to publish and view static HTML websites created using standard web tooling, live on Autonomi peer-to-peer storage. Even WordPress like blogs can be published as demonstrated using Publii ([visit getpublii.com](https://getpublii.com/)).
 
 ## Contributing
 Contributions under the AGPL3.0 license are welcome and any contributions or PRs submitted will be assumed to be offered under that license unless clearly and prominently specified otherwise.

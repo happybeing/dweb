@@ -18,11 +18,11 @@ workspace = true
 # Generated using: awe-dependencies --branch stable-2024.10.4.6 --sn-path ../../../autonomi/safe_network
 #autonomi = { version = "0.2.1", path = "../../../autonomi/safe_network/autonomi" }
 #autonomi-cli = { version = "0.1.2", path = "../../../autonomi/safe_network/autonomi-cli" }
-sn_networking = { version = "0.19.0", path = "../../../autonomi/safe_network/sn_networking" }
-#sn_peers_acquisition = { version = "0.5.4", path = "../../../autonomi/safe_network/sn_peers_acquisition" }
-sn_registers = { version = "0.4.0", path = "../../../autonomi/safe_network/sn_registers" }
-sn_transfers = { version = "0.20.0", path = "../../../autonomi/safe_network/sn_transfers" }
-sn_protocol = { version = "0.17.12", path = "../../../autonomi/safe_network/sn_protocol" }
+ant-networking = { version = "0.19.0", path = "../../../autonomi/safe_network/ant-networking" }
+#ant-peers-acquisition = { version = "0.5.4", path = "../../../autonomi/safe_network/ant-peers-acquisition" }
+ant-registers = { version = "0.4.0", path = "../../../autonomi/safe_network/ant-registers" }
+#ant-transfers = { version = "0.20.0", path = "../../../autonomi/safe_network/ant-transfers" }
+ant-protocol = { version = "0.17.12", path = "../../../autonomi/safe_network/ant-protocol" }
 # Copied from awapi-test-actix:
 autonomi = { path = "../../../autonomi/safe_network/autonomi", version = "0.2.2", features = [
     "data",
@@ -31,9 +31,10 @@ autonomi = { path = "../../../autonomi/safe_network/autonomi", version = "0.2.2"
     "registers",
     "loud",
 ] }
-sn_peers_acquisition = { path = "../../../autonomi/safe_network/sn_peers_acquisition", version = "0.5.5" }
-sn_logging = { path = "../../../autonomi/safe_network/sn_logging", version = "0.2.38" }
-sn_build_info = { path = "../../../autonomi/safe_network/sn_build_info", version = "0.1.17" }
+
+ant-peers-acquisition = { path = "../../../autonomi/safe_network/ant-peers-acquisition", version = "0.5.5" }
+ant-logging = { path = "../../../autonomi/safe_network/ant-logging", version = "0.2.38" }
+ant-build-info = { path = "../../../autonomi/safe_network/ant-build-info", version = "0.1.17" }
 
 ## Everything else
 http = "1.1.0"
@@ -71,12 +72,12 @@ thiserror = "2.0.0"
 [features]
 # # Copied from autonomi-cli stable-2024.10.4.6 for reference:
 # default = ["metrics"]
-# local = ["sn_peers_acquisition/local", "autonomi/local"]
-# network-contacts = ["sn_peers_acquisition/network-contacts"]
-# metrics = ["sn_logging/process-metrics"]
+# local = ["ant-peers-acquisition/local", "autonomi/local"]
+# network-contacts = ["ant-peers-acquisition/network-contacts"]
+# metrics = ["ant-logging/process-metrics"]
 default = ["network-contacts", "skip-network-compatibility-check"]
-local = ["sn_peers_acquisition/local", "autonomi/local"]
-# WAS local-discovery = ["sn_client/local-discovery", "sn_peers_acquisition/local-discovery"]
-metrics = ["sn_logging/process-metrics"]
-network-contacts = ["sn_peers_acquisition/network-contacts"]
+local = ["ant-peers-acquisition/local", "autonomi/local"]
+# WAS local-discovery = ["ant-client/local-discovery", "ant-peers-acquisition/local-discovery"]
+metrics = ["ant-logging/process-metrics"]
+network-contacts = ["ant-peers-acquisition/network-contacts"]
 skip-network-compatibility-check = []   # Avoid need to upload avp type and include xor address in build

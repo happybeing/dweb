@@ -24,10 +24,10 @@ use color_eyre::eyre::{eyre, Error, Result};
 use serde::{de::DeserializeOwned, Serialize};
 use xor_name::XorName;
 
+use ant_registers::RegisterAddress;
 use autonomi::client::registers::{Register, RegisterSecretKey};
 use autonomi::client::Client;
 use autonomi::Wallet;
-use sn_registers::RegisterAddress;
 
 use crate::autonomi::access::keys::get_register_signing_key;
 use crate::data::autonomi_get_file;
@@ -302,8 +302,8 @@ impl<T: Trove + Serialize + DeserializeOwned> TroveHistory<T> {
                 println!("Before register_update()...do client.register_get()...");
                 println!("      Register has {} values", values.len());
                 println!("      Register has {} entries", self.num_entries());
-                let merkle_reg = self.register.inner_merkle_reg();
-                println!("      Register {merkle_reg:?}");
+                // let merkle_reg = self.register.inner_merkle_reg();
+                // println!("      Register {merkle_reg:?}");
 
                 println!("Calling register_update() with value: {xor_value}");
                 match client
@@ -319,8 +319,8 @@ impl<T: Trove + Serialize + DeserializeOwned> TroveHistory<T> {
                         println!("After update...");
                         println!("      Register has {} values", values.len());
                         println!("      Register has {} entries", self.num_entries());
-                        let merkle_reg = self.register.inner_merkle_reg();
-                        println!("      Register {merkle_reg:?}");
+                        // let merkle_reg = self.register.inner_merkle_reg();
+                        // println!("      Register {merkle_reg:?}");
 
                         // It is necessary to get the register from the network to have it's entries accessible
                         self.register = match client
@@ -332,8 +332,8 @@ impl<T: Trove + Serialize + DeserializeOwned> TroveHistory<T> {
                                 println!("After update...and get...");
                                 println!("      Register has {} values", values.len());
                                 println!("      Register has {} entries", self.num_entries());
-                                let merkle_reg = self.register.inner_merkle_reg();
-                                println!("      Register {merkle_reg:?}");
+                                // let merkle_reg = self.register.inner_merkle_reg();
+                                // println!("      Register {merkle_reg:?}");
 
                                 let register_xor_address = self.register.address().to_hex();
                                 println!("client.register_update() added entry to register: {register_xor_address}");
@@ -351,8 +351,8 @@ impl<T: Trove + Serialize + DeserializeOwned> TroveHistory<T> {
                         println!(
                             "DEBUG client.register_update() added entry to register: {register_xor_address}"
                         );
-                        let merkle_reg = self.register.inner_merkle_reg();
-                        println!("DEBUG register.inner_merkle_reg():\n{merkle_reg:?}");
+                        // let merkle_reg = self.register.inner_merkle_reg();
+                        // println!("DEBUG register.inner_merkle_reg():\n{merkle_reg:?}");
                     }
                     Err(e) => {
                         return Err(eyre!("Failed to add XorName to register: {e:?}"));

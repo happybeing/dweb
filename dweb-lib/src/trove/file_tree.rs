@@ -17,12 +17,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+use ant_registers::RegisterAddress;
 use bytes::{BufMut, BytesMut};
 use chrono::{DateTime, Utc};
 use color_eyre::eyre::{eyre, Result};
 use http::status::StatusCode;
 use serde::{Deserialize, Serialize};
-use sn_registers::RegisterAddress;
 use xor_name::XorName;
 
 use autonomi::client::payment::PaymentOption;

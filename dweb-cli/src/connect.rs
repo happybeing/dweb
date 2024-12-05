@@ -48,9 +48,8 @@ pub async fn connect_to_network() -> Result<Client> {
 use autonomi::Multiaddr;
 use color_eyre::eyre::Context;
 // use color_eyre::Result;
+use ant_peers_acquisition::{PeersArgs, SAFE_PEERS_ENV};
 use color_eyre::Section;
-use sn_peers_acquisition::PeersArgs;
-use sn_peers_acquisition::SAFE_PEERS_ENV;
 
 // TODO copied from dweb due to mismatch in PeersArgs
 async fn get_peers(peers: PeersArgs) -> Result<Vec<Multiaddr>> {

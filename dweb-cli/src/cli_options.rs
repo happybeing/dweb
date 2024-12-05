@@ -18,19 +18,17 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 use std::path::PathBuf;
 use std::sync::LazyLock;
 
+use ant_registers::RegisterAddress;
 use clap::Args;
 use clap::Parser;
 use clap::Subcommand;
 use color_eyre::{eyre::eyre, Result};
 use core::time::Duration;
-// TODO REMOVE due to Autonomi API changes
-// use sn_registers::RegisterAddress;
 use xor_name::XorName;
 
-use sn_peers_acquisition::PeersArgs;
+use ant_peers_acquisition::PeersArgs;
 
-// TODO REMOVE due to Autonomi API changes
-//use crate::awe_client::{awe_str_to_register_address, awe_str_to_xor_name};
+use dweb::helpers::convert::{awe_str_to_register_address, awe_str_to_xor_name};
 
 // TODO add example to each CLI subcommand
 
@@ -157,9 +155,8 @@ pub enum Subcommands {
         #[clap(long = "website-root", value_name = "WEBSITE-ROOT")]
         website_root: PathBuf,
         /// The address of a register referencing each version of the website. Can begin with "awv://"
-        // TODO REMOVE due to Autonomi API changes
-        // #[clap(long, name = "REGISTER-ADDRESS", value_parser = awe_str_to_register_address)]
-        // update_xor: RegisterAddress,
+        #[clap(long, name = "REGISTER-ADDRESS", value_parser = awe_str_to_register_address)]
+        update_xor: RegisterAddress,
         // TODO when NRS, re-instate the following (and 'conflicts_with = "update"' above)
         // /// Update the website at given awe NRS name
         // #[clap(
@@ -214,13 +211,11 @@ pub enum Subcommands {
     },
 
     /// Print information about data structures stored on Autonomi
-    // #[allow(non_camel_case_types)]
+    #[allow(non_camel_case_types)]
     Inspect_register {
-        // TODO replace with dweb-cli protocol handling convertor
-        // #[clap(value_name = "FILES-METADATA-ADDRESS", value_parser = awe_str_to_xor_name)]
         /// The address of an Autonomi register. Can be prefixed with awv://
-        // #[clap(name = "REGISTER-ADDRESS", value_parser = awe_str_to_register_address)]
-        // register_address: RegisterAddress,
+        #[clap(name = "REGISTER-ADDRESS", value_parser = awe_str_to_register_address)]
+        register_address: RegisterAddress,
 
         /// Print a summary of the register including type (the value of entry 0) and number of entries
         #[clap(long = "register-summary", short = 'r', default_value = "false")]
@@ -267,9 +262,8 @@ pub enum Subcommands {
     #[allow(non_camel_case_types)]
     Inspect_files {
         /// The Autonomi network address of some awe metadata. Can be prefixed with awm://
-        // TODO replace with dweb-cli protocol handling convertor
-        // #[clap(value_name = "FILES-METADATA-ADDRESS", value_parser = awe_str_to_xor_name)]
-        // files_metadata_address: XorName,
+        #[clap(value_name = "FILES-METADATA-ADDRESS", value_parser = awe_str_to_xor_name)]
+        files_metadata_address: XorName,
 
         #[command(flatten)]
         files_args: FilesArgs,

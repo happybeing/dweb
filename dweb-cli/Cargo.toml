@@ -14,15 +14,15 @@ path = "src/main.rs"
 [dependencies]
 # autonomi = "0.2.4"
 # sn_peers_acquisition = "0.5.7"
-autonomi = { path = "../../safe_network/autonomi", version = "0.2.2", features = [
+autonomi = { path = "../../autonomi/autonomi", version = "0.2.2", features = [
     "data",
     "fs",
     "vault",
     "registers",
     "loud",
 ] }
-ant-peers-acquisition = { path = "../../safe_network/ant-peers-acquisition", version = "0.5.5" }
-ant-registers = { path = "../../safe_network/ant-registers", version = "0.4.0" }
+ant-peers-acquisition = { path = "../../autonomi/ant-peers-acquisition", version = "0.5.5" }
+ant-registers = { path = "../../autonomi/ant-registers", version = "0.4.0" }
 
 clap = "4.5.21"
 color-eyre = "0.6.3"

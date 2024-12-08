@@ -15,16 +15,16 @@ crate-type = ["cdylib", "rlib"]
 workspace = true
 
 [dependencies]
-# Generated using: awe-dependencies --branch stable-2024.10.4.6 --sn-path ../../../autonomi/safe_network
-#autonomi = { version = "0.2.1", path = "../../../autonomi/safe_network/autonomi" }
-#autonomi-cli = { version = "0.1.2", path = "../../../autonomi/safe_network/autonomi-cli" }
-ant-networking = { version = "0.19.0", path = "../../../autonomi/safe_network/ant-networking" }
-#ant-peers-acquisition = { version = "0.5.4", path = "../../../autonomi/safe_network/ant-peers-acquisition" }
-ant-registers = { version = "0.4.0", path = "../../../autonomi/safe_network/ant-registers" }
-#ant-transfers = { version = "0.20.0", path = "../../../autonomi/safe_network/ant-transfers" }
-ant-protocol = { version = "0.17.12", path = "../../../autonomi/safe_network/ant-protocol" }
+# Generated using: awe-dependencies --branch stable-2024.10.4.6 --sn-path ../../../autonomi/autonomi
+#autonomi = { version = "0.2.1", path = "../../../autonomi/autonomi/autonomi" }
+#autonomi-cli = { version = "0.1.2", path = "../../../autonomi/autonomi/autonomi-cli" }
+ant-networking = { version = "0.19.0", path = "../../../autonomi/autonomi/ant-networking" }
+#ant-peers-acquisition = { version = "0.5.4", path = "../../../autonomi/autonomi/ant-peers-acquisition" }
+ant-registers = { version = "0.4.0", path = "../../../autonomi/autonomi/ant-registers" }
+#ant-transfers = { version = "0.20.0", path = "../../../autonomi/autonomi/ant-transfers" }
+ant-protocol = { version = "0.17.12", path = "../../../autonomi/autonomi/ant-protocol" }
 # Copied from awapi-test-actix:
-autonomi = { path = "../../../autonomi/safe_network/autonomi", version = "0.2.2", features = [
+autonomi = { path = "../../../autonomi/autonomi/autonomi", version = "0.2.2", features = [
     "data",
     "fs",
     "vault",
@@ -32,9 +32,9 @@ autonomi = { path = "../../../autonomi/safe_network/autonomi", version = "0.2.2"
     "loud",
 ] }
 
-ant-peers-acquisition = { path = "../../../autonomi/safe_network/ant-peers-acquisition", version = "0.5.5" }
-ant-logging = { path = "../../../autonomi/safe_network/ant-logging", version = "0.2.38" }
-ant-build-info = { path = "../../../autonomi/safe_network/ant-build-info", version = "0.1.17" }
+ant-peers-acquisition = { path = "../../../autonomi/autonomi/ant-peers-acquisition", version = "0.5.5" }
+ant-logging = { path = "../../../autonomi/autonomi/ant-logging", version = "0.2.38" }
+ant-build-info = { path = "../../../autonomi/autonomi/ant-build-info", version = "0.1.17" }
 
 ## Everything else
 http = "1.1.0"

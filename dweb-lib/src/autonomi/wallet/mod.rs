@@ -6,19 +6,18 @@
 // KIND, either express or implied. Please review the Licences for the specific language governing
 // permissions and limitations relating to use of the SAFE Network Software.
 
-use crate::autonomi::access::keys::{get_secret_key_from_env, load_evm_wallet_from_env};
-use crate::autonomi::wallet::fs::{select_wallet, select_wallet_private_key};
-use autonomi::{EvmNetwork, Wallet};
+use crate::autonomi::*;
+use access::keys::{get_secret_key_from_env, load_evm_wallet_from_env};
+use autonomi::{Network, Wallet};
+use wallet::fs::{select_wallet, select_wallet_private_key};
 
 pub(crate) mod encryption;
 pub(crate) mod error;
 pub(crate) mod fs;
 pub(crate) mod input;
 
-pub const DUMMY_NETWORK: EvmNetwork = EvmNetwork::ArbitrumSepolia;
+pub const DUMMY_NETWORK: Network = Network::ArbitrumSepolia;
 
-// TODO have changed from pub(crate), so maybe this should move to helpers, or maybe I should expose
-// TODO more pub(crate) methods here and elsewhere?
 /// Load wallet from ENV or disk
 pub fn load_wallet() -> color_eyre::Result<Wallet> {
     // First try wallet from ENV

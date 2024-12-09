@@ -30,7 +30,8 @@ use autonomi::client::Client;
 use autonomi::Wallet;
 use self_encryption::MAX_CHUNK_SIZE;
 
-use crate::data::autonomi_get_file;
+use crate::data::autonomi_get_file_public;
+use crate::helpers::convert::str_to_xor_name;
 use crate::trove::{Trove, TroveHistory};
 
 // The Trove type for a FileTree
@@ -139,7 +140,7 @@ impl FileTree {
         client: &Client,
     ) -> Result<FileTree> {
         println!("DEBUG file_tree_download() at {data_address:64x}");
-        match autonomi_get_file(data_address, client).await {
+        match autonomi_get_file_public(data_address, client).await {
             Ok(content) => {
                 println!("Retrieved {} bytes", content.len());
                 let metadata: FileTree = rmp_serde::from_slice(&content)?;
@@ -286,7 +287,7 @@ impl FileTree {
             .data_put(bytes.freeze(), PaymentOption::from(wallet))
             .await
         {
-            Ok(data_map) => Ok(data_map),
+            Ok(data_map) => Ok(str_to_xor_name(data_map.address().as_str()).unwrap()),
             Err(e) => {
                 let message = format!("Failed to upload website metadata - {e}");
                 println!("{}", &message);

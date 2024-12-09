@@ -33,26 +33,15 @@ pub fn load_evm_wallet_from_env() -> Result<Wallet> {
 
 /// EVM wallet private key
 pub fn get_secret_key_from_env() -> Result<String> {
-    match env::var(SECRET_KEY_ENV) {
-        Ok(secret_key_string) => Ok(secret_key_string),
-        Err(_) => {
-            let msg = format!("Failed to obtain secret key. Make sure the {SECRET_KEY_ENV} environment variable is set.");
-            println!("{msg}");
-            return Err(eyre!(msg));
-        }
-    }
+    env::var(SECRET_KEY_ENV).wrap_err(eyre!(
+        "make sure you've provided the {SECRET_KEY_ENV} env var"
+    ))
 }
 
 pub fn get_vault_secret_key() -> Result<VaultSecretKey> {
-    let secret_key_string = load_wallet_private_key()?;
-    match autonomi::client::vault::derive_vault_key(&secret_key_string) {
-        Ok(secret_key) => Ok(secret_key),
-        Err(_) => {
-            let msg = "Failed to derive vault secret key from EVM secret key";
-            println!("{msg}");
-            return Err(eyre!(msg));
-        }
-    }
+    let secret_key = load_wallet_private_key()?;
+    autonomi::client::vault::derive_vault_key(&secret_key)
+        .wrap_err("Failed to derive vault secret key from EVM secret key")
 }
 
 pub fn create_register_signing_key_file(key: RegisterSecretKey) -> Result<PathBuf> {

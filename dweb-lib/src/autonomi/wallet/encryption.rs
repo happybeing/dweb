@@ -6,13 +6,12 @@
 // KIND, either express or implied. Please review the Licences for the specific language governing
 // permissions and limitations relating to use of the SAFE Network Software.
 
-use crate::autonomi::*;
+use crate::autonomi::wallet::error::Error;
 use rand::Rng;
 use ring::aead::{BoundKey, Nonce, NonceSequence};
 use ring::error::Unspecified;
 use std::num::NonZeroU32;
 use std::sync::LazyLock;
-use wallet::error::Error;
 
 const SALT_LENGTH: usize = 8;
 const NONCE_LENGTH: usize = 12;

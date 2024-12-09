@@ -30,7 +30,7 @@ use autonomi::client::Client;
 use autonomi::Wallet;
 
 use crate::autonomi::access::keys::get_register_signing_key;
-use crate::data::autonomi_get_file;
+use crate::data::autonomi_get_file_public;
 
 const LARGEST_VERSION: u64 = 9007199254740991; // JavaScript Number.MAX_SAFE_INTEGER
 
@@ -218,7 +218,7 @@ impl<T: Trove + Serialize + DeserializeOwned> TroveHistory<T> {
     /// Download a FileTree from the network
     async fn trove_download(&mut self, client: &Client, data_address: XorName) -> Result<T> {
         println!("DEBUG file_tree_download() at {data_address:64x}");
-        match autonomi_get_file(data_address, client).await {
+        match autonomi_get_file_public(data_address, client).await {
             Ok(content) => {
                 println!("Retrieved {} bytes", content.len());
                 let metadata: T = match rmp_serde::from_slice(&content) {

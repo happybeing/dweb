@@ -48,13 +48,13 @@ pub async fn connect_to_network() -> Result<Client> {
 use autonomi::Multiaddr;
 use color_eyre::eyre::Context;
 // use color_eyre::Result;
-use ant_peers_acquisition::{PeersArgs, SAFE_PEERS_ENV};
+use ant_bootstrap::{PeersArgs, ANT_PEERS_ENV};
 use color_eyre::Section;
 
 // TODO copied from dweb due to mismatch in PeersArgs
-async fn get_peers(peers: PeersArgs) -> Result<Vec<Multiaddr>> {
-    peers.get_peers().await
+pub async fn get_peers(peers: PeersArgs) -> Result<Vec<Multiaddr>> {
+    peers.get_addrs(None).await
         .wrap_err("Please provide valid Network peers to connect to")
-        .with_suggestion(|| format!("make sure you've provided network peers using the --peers option or the {SAFE_PEERS_ENV} env var"))
+        .with_suggestion(|| format!("make sure you've provided network peers using the --peers option or the {ANT_PEERS_ENV} env var"))
         .with_suggestion(|| "a peer address looks like this: /ip4/42.42.42.42/udp/4242/quic-v1/p2p/B64nodePeerIDvdjb3FAJF4ks3moreBase64CharsHere")
 }

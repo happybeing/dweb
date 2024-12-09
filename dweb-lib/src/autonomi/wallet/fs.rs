@@ -8,16 +8,17 @@
 
 use crate::autonomi::*;
 use autonomi::{get_evm_network_from_env, RewardsAddress, Wallet};
+use wallet::encryption::{decrypt_private_key, encrypt_private_key};
+use wallet::error::Error;
+use wallet::input::{get_password_input, get_wallet_selection_input};
+use wallet::DUMMY_NETWORK;
+
 use const_hex::traits::FromHex;
 use prettytable::{Cell, Row, Table};
 use std::ffi::OsString;
 use std::io::Read;
 use std::path::PathBuf;
 use std::sync::OnceLock;
-use wallet::encryption::{decrypt_private_key, encrypt_private_key};
-use wallet::error::Error;
-use wallet::input::{get_password_input, get_wallet_selection_input};
-use wallet::DUMMY_NETWORK;
 
 const ENCRYPTED_PRIVATE_KEY_EXT: &str = ".encrypted";
 
@@ -26,8 +27,8 @@ pub static SELECTED_WALLET_ADDRESS: OnceLock<String> = OnceLock::new();
 /// Creates the wallets folder if it is missing and returns the folder path.
 pub(crate) fn get_client_wallet_dir_path() -> Result<PathBuf, Error> {
     let mut home_dirs = dirs_next::data_dir().ok_or(Error::WalletsFolderNotFound)?;
-    home_dirs.push("safe");
     home_dirs.push("autonomi");
+    home_dirs.push("client");
     home_dirs.push("wallets");
 
     std::fs::create_dir_all(home_dirs.as_path()).map_err(|_| Error::FailedToCreateWalletsFolder)?;

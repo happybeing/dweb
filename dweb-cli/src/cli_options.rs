@@ -26,7 +26,7 @@ use color_eyre::{eyre::eyre, Result};
 use core::time::Duration;
 use xor_name::XorName;
 
-use ant_peers_acquisition::PeersArgs;
+use ant_bootstrap::PeersArgs;
 
 use dweb::helpers::convert::{awe_str_to_register_address, awe_str_to_xor_name};
 

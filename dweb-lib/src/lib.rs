@@ -18,6 +18,7 @@ pub mod autonomi;
 pub mod client;
 pub mod data;
 pub mod helpers;
+pub mod storage;
 pub mod trove;
 
 pub fn add(left: u64, right: u64) -> u64 {

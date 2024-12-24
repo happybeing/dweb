@@ -59,6 +59,28 @@ pub const AWE_PROTOCOL_METADATA: &str = "awm://";
 #[allow(dead_code)]
 pub const AWE_PROTOCOL_FILE: &str = "awf://";
 
+// Default ports for HTTP / HTTPS
+pub const DEFAULT_HTTP_PORT_STR: &str = "8080";
+pub const DEFAULT_HTTPS_PORT_STR: &str = "8443";
+pub const LOCALHOST: &str = "127.0.0.1";
+
+// Assignable port range (https://en.wikipedia.org/wiki/Registered_port)
+pub const MIN_SERVER_PORT: u16 = 1024;
+pub const MAX_SERVER_PORT: u16 = 49451;
+
+/// Parse a port number for a server to listen on
+pub fn parse_port_number(str: &str) -> Result<u16> {
+    let port = str.parse::<u16>()?;
+
+    if port >= MIN_SERVER_PORT && port <= MAX_SERVER_PORT {
+        Ok(port)
+    } else {
+        Err(eyre!(
+            "Invalid port number. Valid numbers are {MIN_SERVER_PORT}-{MAX_SERVER_PORT}"
+        ))
+    }
+}
+
 /// Parse a hex register address with optional URL scheme
 pub fn awe_str_to_register_address(str: &str) -> Result<RegisterAddress> {
     let str = if str.starts_with(AWE_PROTOCOL_REGISTER) {

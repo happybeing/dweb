@@ -257,18 +257,18 @@ impl FileTree {
     /// The resource_website_path MUST:
     /// - start with a forward slash denoting the website root
     /// - use forward slash to separate directories
-    pub fn add_resource_to_metadata(
+    pub fn add_content_to_metadata(
         &mut self,
         resource_website_path: &String,
         xor_name: XorName,
         file_metadata: Option<&std::fs::Metadata>,
     ) -> Result<()> {
         self.path_map
-            .add_resource_to_metadata(resource_website_path, xor_name, file_metadata)
+            .add_content_to_metadata(resource_website_path, xor_name, file_metadata)
     }
 
-    /// Upload website metadata and return the address (ie of the data map)
-    pub async fn put_website_metadata_to_network(
+    /// Upload content metadata and return the address (ie of the data map)
+    pub async fn put_files_metadata_to_network(
         &self,
         client: Client,
         wallet: &Wallet,
@@ -284,10 +284,10 @@ impl FileTree {
         bytes.put(serialised_metadata.as_slice());
 
         match client
-            .data_put(bytes.freeze(), PaymentOption::from(wallet))
+            .data_put_public(bytes.freeze(), PaymentOption::from(wallet))
             .await
         {
-            Ok(data_map) => Ok(str_to_xor_name(data_map.address().as_str()).unwrap()),
+            Ok(data_map) => Ok(data_map),
             Err(e) => {
                 let message = format!("Failed to upload website metadata - {e}");
                 println!("{}", &message);
@@ -323,13 +323,13 @@ impl FileTreePathMap {
     /// Add a website resource to the metadata map
     /// resource_website_path MUST begin with a path separator denoting the website root
     /// This method handles translation of path separators
-    pub fn add_resource_to_metadata(
+    pub fn add_content_to_metadata(
         &mut self,
         resource_website_path: &String,
         xor_name: XorName,
         file_metadata: Option<&std::fs::Metadata>,
     ) -> Result<()> {
-        // println!("DEBUG add_resource_to_metadata() path '{resource_website_path}'");
+        // println!("DEBUG add_content_to_metadata() path '{resource_website_path}'");
         let mut web_path = Self::webify_string(&resource_website_path);
         if let Some(last_separator_position) = web_path.rfind(PATH_SEPARATOR) {
             let resource_file_name = web_path.split_off(last_separator_position + 1);

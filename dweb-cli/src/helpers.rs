@@ -19,7 +19,7 @@ use color_eyre::Result;
 
 use autonomi::client::Client;
 
-pub async fn connect_to_autonomi() -> Result<Client> {
-    println!("Autonomi client initialising...");
-    crate::connect::connect_to_network().await
-}
+// pub async fn connect_to_autonomi() -> Result<Client> {
+//     println!("Autonomi client initialising...");
+//     crate::connect::connect_to_network().await
+// }

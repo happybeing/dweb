@@ -28,7 +28,7 @@ use xor_name::XorName;
 
 use ant_bootstrap::PeersArgs;
 
-use dweb::helpers::convert::{awe_str_to_register_address, awe_str_to_xor_name};
+use dweb::helpers::convert::*;
 
 // TODO add example to each CLI subcommand
 
@@ -38,21 +38,21 @@ use dweb::helpers::convert::{awe_str_to_register_address, awe_str_to_xor_name};
     author,
     version,
     about,
-    long_about = "a web browser and website publishing app for Autonomi peer-to-peer network (demo)"
+    long_about = "a web publishing and browsing app for Autonomi peer-to-peer network"
 )]
 pub struct Opt {
     /// Optional awe URL to browse.
     ///
-    /// Use awm://<XOR-ADDRESS> to browse a website (use --website-version to specify a version).
+    /// Use awv://<HISTORY-ADDRESS> to browse most recent version from the history. (Use --history-version to specify a version).
     ///
-    /// Use awf://<XOR-ADDRESS> to load or fetch to a file rather than a website.
-    // TODO mention awv://name
-    // TODO implement fetch subcommand
+    /// Use awm://<METADATA-ADDRESS> to browse files or website from file tree metadata.
+    ///
+    /// Use awf://<DATAMAP-ADDRESS> to load or fetch to a file rather than a website.
     pub url: Option<String>,
 
-    /// Browse the specified website version
-    #[clap(long, short = 'w', value_parser = greater_than_0)]
-    pub website_version: Option<u64>,
+    /// Browse the specified version from the history
+    #[clap(long, value_parser = greater_than_0)]
+    pub history_version: Option<u64>,
 
     #[command(flatten)]
     pub peers: PeersArgs,
@@ -71,7 +71,7 @@ pub struct Opt {
     // TODO remove in favour of WebCmds subcommand
     // /// Local path of static HTML files to publish
     // #[clap(long = "publish-website")]
-    // pub website_root: Option<PathBuf>,
+    // pub files_root: Option<PathBuf>,
     // TODO implement remaining CLI options:
     // TODO --wallet-path <path-to-wallet-dir>
 }
@@ -96,45 +96,45 @@ pub enum Subcommands {
     Browse {
         /// Optional awe URL to browse.
         ///
-        /// Use awm://<XOR-ADDRESS> to browse a website (use --website-version to specify a version).
+        /// Use awv://<HISTORY-ADDRESS> to browse most recent version from the history. (Use --history-version to specify a version).
         ///
-        /// Use awf://<XOR-ADDRESS> to load or fetch to a file rather than a website.
-        // TODO mention awv://name
-        // TODO implement fetch subcommand
+        /// Use awm://<METADATA-ADDRESS> to browse files or website from file tree metadata.
+        ///
+        /// Use awf://<DATAMAP-ADDRESS> to load or fetch to a file rather than a website.
         url: Option<String>,
 
-        /// Browse the specified website version
-        #[clap(long, short = 'w', value_parser = greater_than_0)]
-        website_version: Option<u64>,
+        /// Browse a specified version from a history. Only valid with a HISTORY-ADDRESS.
+        #[clap(long, value_parser = greater_than_0)]
+        history_version: Option<u64>,
     },
 
     // TODO add an example or two to each command section
     /// Estimate the cost of publishing or updating a website
     Estimate {
         /// The root directory containing the website content to be published
-        #[clap(long = "website-root", value_name = "WEBSITE-ROOT")]
-        website_root: PathBuf,
+        #[clap(long = "files-root", value_name = "FILES-ROOT")]
+        files_root: PathBuf,
     },
 
     /// Publish a new website
     ///
-    /// Uploads a tree of website files to Autonomi and pays using the default wallet
+    /// Uploads a directory tree of content to Autonomi and pays using the default wallet
     ///
-    /// If successful, prints the xor address of the website, accessible
-    /// using Awe Browser using a URL like 'awv://<XOR-ADDRESS>'.
-    Publish {
-        /// The root directory containing the website content to be published
-        #[clap(long = "website-root", value_name = "WEBSITE-ROOT")]
-        website_root: PathBuf,
+    /// If successful, prints the xor address of the directory history, accessible
+    /// using Awe Browser using a URL like 'awv://<HISTORY-ADDRESS>'.
+    Publish_new {
+        /// The root directory of the content to be published
+        #[clap(long = "files-root", value_name = "FILES-ROOT")]
+        files_root: PathBuf,
         // TODO when NRS, re-instate the following (and 'conflicts_with = "update"' above)
         // /// Update the website at given awe NRS name
         // #[clap(
         //     long,
         //     short = 'n',
-        //     conflicts_with = "update_xor"
+        //     conflicts_with = "history_address"
         // )]
         // name: String,
-        /// Optional website configuration such as default index file(s), redirects etc.
+        /// Optional configuration when uploading content for a website, such as default index file(s), redirects etc.
         #[clap(long = "website-config", short = 'c', value_name = "JSON-FILE")]
         website_config: Option<PathBuf>,
         //
@@ -143,20 +143,20 @@ pub enum Subcommands {
         is_new_network: bool,
     },
 
-    /// Update an existing website while preserving old versions on Autonomi
+    /// Update a previously uploaded directory while preserving old versions on Autonomi
     ///
-    /// Uploads changes in the website content directory and makes this the
+    /// Uploads changes in the directory content and makes this the
     /// default version. Pays using the default wallet.
     ///
-    /// If successful upload prints the xor address of the website, accessible
-    /// using Awe Browser using a URL like 'awv://REGISTER-ADDRESS'.
-    Update {
+    /// If successful, prints the xor address of the content, accessible
+    /// using Awe Browser using a URL like 'awv://HISTORY-ADDRESS'.
+    Publish_update {
         /// The root directory containing the new website content to be uploaded
-        #[clap(long = "website-root", value_name = "WEBSITE-ROOT")]
-        website_root: PathBuf,
+        #[clap(long = "files-root", value_name = "FILES-ROOT")]
+        files_root: PathBuf,
         /// The address of a register referencing each version of the website. Can begin with "awv://"
-        #[clap(long, name = "REGISTER-ADDRESS", value_parser = awe_str_to_register_address)]
-        update_xor: RegisterAddress,
+        #[clap(long, name = "HISTORY-ADDRESS", value_parser = awe_str_to_register_address)]
+        history_address: RegisterAddress,
         // TODO when NRS, re-instate the following (and 'conflicts_with = "update"' above)
         // /// Update the website at given awe NRS name
         // #[clap(
@@ -164,10 +164,10 @@ pub enum Subcommands {
         //     short = 'u',
         //     conflicts_with = "new",
         //     conflicts_with = "estimate_cost",
-        //     conflicts_with = "update_xor"
+        //     conflicts_with = "history_address"
         // )]
         // update: String,
-        /// Optional website configuration such as default index file(s), redirects etc.
+        /// Optional configuration when uploading content for a website, such as default index file(s), redirects etc.
         #[clap(long = "website-config", short = 'c', value_name = "JSON-FILE")]
         website_config: Option<PathBuf>,
     },
@@ -267,6 +267,13 @@ pub enum Subcommands {
 
         #[command(flatten)]
         files_args: FilesArgs,
+    },
+
+    /// Placeholder for testing early localhost server
+    Serve {
+        /// Optional port number on which to listen for API requests
+        #[clap(value_name = "PORT", default_value = DEFAULT_HTTP_PORT_STR, value_parser = parse_port_number)]
+        port: u16,
     },
 }
 

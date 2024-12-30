@@ -147,7 +147,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             println!("TODO: implement subcommand 'download'");
         }
 
-        Some(Subcommands::Serve { port: _ }) => {
+        Some(Subcommands::Serve { host: _, port: _ }) => {
             println!("TODO: implement subcommand 'serve'");
         }
 

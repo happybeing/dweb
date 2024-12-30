@@ -23,7 +23,7 @@ mod commands;
 mod connect;
 mod generated_rs;
 mod helpers;
-mod serve;
+mod services;
 
 use clap::Parser;
 use color_eyre::Result;
@@ -39,43 +39,44 @@ use cli_options::Opt;
 #[actix_web::main]
 async fn main() -> Result<()> {
     color_eyre::install().expect("Failed to initialise error handler");
+    if std::env::var("RUST_SPANTRACE").is_err() {
+        std::env::set_var("RUST_SPANTRACE", "0");
+    }
 
     let opt = Opt::parse();
-    let _result_log_guards = init_logging_and_metrics(&opt);
+    if let Some(network_id) = opt.network_id {
+        ant_protocol::version::set_network_id(network_id);
+    }
 
-    // Log the full command that was run and the git version
-    info!("\"{}\"", std::env::args().collect::<Vec<_>>().join(" "));
-    let version = ant_build_info::git_info();
-    info!("dweb built with autonomi git version: {version}");
-    println!("dweb built with autonomi git version: {version}");
+    // TODO Keep up-to-date with autonomi/ant-cli/src/main.rs init_logging_and_metrics()
+    let _gaurds;
+    if opt.client_logs {
+        let logging_targets = vec![
+            ("ant_bootstrap".to_string(), Level::DEBUG),
+            ("ant_build_info".to_string(), Level::TRACE),
+            ("ant_evm".to_string(), Level::TRACE),
+            ("ant_logging".to_string(), Level::TRACE),
+            ("ant_networking".to_string(), Level::INFO),
+            ("((ant_protocol".to_string(), Level::TRACE),
+            ("ant_registers".to_string(), Level::TRACE),
+            ("evmlib".to_string(), Level::TRACE),
+            ("autonomi_cli".to_string(), Level::TRACE),
+            ("autonomi".to_string(), Level::TRACE),
+        ];
+
+        let mut log_builder = LogBuilder::new(logging_targets);
+        log_builder.output_dest(opt.log_output_dest.clone());
+        log_builder.format(opt.log_format.unwrap_or(LogFormat::Default));
+        _gaurds = log_builder.initialize().unwrap();
+    }
 
     if std::env::var("RUST_SPANTRACE").is_err() {
         std::env::set_var("RUST_SPANTRACE", "0");
     }
 
-    // TODO temp hack until awe_subcommands is stable
-    serve::serve(8080).await?;
+    // TODO temp hack until awe_subcommands is stable - then call via the Serve subcommand with port/host
+    services::serve(String::from("127.0.0.1"), 8080).await?;
     // awe_subcommands::cli_commands(opt).await?;
 
     Ok(())
-}
-
-fn init_logging_and_metrics(opt: &Opt) -> Result<(ReloadHandle, Option<WorkerGuard>)> {
-    let logging_targets = vec![
-        ("ant_bootstrap".to_string(), Level::DEBUG),
-        ("ant_build_info".to_string(), Level::TRACE),
-        ("ant_evm".to_string(), Level::TRACE),
-        ("ant_networking".to_string(), Level::INFO),
-        ("ant_registers".to_string(), Level::TRACE),
-        ("autonomi_cli".to_string(), Level::TRACE),
-        ("autonomi".to_string(), Level::TRACE),
-        ("evmlib".to_string(), Level::TRACE),
-        ("ant_logging".to_string(), Level::TRACE),
-        ("ant_protocol".to_string(), Level::TRACE),
-    ];
-    let mut log_builder = LogBuilder::new(logging_targets);
-    // log_builder.output_dest(opt.log_output_dest.clone());
-    // log_builder.format(opt.log_format.unwrap_or(LogFormat::Default));
-    let guards = log_builder.initialize()?;
-    Ok(guards)
 }

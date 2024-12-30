@@ -19,8 +19,6 @@ ametrics = ["ant-logging/process-metrics"]
 skip-network-compatibility-check = []   # Avoid need to upload avp type and include xor address in build
 
 [dependencies]
-# Generated using: awe-dependencies --branch stable --ant-path ../../../autonomi/autonomi/
-#
 # Generated using: awe-dependencies --branch stable
 autonomi = { version = "0.3.1", features = [
     "fs",

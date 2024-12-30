@@ -15,26 +15,31 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-pub mod serve_aw;
+mod api;
+mod app;
 
 // use color_eyre::Result;
 use std::io;
 use std::time::Duration;
 
-use actix_web::{get, post, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
+use actix_web::{
+    body, dev::HttpServiceFactory, get, guard, post, web, App, HttpRequest, HttpResponse,
+    HttpServer, Responder,
+};
 use clap::Parser;
-
-const CONNECTION_TIMEOUT: u64 = 75;
 
 use crate::cli_options::Opt;
 
-// A localhost server providing dweb APIs for a browser and other local apps
-pub(crate) async fn serve(port: u16) -> io::Result<()> {
-    let host = dweb::helpers::convert::LOCALHOST;
+const CONNECTION_TIMEOUT: u64 = 75;
 
-    println!("starting dweb server at: http://{host}:{port}");
+pub async fn serve(host: String, port: u16) -> io::Result<()> {
+    println!("dweb serve listening on {host}:{port}");
     HttpServer::new(|| {
         App::new()
+            // Test routes for api-dweb.au, app-dweb.au etc
+            .service(api::test::init_service("api-dweb.au"))
+            .service(app::test::init_service("app-dweb.au"))
+            // TODO: (eventually!) remove these basic test routes
             .service(hello)
             .service(echo)
             .service(test_fetch_file)
@@ -44,15 +49,23 @@ pub(crate) async fn serve(port: u16) -> io::Result<()> {
                 web::get().to(manual_test_show_request),
             )
             .route("/test-connect", web::get().to(manual_test_connect))
-            // .service(web::scope("/awf").default_service(web::get().to(manual_test_default_route)))
             .default_service(web::get().to(manual_test_default_route))
     })
     .keep_alive(Duration::from_secs(CONNECTION_TIMEOUT))
-    .bind((host, port))?
+    .bind((host.as_str(), port))?
     .run()
     .await
 }
 
+// impl Guard for HttpRequest {
+//     fn check(&self, req: &GuardContext) -> bool {
+//         match req.head().
+//             .contains_key(http::header::CONTENT_TYPE)
+//     }
+// }
+
+///////////////////////
+// Earlier test routes
 #[get("/")]
 async fn hello() -> impl Responder {
     HttpResponse::Ok().body("Hello world!")
@@ -76,11 +89,41 @@ async fn manual_test_default_route(request: HttpRequest) -> impl Responder {
 }
 
 async fn manual_test_show_request(request: HttpRequest) -> impl Responder {
-    return HttpResponse::Ok().body(format!(
-        "<!DOCTYPE html><head></head><body>test-show-request:<br/>uri: {}<br/>method: {}<body>",
+    return HttpResponse::Ok().body(request_as_html(&request));
+}
+
+// Returns an HTML page detailing an HttpRequest including its headers
+pub fn request_as_html(request: &HttpRequest) -> String {
+    let mut headers = String::from(
+        "   <tr><td></td><td></td></tr>
+        <tr><td><b>HEADERS:</b></td><td></td></tr>
+    ",
+    );
+    for (key, value) in request.headers().iter() {
+        headers += format!("<tr><td>{key:?}</td><td>{value:?}</td></tr>").as_str();
+    }
+
+    format!(
+        "<!DOCTYPE html><head></head><body>
+        <table rules='all' style='border: solid;'>
+           <tr><td></td><td></td></tr>
+        <tr><td><b>HttpRequest:</b></td><td></td></tr>
+        <tr><td>full_url</td><td>{}</td></tr>
+        <tr><td>uri</td><td>{}</td></tr>
+        <tr><td>method</td><td>{}</td></tr>
+        <tr><td>path</td><td>{}</td></tr>
+        <tr><td>query_string</td><td>{}</td></tr>
+        <tr><td>peer_addr</td><td>{:?}</td></tr>
+        {headers}
+        </table>
+        <body>",
+        request.full_url(),
         request.uri(),
-        request.method()
-    ));
+        request.method(),
+        request.path(),
+        request.query_string(),
+        request.peer_addr(),
+    )
 }
 
 #[get("/awf/{datamap_address:.*}")]
@@ -90,22 +133,28 @@ async fn test_fetch_file(datamap_address: web::Path<String>) -> impl Responder {
     //     datamap_address.to_string()
     // ));
 
-    // HttpResponse::Ok().body(fetch_content(&datamap_address).await)
+    // HttpResponse::Ok().body(fetdh_content(&datamap_address).await)
     HttpResponse::Ok().body("TODO: implement test_fetch_file()")
 }
 
 async fn manual_test_connect() -> impl Responder {
-    // TODO FIX: need a static peers: PeersArgs, when connecting (access insite the helper connect::connect_to_network())
-    // TODO LATER try maybe creating a client that connects in main and is re-used via a static?
-    if let Ok(_client) = crate::connect::connect_to_network().await {
-        return HttpResponse::Ok().body(
-            "Testing connect to Autonomi..\
+    let opt = Opt::parse();
+    if let Ok(peers) = dweb::autonomi::access::network::get_peers(opt.peers).await {
+        if let Ok(_client) = dweb::autonomi::actions::connect_to_network(peers).await {
+            return HttpResponse::Ok().body(
+                "Testing connect to Autonomi..\
            SUCCESS!",
-        );
+            );
+        } else {
+            return HttpResponse::Ok().body(
+                "Testing connect to Autonomi..\
+           ERROR: failed to connect",
+            );
+        };
     } else {
         return HttpResponse::Ok().body(
             "Testing connect to Autonomi..\
-           ERROR: failed to connect",
+           ERROR: failed to get peers",
         );
     };
 }

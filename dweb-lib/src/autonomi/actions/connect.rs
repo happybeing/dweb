@@ -6,12 +6,12 @@
 // KIND, either express or implied. Please review the Licences for the specific language governing
 // permissions and limitations relating to use of the SAFE Network Software.
 
-use autonomi::Client;
-use autonomi::Multiaddr;
-use color_eyre::eyre::bail;
-use color_eyre::eyre::Result;
+use color_eyre::eyre::{eyre, Result};
 use indicatif::ProgressBar;
 use std::time::Duration;
+
+use autonomi::Client;
+use autonomi::Multiaddr;
 
 pub async fn connect_to_network(peers: Vec<Multiaddr>) -> Result<Client> {
     let progress_bar = ProgressBar::new_spinner();
@@ -22,16 +22,17 @@ pub async fn connect_to_network(peers: Vec<Multiaddr>) -> Result<Client> {
 
     progress_bar.set_message("Connecting to The Autonomi Network...");
 
-    match Client::connect(&peers).await {
+    match Client::init_with_peers(peers).await {
         Ok(client) => {
-            info!("Connected to the Network");
+            println!("Connected to the Network");
             progress_bar.finish_with_message("Connected to the Network");
             Ok(client)
         }
         Err(e) => {
-            error!("Failed to connect to the network: {e}");
+            println!("Failed to connect to the network: {e}");
             progress_bar.finish_with_message("Failed to connect to the network");
-            bail!("Failed to connect to the network: {e}")
+            // bail!("Failed to connect to the network: {e}")
+            Err(eyre!(e))
         }
     }
 }

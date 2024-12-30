@@ -23,7 +23,7 @@ use std::path::PathBuf;
 pub async fn download(addr: &str, dest_path: &str, client: &mut Client) -> Result<()> {
     let public_address = str_to_addr(addr).ok();
     let private_address = crate::user_data::get_local_private_archive_access(addr)
-        .inspect_err(|e| error!("Failed to get private archive access: {e}"))
+        .inspect_err(|e| println!("Failed to get private archive access: {e}"))
         .ok();
 
     match (public_address, private_address) {
@@ -70,14 +70,13 @@ async fn download_private(
     progress_bar.finish_and_clear();
 
     if all_errs.is_empty() {
-        info!("Successfully downloaded private data with local address: {addr}");
         println!("Successfully downloaded private data with local address: {addr}");
         Ok(())
     } else {
         let err_no = all_errs.len();
         eprintln!("{err_no} errors while downloading private data with local address: {addr}");
         eprintln!("{all_errs:#?}");
-        error!("Errors while downloading private data with local address {addr}: {all_errs:#?}");
+        println!("Errors while downloading private data with local address {addr}: {all_errs:#?}");
         Err(eyre!("Errors while downloading private data"))
     }
 }
@@ -116,14 +115,13 @@ async fn download_public(
     progress_bar.finish_and_clear();
 
     if all_errs.is_empty() {
-        info!("Successfully downloaded data at: {addr}");
         println!("Successfully downloaded data at: {addr}");
         Ok(())
     } else {
         let err_no = all_errs.len();
         eprintln!("{err_no} errors while downloading data at: {addr}");
         eprintln!("{all_errs:#?}");
-        error!("Errors while downloading data at {addr}: {all_errs:#?}");
+        println!("Errors while downloading data at {addr}: {all_errs:#?}");
         Err(eyre!("Errors while downloading data"))
     }
 }

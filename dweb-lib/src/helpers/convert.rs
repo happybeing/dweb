@@ -6,6 +6,8 @@
 // KIND, either express or implied. Please review the Licences for the specific language governing
 // permissions and limitations relating to use of the SAFE Network Software.
 
+use std::f64::MAX_10_EXP;
+
 use ant_registers::{Entry, RegisterAddress};
 use color_eyre::eyre::{eyre, Result};
 use xor_name::XorName;
@@ -78,6 +80,16 @@ pub fn parse_port_number(str: &str) -> Result<u16> {
         Err(eyre!(
             "Invalid port number. Valid numbers are {MIN_SERVER_PORT}-{MAX_SERVER_PORT}"
         ))
+    }
+}
+
+/// Parse a hostname for a server to listen on
+pub fn parse_host(hostname: &str) -> Result<String> {
+    let host = hostname.parse::<String>()?;
+
+    match url::Url::parse(&host) {
+        Ok(_url) => Ok(String::from(hostname)),
+        Err(e) => Err(eyre!(e)),
     }
 }
 

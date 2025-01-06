@@ -3,9 +3,9 @@ A cross platform app and Rust library to view or publish websites on the decentr
 
 This project contains **dweb** (a command line application) and **dweb-lib** (a Rust library). See the dweb README for detail of the features and capabilities available.
 
-- **[dweb](https://github.com/happybeing/dweb/dweb-cli/README.md)** is a command line app for viewing decentralised websites using a standard browser, and for easily publishing your own websites to the [Autonomi](https://autonomi.com) pee-to-peer network. Can act as a local web server/service with built in web apps for file management, and RESTful access the Autonomi API over HTTP for other local web or desktop apps. Support is planned for backup and sync using [rclone](https://github.com/rclone/rclone/).
+- **[dweb](https://github.com/happybeing/dweb/tree/main/dweb-cli)** is a command line app for viewing decentralised websites using a standard browser, and for easily publishing your own websites to the [Autonomi](https://autonomi.com) pee-to-peer network. Can act as a local web server/service with built in web apps for file management, and RESTful access the Autonomi API over HTTP for other local web or desktop apps. Support is planned for backup and sync using [rclone](https://github.com/rclone/rclone/).
 
-- **[dweb-lib](https://github.com/happybeing/dweb/dweb-cli/README.md)** is a Rust library for including decentralised web capabilities in other applications.
+- **[dweb-lib](https://github.com/happybeing/dweb/tree/main/dweb-lib)** is a Rust library for including decentralised web capabilities in other applications.
 
 ## Status
 This project is a work-in-progress that will move relatively quickly to begin with because the core functionality already exists in a demonstration which you can try out now:

@@ -35,14 +35,14 @@ use crate::client::AutonomiClient;
 use crate::data::autonomi_get_file_public;
 use crate::trove::{Trove, TroveHistory};
 
-// The Trove type for a FileTree
+// The Trove type for a DirectoryTree
 const FILE_TREE_TYPE: &str = "ee383f084cffaab845617b1c43ffaee8b5c17e8fbbb3ad3d379c96b5b844f24e";
 
-/// Separator used in FileTree.path_map
+/// Separator used in DirectoryTree.path_map
 pub const PATH_SEPARATOR: char = '/';
 
 /// Manage settings as a JSON string in order to ensure serialisation and deserialisation
-/// of FileTree succeeds even as different settings are added or removed.
+/// of DirectoryTree succeeds even as different settings are added or removed.
 //
 // This struct is used for two separate groups of settings. The first configure the
 // website by defining redirects, overrides for default index files etc. The second is
@@ -73,16 +73,16 @@ impl JsonSettings {
     }
 }
 
-/// WIP: FileTree is a work in progress and subject to breaking changes
+/// WIP: DirectoryTree is a work in progress and subject to breaking changes
 /// Container for a directory tree of files stored on Autonomi. Includes metadata needed
 /// to store and view a website using the dweb CLI.
-/// Used by FileTreeHistory to provide a persistent history of all versions of the tree or website.
+/// Used by DirectoryTreeHistory to provide a persistent history of all versions of the tree or website.
 #[derive(Serialize, Deserialize, Clone)]
-pub struct FileTree {
-    /// System time of the device used, when publishing this FileTree to Autonomi
+pub struct DirectoryTree {
+    /// System time of the device used, when publishing this DirectoryTree to Autonomi
     pub date_published: DateTime<Utc>,
     /// Map of paths to directory and file metadata
-    pub path_map: FileTreePathMap,
+    pub path_map: DirectoryTreePathMap,
     // TODO document usage of third_party_settings JSON for metadata created by and accessible
     // TODO to unknown applications such as a website builder or the dweb CLI. Mandate that:
     // TODO   Only a single application unique key per application be stored at the top level
@@ -91,7 +91,7 @@ pub struct FileTree {
     /// Optionally used by an app to store arbitrary app specific settings or metadata.
     pub third_party_settings: JsonSettings,
 
-    // Optional settings when a FileTree is used to store a website
+    // Optional settings when a DirectoryTree is used to store a website
     website_settings: Option<WebsiteSettings>,
 }
 
@@ -111,7 +111,7 @@ impl WebsiteSettings {
     }
 }
 
-impl Trove for FileTree {
+impl Trove for DirectoryTree {
     fn trove_type() -> FileAddress {
         FileAddress::from_content(FILE_TREE_TYPE.as_bytes())
     }
@@ -125,25 +125,25 @@ impl Trove for FileTree {
 // TODO - have methods to upload / get files, subtrees / the whole tree
 /// Work in progress and subject to breaking changes
 /// TODO consider how to handle use as a virtual file store (see comments above this in the code)
-impl FileTree {
-    pub fn new(website_settings: Option<WebsiteSettings>) -> FileTree {
-        FileTree {
+impl DirectoryTree {
+    pub fn new(website_settings: Option<WebsiteSettings>) -> DirectoryTree {
+        DirectoryTree {
             date_published: Utc::now(),
             third_party_settings: JsonSettings::new(),
-            path_map: FileTreePathMap::new(),
+            path_map: DirectoryTreePathMap::new(),
             website_settings,
         }
     }
 
-    pub async fn file_tree_download(
+    pub async fn directory_tree_download(
         client: &AutonomiClient,
         data_address: FileAddress,
-    ) -> Result<FileTree> {
-        println!("DEBUG file_tree_download() at {data_address:64x}");
+    ) -> Result<DirectoryTree> {
+        println!("DEBUG directory_tree_download() at {data_address:64x}");
         match autonomi_get_file_public(client, &data_address).await {
             Ok(content) => {
                 println!("Retrieved {} bytes", content.len());
-                let metadata: FileTree = rmp_serde::from_slice(&content)?;
+                let metadata: DirectoryTree = rmp_serde::from_slice(&content)?;
                 Ok(metadata)
             }
 
@@ -155,11 +155,11 @@ impl FileTree {
     }
 
     /// Looks up the web resource in a version of a TroveHistory
-    /// First gets a FileTree version, using cached data if held by the history
+    /// First gets a DirectoryTree version, using cached data if held by the history
     /// If version is None attempts obtain the default (most recent version)
     /// Returns a tuple with the address of the resource and optional content type if it can be determined
     pub async fn history_lookup_web_resource(
-        history: &mut TroveHistory<FileTree>,
+        history: &mut TroveHistory<DirectoryTree>,
         resource_path: &String,
         version: Option<u64>,
     ) -> Result<(FileAddress, Option<String>), StatusCode> {
@@ -201,7 +201,7 @@ impl FileTree {
         let mut path_and_address = None;
         if let Some(resources) = self.path_map.paths_to_files_map.get(&resource_path) {
             if second_part.len() > 0 {
-                println!("DEBUG FileTree looking up '{}'", second_part);
+                println!("DEBUG DirectoryTree looking up '{}'", second_part);
                 match Self::lookup_name_in_vec(&second_part, &resources) {
                     Some(data_address) => path_and_address = Some((second_part, data_address)),
                     None => {}
@@ -311,7 +311,7 @@ impl FileTree {
 
 /// A map of paths to files used to access xor addresses of content
 #[derive(Serialize, Deserialize, Clone)]
-pub struct FileTreePathMap {
+pub struct DirectoryTreePathMap {
     // Maps of paths of directories and files to metadata.
     // File metadata tuple is (filename, data_address, date modified, size, extended metadata)
     // where extended metadata can be a JSON encoded String at some point
@@ -322,9 +322,9 @@ pub struct FileTreePathMap {
 
 // TODO replace OS path separator with '/' when storing web paths
 // TODO canonicalise path strings when adding them
-impl FileTreePathMap {
-    pub fn new() -> FileTreePathMap {
-        FileTreePathMap {
+impl DirectoryTreePathMap {
+    pub fn new() -> DirectoryTreePathMap {
+        DirectoryTreePathMap {
             paths_to_files_map: HashMap::<
                 String,
                 Vec<(String, FileAddress, std::time::SystemTime, u64, String)>,
@@ -419,11 +419,11 @@ pub async fn lookup_resource_for_website_version(
     println!("DEBUG history_address: {history_address}");
     println!("DEBUG resource_path    : {resource_path}");
 
-    match TroveHistory::<FileTree>::from_register_address(client.clone(), history_address, None)
+    match TroveHistory::<DirectoryTree>::from_register_address(client.clone(), history_address, None)
         .await
     {
         Ok(mut history) => {
-            return FileTree::history_lookup_web_resource(&mut history, resource_path, version)
+            return DirectoryTree::history_lookup_web_resource(&mut history, resource_path, version)
                 .await;
         }
         Err(e) => {

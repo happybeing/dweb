@@ -15,7 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-pub mod file_tree;
+pub mod directory_tree;
 
 use std::marker::PhantomData;
 
@@ -39,7 +39,7 @@ const LARGEST_VERSION: u64 = 9007199254740991; // JavaScript Number.MAX_SAFE_INT
 /// decentralised storage using a TroveHistory<T> for your struct. The TroveHistory then
 /// gives access to every version of the struct that has ever been stored on Autonomi.
 ///
-/// For example, using the built-in dweb::trove::FileTree struct you can store and access
+/// For example, using the built-in dweb::trove::DirectoryTree struct you can store and access
 /// every published version of a website or tree of files.
 ///
 /// Notes:
@@ -59,7 +59,7 @@ pub trait Trove {
 /// TODO replace use of deprecated Register with new Autonomi types (Pointer + Transaction)
 /// TODO revise variable naming such as 'xor_address' to match dweb terminology:
 /// TODO    HISTORY-ADDRESS     - address of TroveHistory stored on Autonomi
-/// TODO    DIRECTORY-ADDRESS   - address of FileTree stored on Autonomi
+/// TODO    DIRECTORY-ADDRESS   - address of DirectoryTree stored on Autonomi
 /// TODO    FILE-ADDRESS        - address of file/datamap stored on Autonomi
 pub struct TroveHistory<T: Trove + Serialize + DeserializeOwned + Clone> {
     client: AutonomiClient,
@@ -207,7 +207,7 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> TroveHistory<T> {
         }
     }
 
-    /// Download a `FileTree` from the network
+    /// Download a `DirectoryTree` from the network
     async fn trove_download(&self, data_address: XorName) -> Result<T> {
         return TroveHistory::<T>::raw_trove_download(&self.client, data_address).await;
     }
@@ -215,7 +215,7 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> TroveHistory<T> {
     /// Type-safe download directly from the network.
     /// Useful if you already have the address and don't want to initialise a TroveHistory
     pub async fn raw_trove_download(client: &AutonomiClient, data_address: XorName) -> Result<T> {
-        println!("DEBUG file_tree_download() at {data_address:64x}");
+        println!("DEBUG directory_tree_download() at {data_address:64x}");
         match autonomi_get_file_public(client, &data_address).await {
             Ok(content) => {
                 println!("Retrieved {} bytes", content.len());

@@ -15,8 +15,8 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-use crate::trove::file_tree;
+use crate::trove::directory_tree;
 
-// TODO: Cache of DIRECTORY-ADDRESS to file_tree
+// TODO: Cache of DIRECTORY-ADDRESS to directory_tree
 // TODO: Is this needed or is it covered by FILE_TREE_VERSIONS cache?
 // TODO: -> I think it's an unlikely use case because access is expected to be via TroveHistory which is cached

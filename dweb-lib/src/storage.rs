@@ -25,7 +25,7 @@ use autonomi::client::files::archive_public::PublicArchive;
 use crate::autonomi::access::keys::get_register_signing_key;
 use crate::autonomi::wallet::load_wallet;
 use crate::client::AutonomiClient;
-use crate::trove::file_tree::{osstr_to_string, FileTree, JsonSettings, WebsiteSettings};
+use crate::trove::directory_tree::{osstr_to_string, DirectoryTree, JsonSettings, WebsiteSettings};
 use crate::trove::TroveHistory;
 
 /// If the tree contains a website, 'server style' configuration can be provided
@@ -67,7 +67,7 @@ pub async fn publish_or_update_files(
     //     )?
     // };
 
-    let mut files_history: TroveHistory<FileTree>;
+    let mut files_history: TroveHistory<DirectoryTree>;
     let (history_address, version) = if let Some(history_address) = history_address {
         // Update existing file tree
         println!("Uploading update to network...");
@@ -77,7 +77,7 @@ pub async fn publish_or_update_files(
 
         println!("Updating versions history {}", history_address.to_hex());
         files_history =
-            match TroveHistory::<FileTree>::new(client.clone(), Some(history_address)).await {
+            match TroveHistory::<DirectoryTree>::new(client.clone(), Some(history_address)).await {
                 Ok(files_history) => files_history,
                 Err(e) => {
                     println!("Failed to access versions. {}", e.root_cause());
@@ -97,8 +97,8 @@ pub async fn publish_or_update_files(
         // Publish new website
         println!("Creating versions history, please wait...");
         let owner_secret = get_register_signing_key().inspect_err(|e| println!("{}", e))?;
-        println!("got wallet... calling TroveHistory<FileTree>::new_register()");
-        files_history = TroveHistory::<FileTree>::new(client.clone(), None)
+        println!("got wallet... calling TroveHistory<DirectoryTree>::new_register()");
+        files_history = TroveHistory::<DirectoryTree>::new(client.clone(), None)
             .await
             .inspect_err(|e| println!("{}", e))?;
         match files_history.publish_new_version(&files_address).await {
@@ -241,7 +241,7 @@ pub async fn publish_metadata(
     files_uploaded: &PublicArchive,
     website_settings: WebsiteSettings,
 ) -> Result<XorName> {
-    let mut metadata = FileTree::new(Some(website_settings));
+    let mut metadata = DirectoryTree::new(Some(website_settings));
 
     if let Some(mut files_root_string) = osstr_to_string(files_root.as_os_str()) {
         // Ensure the full_root_string ends with OS path separator

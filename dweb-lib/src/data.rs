@@ -17,19 +17,20 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use bytes::Bytes;
 use color_eyre::Result;
-use xor_name::XorName;
+use xor_name::XorName as FileAddress;
 
 use autonomi::client::data::GetError;
-use autonomi::client::Client;
+
+use crate::client::AutonomiClient;
 
 /// TODO: move to dweb::data or similar?
 pub async fn autonomi_get_file_public(
-    xor_name: XorName,
-    client: &Client,
+    client: &AutonomiClient,
+    file_address: &FileAddress,
 ) -> Result<Bytes, GetError> {
     println!("DEBUG autonomi_get_file_public()");
     println!("DEBUG calling client.data_get_public()");
-    match client.data_get_public(xor_name).await {
+    match client.data_get_public(*file_address).await {
         Ok(content) => {
             println!("DEBUG Ok() return");
             Ok(content)

@@ -15,11 +15,13 @@
 *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 pub mod autonomi;
+pub mod cache;
 pub mod client;
 pub mod data;
 pub mod helpers;
 pub mod storage;
 pub mod trove;
+pub mod web;
 
 pub fn add(left: u64, right: u64) -> u64 {
     left + right

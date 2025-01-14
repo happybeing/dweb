@@ -22,16 +22,17 @@ use bytes::{BufMut, BytesMut};
 use chrono::{DateTime, Utc};
 use color_eyre::eyre::{eyre, Result};
 use http::status::StatusCode;
+use mime_guess;
 use serde::{Deserialize, Serialize};
-use xor_name::XorName;
+use xor_name::XorName as FileAddress;
 
 use autonomi::client::payment::PaymentOption;
 use autonomi::client::Client;
 use autonomi::Wallet;
 use self_encryption::MAX_CHUNK_SIZE;
 
+use crate::client::AutonomiClient;
 use crate::data::autonomi_get_file_public;
-use crate::helpers::convert::str_to_xor_name;
 use crate::trove::{Trove, TroveHistory};
 
 // The Trove type for a FileTree
@@ -49,7 +50,7 @@ pub const PATH_SEPARATOR: char = '/';
 // display the website itself, but may be used to change the behaviour of a client
 // app when it accesses the website, or provide information about the client used
 // to create or publish the site.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct JsonSettings {
     json_string: String,
     // TODO implement non-serialised holder for JSON query object
@@ -76,7 +77,7 @@ impl JsonSettings {
 /// Container for a directory tree of files stored on Autonomi. Includes metadata needed
 /// to store and view a website using the dweb CLI.
 /// Used by FileTreeHistory to provide a persistent history of all versions of the tree or website.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct FileTree {
     /// System time of the device used, when publishing this FileTree to Autonomi
     pub date_published: DateTime<Utc>,
@@ -94,7 +95,7 @@ pub struct FileTree {
     website_settings: Option<WebsiteSettings>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct WebsiteSettings {
     // TODO use website_config to implement web server like configuration such as redirects, short links and subdomains
     pub website_config: JsonSettings,
@@ -111,8 +112,8 @@ impl WebsiteSettings {
 }
 
 impl Trove for FileTree {
-    fn trove_type() -> XorName {
-        XorName::from_content(FILE_TREE_TYPE.as_bytes())
+    fn trove_type() -> FileAddress {
+        FileAddress::from_content(FILE_TREE_TYPE.as_bytes())
     }
 }
 
@@ -135,12 +136,11 @@ impl FileTree {
     }
 
     pub async fn file_tree_download(
-        // WAS: get_website_metadata_from_network(
-        data_address: XorName,
-        client: &Client,
+        client: &AutonomiClient,
+        data_address: FileAddress,
     ) -> Result<FileTree> {
         println!("DEBUG file_tree_download() at {data_address:64x}");
-        match autonomi_get_file_public(data_address, client).await {
+        match autonomi_get_file_public(client, &data_address).await {
             Ok(content) => {
                 println!("Retrieved {} bytes", content.len());
                 let metadata: FileTree = rmp_serde::from_slice(&content)?;
@@ -154,20 +154,16 @@ impl FileTree {
         }
     }
 
-    /// Uses TroveHistory to obtain a FileTree version, using cached data if held by the history
+    /// Looks up the web resource in a version of a TroveHistory
+    /// First gets a FileTree version, using cached data if held by the history
     /// If version is None attempts obtain the default (most recent version)
-    /// Returns the network address of the given web resource as recorded in the FileTree
+    /// Returns a tuple with the address of the resource and optional content type if it can be determined
     pub async fn history_lookup_web_resource(
         history: &mut TroveHistory<FileTree>,
         resource_path: &String,
         version: Option<u64>,
-        client: &Client,
-    ) -> Result<XorName, StatusCode> {
-        if !history
-            .fetch_version_metadata(client, version)
-            .await
-            .is_err()
-        {
+    ) -> Result<(FileAddress, Option<String>), StatusCode> {
+        if !history.fetch_version_metadata(version).await.is_none() {
             if history.cached_version.is_some()
                 && history.cached_version.as_ref().unwrap().metadata.is_some()
             {
@@ -184,13 +180,16 @@ impl FileTree {
     /// Look up a canonicalised web resource path (which must begin with '/').
     /// If the path ends with '/' or no file matches a directory is assumed.
     /// For directories it will look for a default index file based on the site metadata settings.
-    /// Returns a tuple with the resource's xor address if found, and a suitable HTTP response code.
-    pub fn lookup_web_resource(&self, resource_path: &String) -> Result<XorName, StatusCode> {
+    /// If found returns a tuple with the resource's xor address if found and content type if known
+    /// On error, returns a suitable status code??? TODO
+    pub fn lookup_web_resource(
+        &self,
+        resource_path: &String,
+    ) -> Result<(FileAddress, Option<String>), StatusCode> {
         let last_separator_result = resource_path.rfind(PATH_SEPARATOR);
         if last_separator_result.is_none() {
             return Err(StatusCode::BAD_REQUEST);
         }
-
         let original_resource_path = resource_path.clone();
         let mut resource_path = resource_path.clone();
         let last_separator = last_separator_result.unwrap();
@@ -199,52 +198,65 @@ impl FileTree {
         println!("...into '{}' and '{}'", resource_path, second_part);
 
         println!("Looking for resource at '{resource_path}'");
+        let mut path_and_address = None;
         if let Some(resources) = self.path_map.paths_to_files_map.get(&resource_path) {
             if second_part.len() > 0 {
                 println!("DEBUG FileTree looking up '{}'", second_part);
                 match Self::lookup_name_in_vec(&second_part, &resources) {
-                    Some(xorname) => return Ok(xorname),
-                    None => {}
-                }
-            };
-        };
-
-        // Assume the second part is a directory name, so remake the path for that
-        let new_resource_path = if original_resource_path.ends_with(PATH_SEPARATOR) {
-            original_resource_path.clone()
-        } else {
-            original_resource_path.clone() + PATH_SEPARATOR.to_string().as_str()
-        };
-
-        println!("Retrying for index file in new_resource_path '{new_resource_path}'");
-        let index_filenames = if let Some(website_settings) = &self.website_settings {
-            &website_settings.index_filenames
-        } else {
-            &Vec::from([String::from("index.html"), String::from("index.htm")])
-        };
-
-        if let Some(new_resources) = self.path_map.paths_to_files_map.get(&new_resource_path) {
-            println!("DEBUG looking for a default INDEX file, one of {index_filenames:?}",);
-            // Look for a default index file
-            for index_file in index_filenames {
-                // TODO might it be necessary to return the name of the resource?
-                match Self::lookup_name_in_vec(&index_file, &new_resources) {
-                    Some(xorname) => return Ok(xorname),
+                    Some(data_address) => path_and_address = Some((second_part, data_address)),
                     None => {}
                 }
             }
         };
 
-        println!("FAILED to find resource for path: '{original_resource_path}' in:");
-        println!("{:?}", self.path_map.paths_to_files_map);
+        if path_and_address.is_none() {
+            // Assume the second part is a directory name, so remake the path for that
+            let new_resource_path = if original_resource_path.ends_with(PATH_SEPARATOR) {
+                original_resource_path.clone()
+            } else {
+                original_resource_path.clone() + PATH_SEPARATOR.to_string().as_str()
+            };
 
-        Err(StatusCode::NOT_FOUND)
+            println!("Retrying for index file in new_resource_path '{new_resource_path}'");
+            let index_filenames = if let Some(website_settings) = &self.website_settings {
+                &website_settings.index_filenames
+            } else {
+                &Vec::from([String::from("index.html"), String::from("index.htm")])
+            };
+
+            if let Some(new_resources) = self.path_map.paths_to_files_map.get(&new_resource_path) {
+                println!("DEBUG looking for a default INDEX file, one of {index_filenames:?}",);
+                // Look for a default index file
+                for index_file in index_filenames {
+                    // TODO might it be necessary to return the name of the resource?
+                    match Self::lookup_name_in_vec(&index_file, &new_resources) {
+                        Some(xorname) => path_and_address = Some((index_file.clone(), xorname)),
+                        None => {}
+                    };
+                }
+            };
+        };
+
+        match path_and_address {
+            Some((path, address)) => {
+                let content_type = match mime_guess::from_path(path).first_raw() {
+                    Some(str) => Some(str.to_string()),
+                    None => None,
+                };
+                Ok((address, content_type))
+            }
+            None => {
+                println!("FAILED to find resource for path: '{original_resource_path}' in:");
+                println!("{:?}", self.path_map.paths_to_files_map);
+                Err(StatusCode::NOT_FOUND)
+            }
+        }
     }
 
     fn lookup_name_in_vec(
         name: &String,
-        resources_vec: &Vec<(String, XorName, std::time::SystemTime, u64, String)>,
-    ) -> Option<XorName> {
+        resources_vec: &Vec<(String, FileAddress, std::time::SystemTime, u64, String)>,
+    ) -> Option<FileAddress> {
         for (resource_name, xor_name, _modified, _size, _json_metadata) in resources_vec {
             if resource_name.eq(name) {
                 return Some(xor_name.clone());
@@ -260,7 +272,7 @@ impl FileTree {
     pub fn add_content_to_metadata(
         &mut self,
         resource_website_path: &String,
-        xor_name: XorName,
+        xor_name: FileAddress,
         file_metadata: Option<&std::fs::Metadata>,
     ) -> Result<()> {
         self.path_map
@@ -270,9 +282,8 @@ impl FileTree {
     /// Upload content metadata and return the address (ie of the data map)
     pub async fn put_files_metadata_to_network(
         &self,
-        client: Client,
-        wallet: &Wallet,
-    ) -> Result<XorName> {
+        client: AutonomiClient,
+    ) -> Result<FileAddress> {
         let serialised_metadata = rmp_serde::to_vec(self)?;
         if serialised_metadata.len() > MAX_CHUNK_SIZE {
             return Err(eyre!(
@@ -284,7 +295,8 @@ impl FileTree {
         bytes.put(serialised_metadata.as_slice());
 
         match client
-            .data_put_public(bytes.freeze(), PaymentOption::from(wallet))
+            .client
+            .data_put_public(bytes.freeze(), PaymentOption::from(client.wallet))
             .await
         {
             Ok(data_map) => Ok(data_map),
@@ -298,14 +310,14 @@ impl FileTree {
 }
 
 /// A map of paths to files used to access xor addresses of content
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct FileTreePathMap {
     // Maps of paths of directories and files to metadata.
     // File metadata tuple is (filename, data_address, date modified, size, extended metadata)
     // where extended metadata can be a JSON encoded String at some point
     // TODO consider if using a BTree or other collection would make serialization deterministic
     pub paths_to_files_map:
-        HashMap<String, Vec<(String, XorName, std::time::SystemTime, u64, String)>>,
+        HashMap<String, Vec<(String, FileAddress, std::time::SystemTime, u64, String)>>,
 }
 
 // TODO replace OS path separator with '/' when storing web paths
@@ -315,7 +327,7 @@ impl FileTreePathMap {
         FileTreePathMap {
             paths_to_files_map: HashMap::<
                 String,
-                Vec<(String, XorName, std::time::SystemTime, u64, String)>,
+                Vec<(String, FileAddress, std::time::SystemTime, u64, String)>,
             >::new(),
         }
     }
@@ -326,7 +338,7 @@ impl FileTreePathMap {
     pub fn add_content_to_metadata(
         &mut self,
         resource_website_path: &String,
-        xor_name: XorName,
+        xor_name: FileAddress,
         file_metadata: Option<&std::fs::Metadata>,
     ) -> Result<()> {
         // println!("DEBUG add_content_to_metadata() path '{resource_website_path}'");
@@ -396,26 +408,23 @@ pub fn osstr_to_string(file_name: &std::ffi::OsStr) -> Option<String> {
 }
 
 /// Helper which gets a website version and looks up a web resource.
-/// Returns the data address of the resource as XorName.
+/// Returns a tuple of the the resource address and content type string if known
 pub async fn lookup_resource_for_website_version(
+    client: &AutonomiClient,
     resource_path: &String,
     history_address: RegisterAddress,
     version: Option<u64>,
-    client: &Client,
-) -> Result<XorName, StatusCode> {
+) -> Result<(FileAddress, Option<String>), StatusCode> {
     println!("DEBUG lookup_resource_for_website_version() version {version:?}");
     println!("DEBUG history_address: {history_address}");
     println!("DEBUG resource_path    : {resource_path}");
 
-    match TroveHistory::<FileTree>::from_register_address(history_address, client, None).await {
+    match TroveHistory::<FileTree>::from_register_address(client.clone(), history_address, None)
+        .await
+    {
         Ok(mut history) => {
-            return FileTree::history_lookup_web_resource(
-                &mut history,
-                resource_path,
-                version,
-                client,
-            )
-            .await;
+            return FileTree::history_lookup_web_resource(&mut history, resource_path, version)
+                .await;
         }
         Err(e) => {
             println!("Failed to load versions register: {e:?}");

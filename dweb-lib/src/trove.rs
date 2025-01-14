@@ -30,6 +30,7 @@ use autonomi::client::Client;
 use autonomi::Wallet;
 
 use crate::autonomi::access::keys::get_register_signing_key;
+use crate::client::AutonomiClient;
 use crate::data::autonomi_get_file_public;
 
 const LARGEST_VERSION: u64 = 9007199254740991; // JavaScript Number.MAX_SAFE_INTEGER
@@ -45,18 +46,24 @@ const LARGEST_VERSION: u64 = 9007199254740991; // JavaScript Number.MAX_SAFE_INT
 /// - the dweb-cli supports viewing of versioned websites and directories using
 /// a standard web browser, including viewing every version published on Autonomi (similar
 /// to the Internet Archive).
-/// -  TroveHistory is a CRDT based ordered collection of stored Trove structs,
-/// amounting to a versioned history for any piece or set of data which
-/// implements  Trove trait.
+/// -  TroveHistory manages a sequence of versions of a struct implementing Trove,
+/// amounting to a versioned history for any struct impl Trove.
 pub trait Trove {
     fn trove_type() -> XorName;
 }
 
-/// A CRDT based ordered collection of Trove items of the same type. A
-/// TroveHistory provides a versioned history for a Trove, which might be
-/// a file, a collection of files such as a directory, or all the files
-/// and settings that make up a website and so on.
-pub struct TroveHistory<T: Trove + Serialize + DeserializeOwned> {
+/// A history of versions of a type implementing the Trove trait. This
+/// can be used to create and access versions of a file, a collection of
+/// files such as a directory, or all the files and settings that make up a website,
+/// and so on.
+/// TODO replace use of deprecated Register with new Autonomi types (Pointer + Transaction)
+/// TODO revise variable naming such as 'xor_address' to match dweb terminology:
+/// TODO    HISTORY-ADDRESS     - address of TroveHistory stored on Autonomi
+/// TODO    DIRECTORY-ADDRESS   - address of FileTree stored on Autonomi
+/// TODO    FILE-ADDRESS        - address of file/datamap stored on Autonomi
+pub struct TroveHistory<T: Trove + Serialize + DeserializeOwned + Clone> {
+    client: AutonomiClient,
+
     // For operations when no version is specified. Typically, None implies most recent
     default_version: Option<u64>,
     // Cached data for the selected version
@@ -70,49 +77,34 @@ pub struct TroveHistory<T: Trove + Serialize + DeserializeOwned> {
     phantom: std::marker::PhantomData<T>,
 }
 
-impl<T: Trove + Serialize + DeserializeOwned> TroveHistory<T> {
+impl<T: Trove + Serialize + DeserializeOwned + Clone> TroveHistory<T> {
     /// Gets an existing Register or creates a new register online
     /// The owner_secret is required when creating and for adding entries (publish/update)
-    pub async fn new(
-        client: &Client,
-        address: Option<RegisterAddress>,
-        owner_secret: Option<RegisterSecretKey>,
-        wallet: &Wallet,
-    ) -> Result<Self> {
-        let mut register_signing_key = owner_secret;
+    pub async fn new(client: AutonomiClient, address: Option<RegisterAddress>) -> Result<Self> {
+        let mut register_signing_key = None;
         let register = if let Some(addr) = address {
-            client.register_get(addr).await
+            client.client.register_get(addr).await
         } else {
-            let signing_key = if register_signing_key.is_some() {
-                register_signing_key.unwrap()
-            } else {
-                println!(
-                    "Register signing key was not provided so attempting to obtain from system"
-                );
-                match get_register_signing_key() {
-                    Ok(signing_key) => signing_key,
-                    Err(e) => {
-                        println!("Failed to get register signing key: {e}");
-                        return Err(e);
-                    }
+            let signing_key = match get_register_signing_key() {
+                Ok(signing_key) => signing_key,
+                Err(e) => {
+                    println!("Failed to get register signing key: {e}");
+                    return Err(e);
                 }
             };
+
             register_signing_key = Some(signing_key.clone());
-
-            // let secret_key =
-            //     get_secret_key_from_env().expect("SECRET_KEY environment variable not set");
-            // let secret_key = autonomi::client::registers::RegisterSecretKey::from_hex(&secret_key)
-            //     .expect("Failed to decode SECRET_KEY environment variable");
-
             let mut rng = rand::thread_rng();
             let name = format!("{:64x}", XorName::random(&mut rng));
             client
-                .register_create(None, name.as_str(), signing_key, wallet)
+                .client
+                .register_create(None, name.as_str(), signing_key.clone(), &client.wallet)
                 .await
         };
 
         if register.is_ok() {
             let mut history = TroveHistory {
+                client,
                 default_version: None,
                 cached_version: None,
                 register: register.unwrap(),
@@ -121,9 +113,7 @@ impl<T: Trove + Serialize + DeserializeOwned> TroveHistory<T> {
             };
 
             // Write the trove_type to the first entry
-            history
-                .add_xor_name(&client, &Self::trove_type(), &wallet)
-                .await?;
+            history.add_xor_name(&Self::trove_type()).await?;
             history.update_default_version();
             Ok(history)
         } else {
@@ -133,10 +123,12 @@ impl<T: Trove + Serialize + DeserializeOwned> TroveHistory<T> {
 
     /// The owner_secret is only required for publish/update using the returned TroveHistory (not access)
     pub fn from_client_register(
+        client: AutonomiClient,
         client_register: Register,
         owner_secret: Option<RegisterSecretKey>,
     ) -> TroveHistory<T> {
         let mut history = TroveHistory::<T> {
+            client,
             default_version: None,
             cached_version: None,
             register: client_register,
@@ -150,14 +142,14 @@ impl<T: Trove + Serialize + DeserializeOwned> TroveHistory<T> {
     /// Load a Register from the network and return wrapped in TroveHistory
     /// The owner_secret is only required for publish/update using the returned TroveHistory (not access)
     pub async fn from_register_address(
+        client: AutonomiClient,
         register_address: RegisterAddress,
-        client: &Client,
         owner_secret: Option<RegisterSecretKey>,
     ) -> Result<TroveHistory<T>> {
         // Check it exists to avoid accidental creation (and payment)
-        let result = client.register_get(register_address).await;
+        let result = client.client.register_get(register_address).await;
         let mut history = if result.is_ok() {
-            TroveHistory::<T>::from_client_register(result.unwrap(), owner_secret)
+            TroveHistory::<T>::from_client_register(client, result.unwrap(), owner_secret)
         } else {
             println!("DEBUG: from_register_address() error:");
             return Err(eyre!("register not found on network"));
@@ -215,10 +207,16 @@ impl<T: Trove + Serialize + DeserializeOwned> TroveHistory<T> {
         }
     }
 
-    /// Download a FileTree from the network
-    async fn trove_download(&mut self, client: &Client, data_address: XorName) -> Result<T> {
+    /// Download a `FileTree` from the network
+    async fn trove_download(&self, data_address: XorName) -> Result<T> {
+        return TroveHistory::<T>::raw_trove_download(&self.client, data_address).await;
+    }
+
+    /// Type-safe download directly from the network.
+    /// Useful if you already have the address and don't want to initialise a TroveHistory
+    pub async fn raw_trove_download(client: &AutonomiClient, data_address: XorName) -> Result<T> {
         println!("DEBUG file_tree_download() at {data_address:64x}");
-        match autonomi_get_file_public(data_address, client).await {
+        match autonomi_get_file_public(client, &data_address).await {
             Ok(content) => {
                 println!("Retrieved {} bytes", content.len());
                 let metadata: T = match rmp_serde::from_slice(&content) {
@@ -268,7 +266,7 @@ impl<T: Trove + Serialize + DeserializeOwned> TroveHistory<T> {
     }
 
     // Returns the version of the cached entry if present
-    pub fn get_cached_version(&self) -> Option<u64> {
+    pub fn get_cached_version_number(&self) -> Option<u64> {
         if let Some(site) = &self.cached_version {
             if site.metadata.is_some() {
                 return Some(site.version);
@@ -278,16 +276,16 @@ impl<T: Trove + Serialize + DeserializeOwned> TroveHistory<T> {
     }
 
     /// Adds an XorName to the register, merging any branches
-    pub async fn add_xor_name(
-        &mut self,
-        client: &Client,
-        xor_value: &XorName,
-        _wallet: &Wallet, // Include for when updates are charged for
-    ) -> Result<()> {
+    pub async fn add_xor_name(&mut self, xor_value: &XorName) -> Result<()> {
         let register_xor_address = self.register.address().to_hex();
         println!("Updating register    : {register_xor_address}");
         // The first register_get() has been added for testing (as reg_update() isn't always changing some registers)
-        match client.register_get(self.register.address().clone()).await {
+        match self
+            .client
+            .client
+            .register_get(self.register.address().clone())
+            .await
+        {
             Ok(register) => {
                 let owner_secret = if self.owner_secret.is_some() {
                     self.owner_secret.clone().unwrap()
@@ -306,7 +304,9 @@ impl<T: Trove + Serialize + DeserializeOwned> TroveHistory<T> {
                 // println!("      Register {merkle_reg:?}");
 
                 println!("Calling register_update() with value: {xor_value}");
-                match client
+                match self
+                    .client
+                    .client
                     .register_update(
                         self.register.clone(),
                         Bytes::from(xor_value.to_vec()),
@@ -323,7 +323,9 @@ impl<T: Trove + Serialize + DeserializeOwned> TroveHistory<T> {
                         // println!("      Register {merkle_reg:?}");
 
                         // It is necessary to get the register from the network to have it's entries accessible
-                        self.register = match client
+                        self.register = match self
+                            .client
+                            .client
                             .register_get(self.register.address().clone())
                             .await
                         {
@@ -368,13 +370,8 @@ impl<T: Trove + Serialize + DeserializeOwned> TroveHistory<T> {
     /// Publishes a new version pointing to the metadata provided
     /// which becomes the newly selected version
     /// Returns the selected version as a number
-    pub async fn publish_new_version(
-        &mut self,
-        client: &Client,
-        metadata_address: &XorName,
-        wallet: &Wallet,
-    ) -> Result<u64> {
-        self.add_xor_name(client, metadata_address, wallet).await?;
+    pub async fn publish_new_version(&mut self, metadata_address: &XorName) -> Result<u64> {
+        self.add_xor_name(metadata_address).await?;
         println!("metadata_address added to register: {metadata_address:64x}");
         let version = self.num_versions()?;
         self.cached_version = Some(TroveVersion::<T>::new(
@@ -393,11 +390,7 @@ impl<T: Trove + Serialize + DeserializeOwned> TroveHistory<T> {
     /// If it fails, the selected version will be unchanged and any cached data retained.
     // Version 0 is hidden (and used to id WebsiteMetadata) but can be accessed by
     // specifying a version of LARGEST_VERSION
-    async fn fetch_version_metadata(
-        &mut self,
-        client: &Client,
-        version: Option<u64>,
-    ) -> Result<u64> {
+    pub async fn fetch_version_metadata(&mut self, version: Option<u64>) -> Option<T> {
         println!(
             "DEBUG fetch_version_metadata() self.cached_version.is_some(): {}",
             self.cached_version.is_some()
@@ -413,7 +406,7 @@ impl<T: Trove + Serialize + DeserializeOwned> TroveHistory<T> {
                 version = self.default_version.unwrap()
             } else {
                 println!("No default_version available to select");
-                return Err(eyre!("No default_version available to select"));
+                return None;
             }
         };
 
@@ -427,29 +420,102 @@ impl<T: Trove + Serialize + DeserializeOwned> TroveHistory<T> {
         // Return if already cached
         if let Some(site) = &self.cached_version {
             if site.version == version && site.metadata.is_some() {
-                return Ok(version);
+                return site.metadata.clone();
             }
         }
 
         let data_address = match self.get_metadata_address_from_register(version).await {
             Ok(data_address) => data_address,
             Err(e) => {
-                println!("select_version() failed to get version {version} from register");
-                return Err(eyre!(e));
+                println!("select_version() failed to get version {version} from register:\n{e}");
+                return None;
             }
         };
 
-        let metadata: Option<T> = match self.trove_download(client, data_address).await {
+        let metadata: Option<T> = match self.trove_download(data_address).await {
             Ok(metadata) => Some(metadata),
             Err(e) => {
-                println!("select_version() failed to get website metadata from network: {e}");
+                println!("select_version() failed to get website metadata from network:\n{e}");
                 None
             }
         };
 
-        self.cached_version = Some(TroveVersion::new(version, data_address, metadata));
-        Ok(version)
+        self.cached_version = Some(TroveVersion::new(version, data_address, metadata.clone()));
+        metadata
     }
+
+    /// Get a copy of the cached TroveVersion<T>
+    pub fn get_cached_version(&self) -> Option<TroveVersion<T>> {
+        if let Some(cached_version) = &self.cached_version {
+            Some(cached_version.clone())
+        } else {
+            None
+        }
+    }
+
+    // OLD VERSION
+    // pub async fn fetch_version_metadata(&mut self, version: Option<u64>) -> Result<u64> {
+    //     println!(
+    //         "DEBUG fetch_version_metadata() self.cached_version.is_some(): {}",
+    //         self.cached_version.is_some()
+    //     );
+    //     let mut version = if version.is_some() {
+    //         version.unwrap()
+    //     } else {
+    //         0
+    //     };
+
+    //     if version == 0 {
+    //         if self.default_version.is_some() {
+    //             version = self.default_version.unwrap()
+    //         } else {
+    //             println!("No default_version available to select");
+    //             return Err(eyre!("No default_version available to select"));
+    //         }
+    //     };
+
+    //     // Allow access to the zeroth version
+    //     let version = if version == LARGEST_VERSION {
+    //         0
+    //     } else {
+    //         version
+    //     };
+
+    //     // Return if already cached
+    //     if let Some(site) = &self.cached_version {
+    //         if site.version == version && site.metadata.is_some() {
+    //             return Ok(version);
+    //         }
+    //     }
+
+    //     let data_address = match self.get_metadata_address_from_register(version).await {
+    //         Ok(data_address) => data_address,
+    //         Err(e) => {
+    //             println!("select_version() failed to get version {version} from register");
+    //             return Err(eyre!(e));
+    //         }
+    //     };
+
+    //     let metadata: Option<T> = match self.trove_download(data_address).await {
+    //         Ok(metadata) => Some(metadata),
+    //         Err(e) => {
+    //             println!("select_version() failed to get website metadata from network: {e}");
+    //             None
+    //         }
+    //     };
+
+    //     self.cached_version = Some(TroveVersion::new(version, data_address, metadata));
+    //     Ok(version)
+    // }
+
+    // // Get a copy of the cached TroveVersion<T>
+    // pub fn get_cached_version(&self) -> Option<TroveVersion<T>> {
+    //     if let Some(cached_version) = &self.cached_version {
+    //         Some(cached_version.clone())
+    //     } else {
+    //         None
+    //     }
+    // }
 
     // Operations which will be applied to the currently selected version
     pub async fn get_metadata_address_from_register(&self, version: u64) -> Result<XorName> {
@@ -466,20 +532,32 @@ impl<T: Trove + Serialize + DeserializeOwned> TroveHistory<T> {
 }
 
 /// The state of a Trove struct at a given version  with optional cache of its data
-struct TroveVersion<ST: Trove + Serialize + DeserializeOwned> {
+#[derive(Clone)]
+pub struct TroveVersion<ST: Trove + Serialize + DeserializeOwned + Clone> {
     // Version of Some(metadata) with address metadata_address
-    version: u64,
+    pub version: u64,
 
     metadata_address: XorName,
     metadata: Option<ST>,
 }
 
-impl<ST: Trove + Serialize + DeserializeOwned> TroveVersion<ST> {
+impl<ST: Trove + Serialize + DeserializeOwned + Clone> TroveVersion<ST> {
     pub fn new(version: u64, metadata_address: XorName, metadata: Option<ST>) -> TroveVersion<ST> {
         TroveVersion {
             version,
             metadata_address: metadata_address,
             metadata,
+        }
+    }
+
+    pub fn metadata_address(&self) -> XorName {
+        self.metadata_address
+    }
+
+    pub fn metadata(&self) -> Option<ST> {
+        match &self.metadata {
+            Some(metadata) => Some(metadata.clone()),
+            None => None,
         }
     }
 }

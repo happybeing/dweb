@@ -21,11 +21,10 @@ use xor_name::XorName;
 
 use ant_registers::RegisterAddress;
 use autonomi::client::files::archive_public::PublicArchive;
-use autonomi::client::Client;
-use autonomi::Wallet;
 
 use crate::autonomi::access::keys::get_register_signing_key;
 use crate::autonomi::wallet::load_wallet;
+use crate::client::AutonomiClient;
 use crate::trove::file_tree::{osstr_to_string, FileTree, JsonSettings, WebsiteSettings};
 use crate::trove::TroveHistory;
 
@@ -35,11 +34,10 @@ use crate::trove::TroveHistory;
 /// website_config is an optional configuration if publishing a website (TODO)
 /// Returns the address of the history for updates (newly created if not supplied)
 pub async fn publish_or_update_files(
+    client: &AutonomiClient,
     files_root: &PathBuf,
     history_address: Option<RegisterAddress>,
     website_config: Option<PathBuf>,
-    client: &Client,
-    wallet: &Wallet,
 ) -> Result<(RegisterAddress, u64)> {
     println!("DEBUG publish_or_update_files()...");
     check_path_for_upload(&files_root)?;
@@ -56,7 +54,7 @@ pub async fn publish_or_update_files(
     }
 
     println!("Uploading files to network...");
-    let files_address = publish_files(&files_root, &website_config, &client, &wallet)
+    let files_address = publish_files(&client, &files_root, &website_config)
         .await
         .inspect_err(|e| println!("{}", e))?;
 
@@ -75,28 +73,19 @@ pub async fn publish_or_update_files(
         println!("Uploading update to network...");
         let owner_secret = get_register_signing_key().inspect_err(|e| println!("{}", e))?;
 
-        let files_address = publish_files(&files_root, &website_config, &client, &wallet).await?;
+        let files_address = publish_files(&client, files_root, &website_config).await?;
 
         println!("Updating versions history {}", history_address.to_hex());
-        files_history = match TroveHistory::<FileTree>::new(
-            &client,
-            Some(history_address),
-            Some(owner_secret),
-            &wallet,
-        )
-        .await
-        {
-            Ok(files_history) => files_history,
-            Err(e) => {
-                println!("Failed to access versions. {}", e.root_cause());
-                return Err(e);
-            }
-        };
+        files_history =
+            match TroveHistory::<FileTree>::new(client.clone(), Some(history_address)).await {
+                Ok(files_history) => files_history,
+                Err(e) => {
+                    println!("Failed to access versions. {}", e.root_cause());
+                    return Err(e);
+                }
+            };
 
-        match files_history
-            .publish_new_version(&client, &files_address, &wallet)
-            .await
-        {
+        match files_history.publish_new_version(&files_address).await {
             Ok(version) => (files_history.register_address(), version),
             Err(e) => {
                 let message = format!("Failed to update version: {e:?}");
@@ -109,13 +98,10 @@ pub async fn publish_or_update_files(
         println!("Creating versions history, please wait...");
         let owner_secret = get_register_signing_key().inspect_err(|e| println!("{}", e))?;
         println!("got wallet... calling TroveHistory<FileTree>::new_register()");
-        files_history = TroveHistory::<FileTree>::new(&client, None, Some(owner_secret), &wallet)
+        files_history = TroveHistory::<FileTree>::new(client.clone(), None)
             .await
             .inspect_err(|e| println!("{}", e))?;
-        match files_history
-            .publish_new_version(&client, &files_address, &wallet)
-            .await
-        {
+        match files_history.publish_new_version(&files_address).await {
             Ok(version) => (files_history.register_address(), version),
             Err(e) => {
                 println!("Failed to publish new version: {}", e.root_cause());
@@ -167,10 +153,9 @@ pub fn report_content_published_or_updated(
 /// Upload a directory of content and related metadata to Autonomi
 /// Returns address of the uploaded metadata, needed to access the content
 pub async fn publish_files(
+    client: &AutonomiClient,
     files_root: &PathBuf,
     website_config: &Option<PathBuf>,
-    client: &Client,
-    wallet: &Wallet,
 ) -> Result<XorName> {
     let website_config = if let Some(website_config) = website_config {
         match JsonSettings::load_json_file(&website_config) {
@@ -193,7 +178,7 @@ pub async fn publish_files(
 
     match publish_content(client, files_root).await {
         Ok(archive) => {
-            match publish_metadata(client, files_root, &archive, website_settings, wallet).await {
+            match publish_metadata(client, files_root, &archive, website_settings).await {
                 Ok(files_metadata) => Ok(files_metadata),
                 Err(e) => Err(eyre!(
                     "Failed to store metadata for files: {}",
@@ -207,7 +192,10 @@ pub async fn publish_files(
 
 /// Upload the tree of files at files_root
 /// Return the autonomi PublicArchive if all files are uploaded
-pub async fn publish_content(client: &Client, files_root: &PathBuf) -> Result<PublicArchive> {
+pub async fn publish_content(
+    client: &AutonomiClient,
+    files_root: &PathBuf,
+) -> Result<PublicArchive> {
     if !files_root.is_dir() {
         return Err(eyre!("Path to files must be a directory: {files_root:?}"));
     }
@@ -222,7 +210,11 @@ pub async fn publish_content(client: &Client, files_root: &PathBuf) -> Result<Pu
 
     let wallet = load_wallet()?;
     println!("Uploading files from: {files_root:?}");
-    let archive = match client.dir_upload_public(files_root.clone(), &wallet).await {
+    let archive = match client
+        .client
+        .dir_upload_public(files_root.clone(), &wallet)
+        .await
+    {
         Ok(archive) => archive,
         Err(e) => return Err(eyre!("Failed to upload directory tree: {e}")),
     };
@@ -244,11 +236,10 @@ pub async fn publish_content(client: &Client, files_root: &PathBuf) -> Result<Pu
 /// Assumes paths are canonical
 /// Returns the xor address of the metadata stored
 pub async fn publish_metadata(
-    client: &Client,
+    client: &AutonomiClient,
     files_root: &PathBuf,
     files_uploaded: &PublicArchive,
     website_settings: WebsiteSettings,
-    wallet: &Wallet,
 ) -> Result<XorName> {
     let mut metadata = FileTree::new(Some(website_settings));
 
@@ -288,7 +279,7 @@ pub async fn publish_metadata(
         }
 
         let xor_name = metadata
-            .put_files_metadata_to_network(client.clone(), &wallet)
+            .put_files_metadata_to_network(client.clone())
             .await?;
         println!("FILES METADATA UPLOADED:\nawm://{xor_name:64x}");
 

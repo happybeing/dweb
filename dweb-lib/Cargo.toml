@@ -76,6 +76,9 @@ hex = "0.4.3"
 rpassword = "7.3.1"
 thiserror = "2.0.0"
 evmlib = "0.1.6"
+actix-web = "4.9.0"
+mime_guess = "2.0.5"
+schnellru = "0.2.4"
 
 [features]
 default = ["skip-network-compatibility-check"]

@@ -72,7 +72,7 @@ pub static HISTORY_NAMES: LazyLock<Mutex<LruMap<String, HistoryAddress>>> = Lazy
 pub struct DirectoryVersion {
     /// The 'v[VERSION].SHORTNAME.www-dweb.au' part of a dweb URL (see dweb::web::name)
     web_name_string: String,
-    /// Address of a TroveHistory<trove::DirectoryTree> on Autonomi (saves lookup based on SHORTNAME.www-dweb.au)
+    /// Address of a History<trove::DirectoryTree> on Autonomi (saves lookup based on SHORTNAME.www-dweb.au)
     pub history_address: HistoryAddress,
     /// A version of 0 implies use most recent version (highest available)
     version: Option<u64>,

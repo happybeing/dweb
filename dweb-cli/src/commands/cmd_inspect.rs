@@ -25,7 +25,7 @@ use autonomi::client::registers::Register;
 
 use dweb::client::AutonomiClient;
 use dweb::helpers::{convert::xorname_from_entry, node_entries_as_vec};
-use dweb::trove::file_tree::FileTree;
+use dweb::trove::directory_tree::DirectoryTree;
 
 use crate::cli_options::{EntriesRange, FilesArgs};
 use crate::connect::connect_to_network;
@@ -309,7 +309,7 @@ async fn do_print_entries(
         let xor_name = xorname_from_entry(&entries_vec[index]);
         if include_files {
             println!("entry {index} - fetching metadata at {xor_name:64x}");
-            match FileTree::file_tree_download(client, xor_name).await {
+            match DirectoryTree::directory_tree_download(client, xor_name).await {
                 Ok(metadata) => {
                     let _ = do_print_files(&metadata, &files_args);
                 }
@@ -326,7 +326,7 @@ async fn do_print_entries(
     Ok(())
 }
 
-fn do_print_files(metadata: &FileTree, files_args: &FilesArgs) -> Result<()> {
+fn do_print_files(metadata: &DirectoryTree, files_args: &FilesArgs) -> Result<()> {
     let metadata_stats = if files_args.print_metadata_summary
         || files_args.print_counts
         || files_args.print_total_bytes
@@ -367,7 +367,7 @@ fn do_print_files(metadata: &FileTree, files_args: &FilesArgs) -> Result<()> {
     Ok(())
 }
 
-fn metadata_stats(metadata: &FileTree) -> Result<(usize, u64)> {
+fn metadata_stats(metadata: &DirectoryTree) -> Result<(usize, u64)> {
     let mut files_count: usize = 0;
     let mut total_bytes: u64 = 0;
 
@@ -382,14 +382,14 @@ fn metadata_stats(metadata: &FileTree) -> Result<(usize, u64)> {
     Ok((files_count, total_bytes))
 }
 
-fn do_print_metadata_summary(metadata: &FileTree, metadata_stats: (usize, u64)) -> Result<()> {
+fn do_print_metadata_summary(metadata: &DirectoryTree, metadata_stats: (usize, u64)) -> Result<()> {
     println!("published  : {}", metadata.date_published);
     let _ = do_print_counts(metadata, metadata_stats.0);
     let _ = do_print_total_bytes(metadata_stats.1);
     Ok(())
 }
 
-fn do_print_counts(metadata: &FileTree, count_files: usize) -> Result<()> {
+fn do_print_counts(metadata: &DirectoryTree, count_files: usize) -> Result<()> {
     println!(
         "directories: {}",
         metadata.path_map.paths_to_files_map.len()
@@ -414,7 +414,7 @@ pub async fn handle_inspect_files(metadata_address: XorName, files_args: FilesAr
         .expect("Failed to connect to Autonomi Network");
 
     println!("fetching metadata at {metadata_address:64x}");
-    match FileTree::file_tree_download(&client, metadata_address).await {
+    match DirectoryTree::directory_tree_download(&client, metadata_address).await {
         Ok(metadata) => {
             let _ = do_print_files(&metadata, &files_args);
         }

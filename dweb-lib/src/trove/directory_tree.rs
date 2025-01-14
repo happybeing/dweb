@@ -33,7 +33,7 @@ use self_encryption::MAX_CHUNK_SIZE;
 
 use crate::client::AutonomiClient;
 use crate::data::autonomi_get_file_public;
-use crate::trove::{Trove, TroveHistory};
+use crate::trove::{Trove, History};
 
 // The Trove type for a DirectoryTree
 const FILE_TREE_TYPE: &str = "ee383f084cffaab845617b1c43ffaee8b5c17e8fbbb3ad3d379c96b5b844f24e";
@@ -154,12 +154,12 @@ impl DirectoryTree {
         }
     }
 
-    /// Looks up the web resource in a version of a TroveHistory
+    /// Looks up the web resource in a version of a History
     /// First gets a DirectoryTree version, using cached data if held by the history
     /// If version is None attempts obtain the default (most recent version)
     /// Returns a tuple with the address of the resource and optional content type if it can be determined
     pub async fn history_lookup_web_resource(
-        history: &mut TroveHistory<DirectoryTree>,
+        history: &mut History<DirectoryTree>,
         resource_path: &String,
         version: Option<u64>,
     ) -> Result<(FileAddress, Option<String>), StatusCode> {
@@ -419,7 +419,7 @@ pub async fn lookup_resource_for_website_version(
     println!("DEBUG history_address: {history_address}");
     println!("DEBUG resource_path    : {resource_path}");
 
-    match TroveHistory::<DirectoryTree>::from_register_address(client.clone(), history_address, None)
+    match History::<DirectoryTree>::from_register_address(client.clone(), history_address, None)
         .await
     {
         Ok(mut history) => {

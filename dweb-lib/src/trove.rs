@@ -36,7 +36,7 @@ use crate::data::autonomi_get_file_public;
 const LARGEST_VERSION: u64 = 9007199254740991; // JavaScript Number.MAX_SAFE_INTEGER
 
 /// The Trove trait enables any serializable struct to be saved in Autonomi
-/// decentralised storage using a TroveHistory<T> for your struct. The TroveHistory then
+/// decentralised storage using a History<T> for your struct. The History then
 /// gives access to every version of the struct that has ever been stored on Autonomi.
 ///
 /// For example, using the built-in dweb::trove::DirectoryTree struct you can store and access
@@ -46,7 +46,7 @@ const LARGEST_VERSION: u64 = 9007199254740991; // JavaScript Number.MAX_SAFE_INT
 /// - the dweb-cli supports viewing of versioned websites and directories using
 /// a standard web browser, including viewing every version published on Autonomi (similar
 /// to the Internet Archive).
-/// -  TroveHistory manages a sequence of versions of a struct implementing Trove,
+/// -  History manages a sequence of versions of a struct implementing Trove,
 /// amounting to a versioned history for any struct impl Trove.
 pub trait Trove {
     fn trove_type() -> XorName;
@@ -58,10 +58,10 @@ pub trait Trove {
 /// and so on.
 /// TODO replace use of deprecated Register with new Autonomi types (Pointer + Transaction)
 /// TODO revise variable naming such as 'xor_address' to match dweb terminology:
-/// TODO    HISTORY-ADDRESS     - address of TroveHistory stored on Autonomi
+/// TODO    HISTORY-ADDRESS     - address of History stored on Autonomi
 /// TODO    DIRECTORY-ADDRESS   - address of DirectoryTree stored on Autonomi
 /// TODO    FILE-ADDRESS        - address of file/datamap stored on Autonomi
-pub struct TroveHistory<T: Trove + Serialize + DeserializeOwned + Clone> {
+pub struct History<T: Trove + Serialize + DeserializeOwned + Clone> {
     client: AutonomiClient,
 
     // For operations when no version is specified. Typically, None implies most recent
@@ -77,7 +77,7 @@ pub struct TroveHistory<T: Trove + Serialize + DeserializeOwned + Clone> {
     phantom: std::marker::PhantomData<T>,
 }
 
-impl<T: Trove + Serialize + DeserializeOwned + Clone> TroveHistory<T> {
+impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
     /// Gets an existing Register or creates a new register online
     /// The owner_secret is required when creating and for adding entries (publish/update)
     pub async fn new(client: AutonomiClient, address: Option<RegisterAddress>) -> Result<Self> {
@@ -103,7 +103,7 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> TroveHistory<T> {
         };
 
         if register.is_ok() {
-            let mut history = TroveHistory {
+            let mut history = History {
                 client,
                 default_version: None,
                 cached_version: None,
@@ -121,13 +121,13 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> TroveHistory<T> {
         }
     }
 
-    /// The owner_secret is only required for publish/update using the returned TroveHistory (not access)
+    /// The owner_secret is only required for publish/update using the returned History (not access)
     pub fn from_client_register(
         client: AutonomiClient,
         client_register: Register,
         owner_secret: Option<RegisterSecretKey>,
-    ) -> TroveHistory<T> {
-        let mut history = TroveHistory::<T> {
+    ) -> History<T> {
+        let mut history = History::<T> {
             client,
             default_version: None,
             cached_version: None,
@@ -139,17 +139,17 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> TroveHistory<T> {
         history
     }
 
-    /// Load a Register from the network and return wrapped in TroveHistory
-    /// The owner_secret is only required for publish/update using the returned TroveHistory (not access)
+    /// Load a Register from the network and return wrapped in History
+    /// The owner_secret is only required for publish/update using the returned History (not access)
     pub async fn from_register_address(
         client: AutonomiClient,
         register_address: RegisterAddress,
         owner_secret: Option<RegisterSecretKey>,
-    ) -> Result<TroveHistory<T>> {
+    ) -> Result<History<T>> {
         // Check it exists to avoid accidental creation (and payment)
         let result = client.client.register_get(register_address).await;
         let mut history = if result.is_ok() {
-            TroveHistory::<T>::from_client_register(client, result.unwrap(), owner_secret)
+            History::<T>::from_client_register(client, result.unwrap(), owner_secret)
         } else {
             println!("DEBUG: from_register_address() error:");
             return Err(eyre!("register not found on network"));
@@ -162,7 +162,7 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> TroveHistory<T> {
         match self.owner_secret.clone() {
             Some(owner_secret) => Ok(owner_secret),
             None => Err(eyre!(
-                "ERROR: TroveHistory can't update register without ::owner_secret"
+                "ERROR: History can't update register without ::owner_secret"
             )),
         }
     }
@@ -209,11 +209,11 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> TroveHistory<T> {
 
     /// Download a `DirectoryTree` from the network
     async fn trove_download(&self, data_address: XorName) -> Result<T> {
-        return TroveHistory::<T>::raw_trove_download(&self.client, data_address).await;
+        return History::<T>::raw_trove_download(&self.client, data_address).await;
     }
 
     /// Type-safe download directly from the network.
-    /// Useful if you already have the address and don't want to initialise a TroveHistory
+    /// Useful if you already have the address and don't want to initialise a History
     pub async fn raw_trove_download(client: &AutonomiClient, data_address: XorName) -> Result<T> {
         println!("DEBUG directory_tree_download() at {data_address:64x}");
         match autonomi_get_file_public(client, &data_address).await {

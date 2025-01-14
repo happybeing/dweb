@@ -26,7 +26,7 @@ use crate::autonomi::access::keys::get_register_signing_key;
 use crate::autonomi::wallet::load_wallet;
 use crate::client::AutonomiClient;
 use crate::trove::directory_tree::{osstr_to_string, DirectoryTree, JsonSettings, WebsiteSettings};
-use crate::trove::TroveHistory;
+use crate::trove::History;
 
 /// If the tree contains a website, 'server style' configuration can be provided
 /// files_root is the path to a the directory tree to upload
@@ -67,7 +67,7 @@ pub async fn publish_or_update_files(
     //     )?
     // };
 
-    let mut files_history: TroveHistory<DirectoryTree>;
+    let mut files_history: History<DirectoryTree>;
     let (history_address, version) = if let Some(history_address) = history_address {
         // Update existing file tree
         println!("Uploading update to network...");
@@ -77,7 +77,7 @@ pub async fn publish_or_update_files(
 
         println!("Updating versions history {}", history_address.to_hex());
         files_history =
-            match TroveHistory::<DirectoryTree>::new(client.clone(), Some(history_address)).await {
+            match History::<DirectoryTree>::new(client.clone(), Some(history_address)).await {
                 Ok(files_history) => files_history,
                 Err(e) => {
                     println!("Failed to access versions. {}", e.root_cause());
@@ -97,8 +97,8 @@ pub async fn publish_or_update_files(
         // Publish new website
         println!("Creating versions history, please wait...");
         let owner_secret = get_register_signing_key().inspect_err(|e| println!("{}", e))?;
-        println!("got wallet... calling TroveHistory<DirectoryTree>::new_register()");
-        files_history = TroveHistory::<DirectoryTree>::new(client.clone(), None)
+        println!("got wallet... calling History<DirectoryTree>::new_register()");
+        files_history = History::<DirectoryTree>::new(client.clone(), None)
             .await
             .inspect_err(|e| println!("{}", e))?;
         match files_history.publish_new_version(&files_address).await {

@@ -31,7 +31,7 @@ use ant_registers::RegisterAddress as HistoryAddress;
 use crate::cache::directory_version::{DirectoryVersion, DIRECTORY_VERSIONS, HISTORY_NAMES};
 use crate::client::AutonomiClient;
 use crate::trove::directory_tree::DirectoryTree;
-use crate::trove::TroveHistory;
+use crate::trove::History;
 use crate::web::name::decode_web_name;
 use crate::web::name::WebName;
 
@@ -156,15 +156,11 @@ pub async fn fetch_website_version(
     // At this point we have at least a history address
     if directory_address.is_some() {
         let directory_address = directory_address.unwrap();
-        let directory_tree = match TroveHistory::<DirectoryTree>::raw_trove_download(
-            client,
-            directory_address,
-        )
-        .await
-        {
-            Ok(directory_tree) => directory_tree,
-            Err(e) => return Err(eyre!("Failed to download directory from network: {e}")),
-        };
+        let directory_tree =
+            match History::<DirectoryTree>::raw_trove_download(client, directory_address).await {
+                Ok(directory_tree) => directory_tree,
+                Err(e) => return Err(eyre!("Failed to download directory from network: {e}")),
+            };
         return update_cached_directory_version(
             &web_name,
             history_address,
@@ -173,7 +169,7 @@ pub async fn fetch_website_version(
         );
     } else {
         let mut history =
-            match TroveHistory::<DirectoryTree>::new(client.clone(), Some(history_address)).await {
+            match History::<DirectoryTree>::new(client.clone(), Some(history_address)).await {
                 Ok(history) => history,
                 Err(e) => {
                     return Err(eyre!(

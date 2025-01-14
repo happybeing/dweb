@@ -15,7 +15,8 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-// First register entry (version 0) to identify as WebsiteVersions register
+// First register entry (version 0) to identify as DirectoryVersions register
 //
 // DO NOT CHANGE THIS COMMENT OR THE AUTOMATICALLY GENERATED LINES WHICH FOLLOW.
-pub const AWV_REG_TYPE_PUBLIC: &str = "5ebbbc4f061702c875b6cacb76e537eb482713c458b9d83c2f1e86ea9e0d0d0f";
+pub const AWV_REG_TYPE_PUBLIC: &str =
+    "5ebbbc4f061702c875b6cacb76e537eb482713c458b9d83c2f1e86ea9e0d0d0f";

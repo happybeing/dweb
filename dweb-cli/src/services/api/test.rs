@@ -22,7 +22,7 @@ use actix_web::{
 };
 
 pub fn init_service(host: &str) -> impl HttpServiceFactory {
-    actix_web::web::scope("/test") // Need a guard for "api-dweb.au"
+    actix_web::web::scope("/test") // TODO modify this and the get to accept /{api}/{version}/{operation} etc (see www::init_service())
         .service(api_test)
         .guard(guard::Host(host))
 }
@@ -32,6 +32,7 @@ pub fn init_service(host: &str) -> impl HttpServiceFactory {
 
 #[get("/some/{operation}")]
 pub async fn api_test(operation: web::Path<String>) -> impl Responder {
+    println!("api_test()...");
     // pub async fn api_test1() -> impl Responder {
     let body = format!("api_test() Hello, I'm api.dweb.ant/test\nThe operation is '{operation}'");
     // let body = format!("api_test1() BINGO!");

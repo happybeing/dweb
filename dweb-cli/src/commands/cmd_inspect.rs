@@ -14,8 +14,6 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-use std::collections::HashMap;
-
 use chrono::offset::Utc;
 use chrono::DateTime;
 use color_eyre::{eyre::eyre, Result};
@@ -24,8 +22,8 @@ use xor_name::XorName;
 
 use ant_registers::{Entry, RegisterAddress};
 use autonomi::client::registers::Register;
-use autonomi::client::Client;
 
+use dweb::client::AutonomiClient;
 use dweb::helpers::{convert::xorname_from_entry, node_entries_as_vec};
 use dweb::trove::file_tree::FileTree;
 
@@ -48,11 +46,11 @@ pub async fn handle_inspect_register(
     include_files: bool,
     files_args: FilesArgs,
 ) -> Result<()> {
-    let client = connect_to_network()
+    let client = dweb::client::AutonomiClient::initialise_and_connect(None)
         .await
         .expect("Failed to connect to Autonomi Network");
 
-    let result = client.register_get(register_address).await;
+    let result = client.client.register_get(register_address).await;
     let register = if result.is_ok() {
         result.unwrap()
     } else {
@@ -275,7 +273,7 @@ fn do_print_size(size: usize) -> Result<()> {
 // }
 
 async fn do_print_entries(
-    client: &Client,
+    client: &AutonomiClient,
     entries_range: &EntriesRange,
     entries_vec: Vec<Entry>,
     include_files: bool,
@@ -311,7 +309,7 @@ async fn do_print_entries(
         let xor_name = xorname_from_entry(&entries_vec[index]);
         if include_files {
             println!("entry {index} - fetching metadata at {xor_name:64x}");
-            match FileTree::file_tree_download(xor_name, &client).await {
+            match FileTree::file_tree_download(client, xor_name).await {
                 Ok(metadata) => {
                     let _ = do_print_files(&metadata, &files_args);
                 }
@@ -411,12 +409,12 @@ fn do_print_total_bytes(total_bytes: u64) -> Result<()> {
 ///
 /// TODO extend treatment to handle register with branches etc (post stabilisation of the Autonomi API)
 pub async fn handle_inspect_files(metadata_address: XorName, files_args: FilesArgs) -> Result<()> {
-    let files_api = connect_to_network()
+    let client = dweb::client::AutonomiClient::initialise_and_connect(None)
         .await
         .expect("Failed to connect to Autonomi Network");
 
     println!("fetching metadata at {metadata_address:64x}");
-    match FileTree::file_tree_download(metadata_address, &files_api).await {
+    match FileTree::file_tree_download(&client, metadata_address).await {
         Ok(metadata) => {
             let _ = do_print_files(&metadata, &files_args);
         }

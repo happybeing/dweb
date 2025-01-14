@@ -21,7 +21,7 @@ use actix_web::{
 };
 
 pub fn init_service(host: &str) -> impl HttpServiceFactory {
-    actix_web::web::scope("/test") // Need a guard for "api-dweb.au"
+    actix_web::web::scope("/test") // TODO modify this and the get to accept /appname (see www::init_service())
         .service(test_app)
         .guard(guard::Host(host))
 }
@@ -30,6 +30,7 @@ pub fn init_service(host: &str) -> impl HttpServiceFactory {
 /// Test with url: http://app-dweb.au:8080/test/
 #[get("/")]
 pub async fn test_app() -> impl Responder {
+    println!("test_app()...");
     let script = String::from(
         "
         console.log('test_app() script...');

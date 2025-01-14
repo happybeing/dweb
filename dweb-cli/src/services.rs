@@ -17,6 +17,7 @@
 
 mod api;
 mod app;
+mod www;
 
 // use color_eyre::Result;
 use std::io;
@@ -32,13 +33,24 @@ use crate::cli_options::Opt;
 
 const CONNECTION_TIMEOUT: u64 = 75;
 
+const DWEB_SERVICE_WWW: &str = "www-dweb.au";
+const DWEB_SERVICE_API: &str = "api-dweb.au";
+const DWEB_SERVICE_APP: &str = "app-dweb.au";
+
 pub async fn serve(host: String, port: u16) -> io::Result<()> {
     println!("dweb serve listening on {host}:{port}");
     HttpServer::new(|| {
         App::new()
-            // Test routes for api-dweb.au, app-dweb.au etc
-            .service(api::test::init_service("api-dweb.au"))
-            .service(app::test::init_service("app-dweb.au"))
+            // <SERVICE>-dweb.au routes
+            // TODO add routes for SERVICE: solid, rclone etc.
+            .service(api::test::init_service(DWEB_SERVICE_API))
+            .service(app::test::init_service(DWEB_SERVICE_APP))
+            //
+            // <DIRECTORY-ADDRESS>|[vN].<HISTORY-ADDRESS>.www-dweb.au services must be
+            // after above routes or will consume them too!
+            .service(www::test::init_service())
+            .service(www::www::init_service())
+            //
             // TODO: (eventually!) remove these basic test routes
             .service(hello)
             .service(echo)
@@ -104,7 +116,7 @@ pub fn request_as_html(request: &HttpRequest) -> String {
     }
 
     format!(
-        "<!DOCTYPE html><head></head><body>
+        "
         <table rules='all' style='border: solid;'>
            <tr><td></td><td></td></tr>
         <tr><td><b>HttpRequest:</b></td><td></td></tr>
@@ -116,7 +128,7 @@ pub fn request_as_html(request: &HttpRequest) -> String {
         <tr><td>peer_addr</td><td>{:?}</td></tr>
         {headers}
         </table>
-        <body>",
+        ",
         request.full_url(),
         request.uri(),
         request.method(),

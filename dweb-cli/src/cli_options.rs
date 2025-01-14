@@ -291,7 +291,7 @@ pub enum Subcommands {
     #[allow(non_camel_case_types)]
     Inspect_files {
         /// The Autonomi network address of some awe metadata. Can be prefixed with awm://
-        #[clap(value_name = "FILES-METADATA-ADDRESS", value_parser = awe_str_to_xor_name)]
+        #[clap(value_name = "DIRECTORY-ADDRESS", value_parser = awe_str_to_xor_name)]
         files_metadata_address: XorName,
 
         #[command(flatten)]

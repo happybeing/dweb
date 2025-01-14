@@ -10,7 +10,7 @@ This project contains **dweb** (a command line application) and **dweb-lib** (a 
 ## Status
 This project is a work-in-progress that will move relatively quickly to begin with because the core functionality already exists in a demonstration which you can try out now:
 
-- **awe** is a demo of both publishing, viewing websites an files on Autonomi which runs on Linux and Mac ([visit the awe repo](https://github.com/happybeing/awe)).
+- **awe** is a demo of both publishing, viewing websites and files on Autonomi which runs on Linux and Mac ([visit the awe repo](https://github.com/happybeing/awe)).
 
 **awe** has been used to publish and view static HTML websites created using standard web tooling, live on Autonomi peer-to-peer storage. Even WordPress like blogs can be published as demonstrated using Publii ([visit getpublii.com](https://getpublii.com/)).
 

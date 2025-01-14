@@ -15,7 +15,7 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-// First register entry (version 0) to identify as WebsiteVersions register
+// First register entry (version 0) to identify as DirectoryVersions register
 //
 // DO NOT CHANGE THIS COMMENT OR THE AUTOMATICALLY GENERATED LINES WHICH FOLLOW.
 pub const AWV_REG_TYPE_LOCAL: &str = "";

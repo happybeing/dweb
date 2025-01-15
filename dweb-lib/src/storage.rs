@@ -19,10 +19,9 @@ use std::path::PathBuf;
 use walkdir::WalkDir;
 use xor_name::XorName;
 
-use ant_registers::RegisterAddress;
+use ant_registers::RegisterAddress as HistoryAddress;
 use autonomi::client::files::archive_public::PublicArchive;
 
-use crate::autonomi::access::keys::get_register_signing_key;
 use crate::autonomi::wallet::load_wallet;
 use crate::client::AutonomiClient;
 use crate::trove::directory_tree::{osstr_to_string, DirectoryTree, JsonSettings, WebsiteSettings};
@@ -36,9 +35,9 @@ use crate::trove::History;
 pub async fn publish_or_update_files(
     client: &AutonomiClient,
     files_root: &PathBuf,
-    history_address: Option<RegisterAddress>,
+    history_address: Option<HistoryAddress>,
     website_config: Option<PathBuf>,
-) -> Result<(RegisterAddress, u64)> {
+) -> Result<(HistoryAddress, u64)> {
     println!("DEBUG publish_or_update_files()...");
     check_path_for_upload(&files_root)?;
 
@@ -71,8 +70,6 @@ pub async fn publish_or_update_files(
     let (history_address, version) = if let Some(history_address) = history_address {
         // Update existing file tree
         println!("Uploading update to network...");
-        let owner_secret = get_register_signing_key().inspect_err(|e| println!("{}", e))?;
-
         let files_address = publish_files(&client, files_root, &website_config).await?;
 
         println!("Updating versions history {}", history_address.to_hex());
@@ -86,7 +83,7 @@ pub async fn publish_or_update_files(
             };
 
         match files_history.publish_new_version(&files_address).await {
-            Ok(version) => (files_history.register_address(), version),
+            Ok(version) => (files_history.history_address(), version),
             Err(e) => {
                 let message = format!("Failed to update version: {e:?}");
                 println!("{message}");
@@ -96,13 +93,12 @@ pub async fn publish_or_update_files(
     } else {
         // Publish new website
         println!("Creating versions history, please wait...");
-        let owner_secret = get_register_signing_key().inspect_err(|e| println!("{}", e))?;
         println!("got wallet... calling History<DirectoryTree>::new_register()");
         files_history = History::<DirectoryTree>::new(client.clone(), None)
             .await
             .inspect_err(|e| println!("{}", e))?;
         match files_history.publish_new_version(&files_address).await {
-            Ok(version) => (files_history.register_address(), version),
+            Ok(version) => (files_history.history_address(), version),
             Err(e) => {
                 println!("Failed to publish new version: {}", e.root_cause());
                 return Err(e);
@@ -114,7 +110,7 @@ pub async fn publish_or_update_files(
 }
 
 pub fn report_content_published_or_updated(
-    history_address: &RegisterAddress,
+    history_address: &HistoryAddress,
     version: u64,
     files_root: &PathBuf,
     is_website: bool,

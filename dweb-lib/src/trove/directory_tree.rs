@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use ant_registers::RegisterAddress;
+use ant_registers::RegisterAddress as HistoryAddress;
 use bytes::{BufMut, BytesMut};
 use chrono::{DateTime, Utc};
 use color_eyre::eyre::{eyre, Result};
@@ -27,13 +27,11 @@ use serde::{Deserialize, Serialize};
 use xor_name::XorName as FileAddress;
 
 use autonomi::client::payment::PaymentOption;
-use autonomi::client::Client;
-use autonomi::Wallet;
 use self_encryption::MAX_CHUNK_SIZE;
 
 use crate::client::AutonomiClient;
 use crate::data::autonomi_get_file_public;
-use crate::trove::{Trove, History};
+use crate::trove::{History, Trove};
 
 // The Trove type for a DirectoryTree
 const FILE_TREE_TYPE: &str = "ee383f084cffaab845617b1c43ffaee8b5c17e8fbbb3ad3d379c96b5b844f24e";
@@ -412,19 +410,23 @@ pub fn osstr_to_string(file_name: &std::ffi::OsStr) -> Option<String> {
 pub async fn lookup_resource_for_website_version(
     client: &AutonomiClient,
     resource_path: &String,
-    history_address: RegisterAddress,
+    history_address: HistoryAddress,
     version: Option<u64>,
 ) -> Result<(FileAddress, Option<String>), StatusCode> {
     println!("DEBUG lookup_resource_for_website_version() version {version:?}");
     println!("DEBUG history_address: {history_address}");
     println!("DEBUG resource_path    : {resource_path}");
 
-    match History::<DirectoryTree>::from_register_address(client.clone(), history_address, None)
+    match History::<DirectoryTree>::from_history_address(client.clone(), history_address, None)
         .await
     {
         Ok(mut history) => {
-            return DirectoryTree::history_lookup_web_resource(&mut history, resource_path, version)
-                .await;
+            return DirectoryTree::history_lookup_web_resource(
+                &mut history,
+                resource_path,
+                version,
+            )
+            .await;
         }
         Err(e) => {
             println!("Failed to load versions register: {e:?}");

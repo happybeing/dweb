@@ -3,7 +3,7 @@ Copyright (c) 2024-2025 Mark Hughes
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
+the Free Software Foundation, either version 3 of the License, ord
 (at your option) any later version.
 
 This program is distributed in the hope that it will be useful,
@@ -18,7 +18,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 use std::path::PathBuf;
 use std::sync::LazyLock;
 
-use ant_registers::RegisterAddress;
+use ant_registers::RegisterAddress as HistoryAddress;
 use clap::Args;
 use clap::Parser;
 use clap::Subcommand;
@@ -185,7 +185,7 @@ pub enum Subcommands {
         files_root: PathBuf,
         /// The address of a register referencing each version of the website. Can begin with "awv://"
         #[clap(long, name = "HISTORY-ADDRESS", value_parser = awe_str_to_register_address)]
-        history_address: RegisterAddress,
+        history_address: HistoryAddress,
         // TODO when NRS, re-instate the following (and 'conflicts_with = "update"' above)
         // /// Update the website at given awe NRS name
         // #[clap(
@@ -244,7 +244,7 @@ pub enum Subcommands {
     Inspect_register {
         /// The address of an Autonomi register. Can be prefixed with awv://
         #[clap(name = "REGISTER-ADDRESS", value_parser = awe_str_to_register_address)]
-        register_address: RegisterAddress,
+        register_address: HistoryAddress,
 
         /// Print a summary of the register including type (the value of entry 0) and number of entries
         #[clap(long = "register-summary", short = 'r', default_value = "false")]

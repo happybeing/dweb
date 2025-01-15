@@ -24,10 +24,8 @@ use color_eyre::eyre::{eyre, Error, Result};
 use serde::{de::DeserializeOwned, Serialize};
 use xor_name::XorName;
 
-use ant_registers::RegisterAddress;
+use ant_registers::RegisterAddress as HistoryAddress;
 use autonomi::client::registers::{Register, RegisterSecretKey};
-use autonomi::client::Client;
-use autonomi::Wallet;
 
 use crate::autonomi::access::keys::get_register_signing_key;
 use crate::client::AutonomiClient;
@@ -80,7 +78,7 @@ pub struct History<T: Trove + Serialize + DeserializeOwned + Clone> {
 impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
     /// Gets an existing Register or creates a new register online
     /// The owner_secret is required when creating and for adding entries (publish/update)
-    pub async fn new(client: AutonomiClient, address: Option<RegisterAddress>) -> Result<Self> {
+    pub async fn new(client: AutonomiClient, address: Option<HistoryAddress>) -> Result<Self> {
         let mut register_signing_key = None;
         let register = if let Some(addr) = address {
             client.client.register_get(addr).await
@@ -141,17 +139,17 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
 
     /// Load a Register from the network and return wrapped in History
     /// The owner_secret is only required for publish/update using the returned History (not access)
-    pub async fn from_register_address(
+    pub async fn from_history_address(
         client: AutonomiClient,
-        register_address: RegisterAddress,
+        history_address: HistoryAddress,
         owner_secret: Option<RegisterSecretKey>,
     ) -> Result<History<T>> {
         // Check it exists to avoid accidental creation (and payment)
-        let result = client.client.register_get(register_address).await;
+        let result = client.client.register_get(history_address).await;
         let mut history = if result.is_ok() {
             History::<T>::from_client_register(client, result.unwrap(), owner_secret)
         } else {
-            println!("DEBUG: from_register_address() error:");
+            println!("DEBUG: from_history_address() error:");
             return Err(eyre!("register not found on network"));
         };
         history.update_default_version();
@@ -175,7 +173,7 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
         self.default_version
     }
 
-    pub fn register_address(&self) -> &RegisterAddress {
+    pub fn history_address(&self) -> &HistoryAddress {
         self.register.address()
     }
 

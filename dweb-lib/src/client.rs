@@ -23,7 +23,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 //!
 use bytes::Bytes;
 use color_eyre::{eyre::eyre, Result};
-use ring::agreement::PublicKey;
 use xor_name::XorName as FileAddress;
 
 use ant_bootstrap::PeersArgs;
@@ -100,7 +99,7 @@ impl AutonomiClient {
 
         let register_secret = match get_register_signing_key() {
             Ok(register_secret) => Some(register_secret),
-            Err(e) => {
+            Err(_e) => {
                 println!("Register signing key not found.\nThe signing key is Not needed for browsing, but use 'ant register generate-key' if you wish to publish.");
                 None
             }

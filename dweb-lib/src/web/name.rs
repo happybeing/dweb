@@ -17,30 +17,33 @@
 
 //! # WebName
 //!
-//! A dweb web name is the subdomain and domain portion of a dweb URL, and corresponds to a
-//! particular version of a website, and has the following structure:
+//! The 'host' part of a dweb web URL uses the domain 'www-dweb.au' plus either
+//! one or two subdomains:
 //!
-//! `v[<VERSION>].<SHORTNAME>.www-dweb.au`
+//!    `[v<VERSION>.]<SHORTNAME>.www-dweb.au`
 //!
-//!     VERSION 1 is the first version, 2 the second etc, and if omitted implies 'most recent'.
+//! The first part is an optional followed by a short name (which correponds to a History
+//! stored on Autonomi).
 //!
-//!     A SHORTNAME corresponds to a particular website history. It begins with a memorable part,
-//!     a mnemonic for the website, followed by a hyphen and ends with the first few characters from
-//!     the xor encoded history_address. The memorable part is a lowercase alphabetic string which
-//!     may be taken from website metadata or specified by the user. The characters after the hyphen
-//!     serve to disambiguiate websites which have the same memorable part.
+//!    VERSION 1 is the first version, 2 the second etc, and if omitted implies 'most recent'.
+//!
+//!    A SHORTNAME corresponds to a particular website history. It begins with a memorable part,
+//!    a mnemonic for the website, followed by a hyphen and ends with the first few characters from
+//!    the xor encoded HistoryAddress. The memorable part is a lowercase alphabetic string which
+//!    may be taken from website metadata or specified by the user. The characters after the hyphen
+//!    serve to disambiguiate websites which could have the same memorable part.
 //!
 //! Example web names:
-//!     'v.awesome-f8b3.www-dweb.au'        - the most recent version a website
-//!     'v23.awesome-f8b3.www-dweb.au'      - the 23rd version the same website
-//!     'v23.awesomes-2e45.www-dweb.au'     - the 23rd version of a different website
+//!    'awesome-f8b3.www-dweb.au'          - the most recent version a website
+//!    'v23.awesome-f8b3.www-dweb.au'      - the 23rd version the same website
+//!    'v23.awesome-f2e4.www-dweb.au'      - the 23rd version of a different website
 //!
-//! WebNames allow the correct website and version to be retrieved from a version history on
-//! Autonomi and the corresponding content to be returned to a standard web browser. They are
-//! also used as the keys for a cache of this information, but must first be created using
+//! WebNames allow the correct website version to be retrieved from a History<DirectoryTree>
+//! on Autonomi and the corresponding content to be returned to a standard web browser. They act
+//! as keys for a cache maintained by the local dweb server, but must first be created using
 //! the appropriate dweb APIs.
 //!
-//! Once created, resolving a WebName requires a local DNS to redirect the dweb domain (www-dweb.au)
+//! Once created, resolving a WebName requires a local DNS to redirect the dweb domain www-dweb.au
 //! to a local dweb server (e.g. dweb-cli) which decodes the name and accesses the relevant website
 //! version from a cache held in the server.
 //!
@@ -49,8 +52,8 @@
 //! to a user.
 //!
 //! Without persistence, different SHORTNAMES can be used with the same HistoryAddress at different
-//! times, there is always a one-to-one correspondence between the two, so neither can be coupled to more than
-//! one of the other at one time.
+//! times, there is always a one-to-one correspondence between the two, so neither can be coupled
+//! to more than one of the other at one time.
 //!
 //! TODO: implement persistent SHORTNAMES per user and use to provide a page of sites with brief
 //! information to aid identification.
@@ -86,6 +89,7 @@ pub struct WebName {
     pub version: Option<u64>,
 
     #[feature("fixed-webnames")]
+    // Development build feature for non-versioned DirectoryTree references
     pub is_fixed_webname: bool,
 }
 
@@ -144,28 +148,10 @@ pub fn make_shortname(memorable_part: &String, history_address: HistoryAddress) 
 
 /// Create a version part ("v[VERSION]") for a www-dweb URL
 pub fn make_version_part(version: u64) -> String {
-    let version_string = "v";
-    if (version > 0) {
-        format!("{version}")
+    if version > 0 {
+        format!("v{version}")
     } else {
         String::from("")
-    }
-}
-
-/// Parse a version string ("v[VERSION]") and return the value of N, or 0 if only the 'v' was present
-pub fn parse_version_string(version_string: &String) -> Result<u64> {
-    if version_string.len() < 1 {
-        return Err(eyre!("Missing VERSION part"));
-    }
-
-    if version_string.as_bytes()[0].to_ascii_lowercase() == VERSION_CHAR {
-        if version_string.len() == 1 {
-            Ok(0)
-        } else {
-            Ok(version_string[1..].parse::<u64>()?)
-        }
-    } else {
-        Err(eyre!("Version strings must start with '<VERSION_CHAR>'"))
     }
 }
 
@@ -237,20 +223,22 @@ pub fn make_fixed_shortname(
 /// # Examples
 ///
 /// ```
-/// assert!(name::decode_web_name("v2.awesome-f834.www-dweb.au")).is_ok());
-/// assert!(name::decode_web_name("v2.awesome99-f834.www-dweb.au")).is_ok());
-/// assert!(name::decode_web_name("v2.awe-some-f834.www-dweb.au")).is_ok());
-/// assert!(name::decode_web_name("v2.awe-99some-f834.www-dweb.au")).is_ok());
-/// assert!(name::decode_web_name(String::from("v.awesome-f834.www-dweb.au")).is_ok());
+/// use crate::dweb::web::name;
+/// assert!(name::decode_web_name("v2.awesome-f834.www-dweb.au").is_ok());
+/// assert!(name::decode_web_name("awesome-f834.www-dweb.au").is_ok());
+/// assert!(name::decode_web_name("awesome99-f834.www-dweb.au").is_ok());
+/// assert!(name::decode_web_name("awe-some-f834.www-dweb.au").is_ok());
+/// assert!(name::decode_web_name("awe-99some-f834.www-dweb.au").is_ok());
 ///
-/// assert!(name::decode_web_name("v2.9awesome-f834.www-dweb.au").is_err()));
-/// assert!(name::decode_web_name("v2.awe=some-f834.www-dweb.au").is_err()));
-/// assert!(name::decode_web_name("v2.awe--some-f834.www-dweb.au").is_err()));
+/// assert!(name::decode_web_name("9awesome-f834.www-dweb.au").is_err());
+/// assert!(name::decode_web_name("awe=some-f834.www-dweb.au").is_err());
+/// assert!(name::decode_web_name("awe--some-f834.www-dweb.au").is_err());
+/// assert!(name::decode_web_name(&String::from("v.awesome-f834.www-dweb.au").as_str()).is_err());
 ///
 /// ```
 //
-// Note: for --features=fixed-webnames, this will also decode fixed web names. Only in the case of
-// a fixed web name, will the SHORTNAME contain String::from(FIXED_WEBNAME_SEPARATOR) + "-";
+// Note: for --features=fixed-webnames, this will also decode fixed web names which are
+// differentiated by a SHORTNAME containing the String::from(FIXED_WEBNAME_SEPARATOR) + "-";
 pub fn decode_web_name(web_name: &str) -> Result<WebName> {
     println!("DEBUG: decode_web_name({web_name})...");
     if web_name.len() == 0 {
@@ -259,55 +247,59 @@ pub fn decode_web_name(web_name: &str) -> Result<WebName> {
 
     let fixed_web_name_tag = String::from(FIXED_WEBNAME_SEPARATOR) + "-";
 
-    let mut segments = web_name[1..].split('.');
-    let version: Option<u64>;
-    let found_version_segment;
-    (version, found_version_segment) = if web_name.as_bytes()[0] == VERSION_CHAR {
+    let mut segments = web_name.split('.');
+    let total_segments = segments.clone().count();
+    if total_segments > 4 || total_segments < 3 {
+        return Err(eyre!(
+            "Web name must contain three or four segments, each separated by '.'"
+        ));
+    }
+
+    let mut found_version_segment = false;
+    // If four segments are present, process the first as 'v<VERSION>'
+    let version = if segments.clone().count() == 4 && web_name.as_bytes()[0] == VERSION_CHAR {
         match segments.next() {
-            Some(string) => {
-                if string.len() == 1 {
-                    (None, true) // version when the first segment is 'v.'
-                } else {
-                    if string.contains(&fixed_web_name_tag) {
-                        // Won't parse as a version, but could be the SHORTNAME of a fixed web name
-                        // So reset the segments in case
-                        segments = web_name[1..].split('.');
-                        (None, false)
-                    } else {
-                        match string[1..].parse::<u64>() {
-                            Ok(version) => {
-                                if version > 0 {
-                                    (Some(version), true)
-                                } else {
-                                    return Err(eyre!(
-                                        "Invalid version {version}, lowest version is 1"
-                                    ));
-                                }
-                            }
-                            Err(_) => {
-                                return Err(eyre!(
-                                    "VERSION must be an integer in web name: '{web_name}"
-                                ));
-                            }
+            Some(str) => {
+                if !str.starts_with('v') {
+                    return Err(eyre!(
+                        "Web name contains four segments (separated by '.') so first must start with 'v'"
+                    ));
+                }
+                match str[1..].parse::<u64>() {
+                    Ok(version) => {
+                        if version > 0 {
+                            found_version_segment = true;
+                            Some(version)
+                        } else {
+                            return Err(eyre!("Invalid version {version}, lowest version is 1"));
                         }
                     }
+                    Err(_) => {
+                        return Err(eyre!("VERSION must be an integer in web name: '{web_name}"));
+                    } // }
                 }
             }
             None => {
                 return Err(eyre!(
                     "Web name is missing SHORTNAME and domain part: '{web_name}"
-                ))
+                ));
             }
         }
     } else {
-        // No version part
-        #[feature(not("fixed-webnames"))]
-        return Err(eyre!("Missing version segment for: '{web_name}"));
+        None
     };
+
+    if segments.clone().count() != 3 {
+        return Err(eyre!(
+            "Web name must contain three or four segments, each separated by '.'"
+        ));
+    }
 
     let shortname = match segments.next() {
         Some(shortname) => shortname,
-        None => return Err(eyre!("Missing SHORTNAME in '{web_name}")),
+        None => {
+            return Err(eyre!("Missing SHORTNAME in '{web_name}"));
+        }
     };
 
     if !shortname.as_bytes()[0].is_ascii_alphabetic() {
@@ -316,30 +308,42 @@ pub fn decode_web_name(web_name: &str) -> Result<WebName> {
         ));
     }
 
+    if !shortname[shortname.len() - 1..]
+        .chars()
+        .all(|c| c.is_alphanumeric())
+    {
+        return Err(eyre!(
+            "Web name SHORTNAME must end with an alphanumeric character"
+        ));
+    }
+
     if !shortname.chars().all(|c| c.is_alphanumeric() || c == '-') {
         return Err(eyre!(
-            "Web name SHORTNAME can only contain letters, numbers and non-consecutive hyphens"
+            "Web name SHORTNAME can only contain letters, numbers (and non-consecutive hyphens)"
         ));
     }
 
-    if found_version_segment && shortname.contains(&fixed_web_name_tag) {
-        return Err(eyre!(
-            "Web name SHORTNAME must not contain '{fixed_web_name_tag}-'"
-        ));
+    if shortname.contains("--") {
+        return Err(eyre!("Web name SHORTNAME cannot contain '--'"));
     }
 
-    let _ = if let Some(domain_part) = segments.next() {
+    let mut ends_with_dlp_tld = false;
+    if let Some(domain_part) = segments.next() {
         if domain_part == DOMAIN_PART {
             if let Some(tld_part) = segments.next() {
                 if tld_part == TLD_PART && segments.next().is_none() {
-                    ()
+                    ends_with_dlp_tld = true;
                 }
             }
         }
-        return Err(eyre!(
-            "Web name does not end with '{DOMAIN_PART}.{TLD_PART} after the SHORTNAME"
-        ));
     };
+    if !ends_with_dlp_tld {
+        return {
+            Err(eyre!(
+                "Web name does not end with '{DOMAIN_PART}.{TLD_PART} after the SHORTNAME"
+            ))
+        };
+    }
 
     #[feature("fixed-webnames")]
     let is_fixed_webname = !found_version_segment && shortname.contains(&fixed_web_name_tag);
@@ -359,17 +363,15 @@ pub fn decode_web_name(web_name: &str) -> Result<WebName> {
 #[test]
 fn check_malformed_web_name() {
     use crate::web::name;
+    assert!(name::decode_web_name("awe=some-f834.www-dweb.au").is_err());
+    assert!(name::decode_web_name("awe@some-f834.www-dweb.au").is_err());
+    assert!(name::decode_web_name("awe--some-f834.www-dweb.au").is_err());
+    assert!(name::decode_web_name("awesom-f-e-f834.www-dweb.ant").is_err());
+    assert!(name::decode_web_name("awesome-f834-.www-dweb.au").is_err());
+    assert!(name::decode_web_name("awesome-f834.ww-dweb.au").is_err());
+    assert!(name::decode_web_name("awesome-f834.www-dweb.ant").is_err());
+    assert!(name::decode_web_name("awesome-f834.www-dweb.au.com").is_err());
     assert!(name::decode_web_name("v2.9awesome-f834.www-dweb.au").is_err());
-    assert!(name::decode_web_name("v2.awe=some-f834.www-dweb.au").is_err());
-    assert!(name::decode_web_name("v2.awe@some-f834.www-dweb.au").is_err());
-    assert!(name::decode_web_name("v2.awe--some-f834.www-dweb.au").is_err());
-    assert!(name::decode_web_name("v2.awesom-f-e-f834.www-dweb.au").is_err());
-    assert!(name::decode_web_name("v2.awesome-f834-.www-dweb.au").is_err());
-    assert!(name::decode_web_name("v2.awesome-f834.ww-dweb.au").is_err());
-    assert!(name::decode_web_name("v2.awesome-f834.www-dweb.ant").is_err());
-    assert!(name::decode_web_name("v2.awesome-f834.www-dweb.au.com").is_err());
-    assert!(name::decode_web_name("v2.www-dweb.au").is_err());
     assert!(name::decode_web_name("v0.awesome-f834.www-dweb.au").is_err());
     assert!(name::decode_web_name("v2nd.awesome-f834.www-dweb.au").is_err());
-    assert!(name::decode_web_name("awesome-f834.www-dweb.au").is_err());
 }

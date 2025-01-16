@@ -37,9 +37,7 @@ pub async fn api_webname_register(
 ) -> impl Responder {
     let (name, history_address) = params.into_inner();
     println!("api_webname_register({name}, {history_address})...");
-    // pub async fn api_test1() -> impl Responder {
     let body = format!("api_webname_register({name}, {history_address})");
-    // let body = format!("api_test1() BINGO!");
 
     HttpResponse::Ok().body(body)
 }

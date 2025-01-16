@@ -23,21 +23,21 @@ use actix_web::{
 pub fn init_service(host: &str) -> impl HttpServiceFactory {
     // TODO modify this and the get to accept /{api}/{version}/{operation} etc (see www::init_service())
     actix_web::web::scope("/dweb/v0")
-        .service(api_webname_register)
+        .service(api_dwebname_register)
         .guard(guard::Host(host))
 }
 
 /// Test API
 /// Test url: http://api-dweb.au:8080/test/some/thing
 
-#[get("/webname/register/{name}/{history_address}")]
-pub async fn api_webname_register(
+#[get("/dwebname/register/{name}/{history_address}")]
+pub async fn api_dwebname_register(
     params: web::Path<(String, String)>,
     client_data: Data<dweb::client::AutonomiClient>,
 ) -> impl Responder {
     let (name, history_address) = params.into_inner();
-    println!("api_webname_register({name}, {history_address})...");
-    let body = format!("api_webname_register({name}, {history_address})");
+    println!("api_dwebname_register({name}, {history_address})...");
+    let body = format!("api_dwebname_register({name}, {history_address})");
 
     HttpResponse::Ok().body(body)
 }

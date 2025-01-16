@@ -15,19 +15,19 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! # WebName
+//! # DwebHost
 //!
 //! The 'host' part of a dweb web URL uses the domain 'www-dweb.au' plus either
 //! one or two subdomains:
 //!
-//!    `[v<VERSION>.]<SHORTNAME>.www-dweb.au`
+//!    `[v<VERSION>.]<DWEB-NAME>.www-dweb.au`
 //!
 //! The first part is an optional followed by a short name (which correponds to a History
 //! stored on Autonomi).
 //!
 //!    VERSION 1 is the first version, 2 the second etc, and if omitted implies 'most recent'.
 //!
-//!    A SHORTNAME corresponds to a particular website history. It begins with a memorable part,
+//!    A DWEB-NAME corresponds to a particular website history. It begins with a memorable part,
 //!    a mnemonic for the website, followed by a hyphen and ends with the first few characters from
 //!    the xor encoded HistoryAddress. The memorable part is a lowercase alphabetic string which
 //!    may be taken from website metadata or specified by the user. The characters after the hyphen
@@ -38,24 +38,24 @@
 //!    'v23.awesome-f8b3.www-dweb.au'      - the 23rd version the same website
 //!    'v23.awesome-f2e4.www-dweb.au'      - the 23rd version of a different website
 //!
-//! WebNames allow the correct website version to be retrieved from a History<DirectoryTree>
+//! DwebHosts allow the correct website version to be retrieved from a History<DirectoryTree>
 //! on Autonomi and the corresponding content to be returned to a standard web browser. They act
 //! as keys for a cache maintained by the local dweb server, but must first be created using
 //! the appropriate dweb APIs.
 //!
-//! Once created, resolving a WebName requires a local DNS to redirect the dweb domain www-dweb.au
+//! Once created, resolving a DwebHost requires a local DNS to redirect the dweb domain www-dweb.au
 //! to a local dweb server (e.g. dweb-cli) which decodes the name and accesses the relevant website
 //! version from a cache held in the server.
 //!
-//! WebNames could be persisted in various ways, such as in a separate website on Autonomi or
+//! DwebHosts could be persisted in various ways, such as in a separate website on Autonomi or
 //! the private Vault of a user, which then provides a set of 'favourites' or web bookmarks personal
 //! to a user.
 //!
-//! Without persistence, different SHORTNAMES can be used with the same HistoryAddress at different
+//! Without persistence, different DWEB-NAMES can be used with the same HistoryAddress at different
 //! times, there is always a one-to-one correspondence between the two, so neither can be coupled
 //! to more than one of the other at one time.
 //!
-//! TODO: implement persistent SHORTNAMES per user and use to provide a page of sites with brief
+//! TODO: implement persistent DWEB-NAMES per user and use to provide a page of sites with brief
 //! information to aid identification.
 //!
 
@@ -69,7 +69,7 @@ pub const MAX_SUBDOMAIN_LEN: usize = 63; //  S2.3.4 Size limits (https://datatra
                                          // A subdomain must start with a letter (a-z) and is followed by one or more letters or numbers
                                          // which may be separated by a hyphen. S2.3.1. Preferred name syntax (https://datatracker.ietf.org/doc/html/rfc1035#section-2.3.1)
 
-pub const DISAMBIGUATION_LEN: usize = 4; // Number of hexadecimal disambiguation characters to include in a SHORTNAME
+pub const DISAMBIGUATION_LEN: usize = 4; // Number of hexadecimal disambiguation characters to include in a DWEB-NAME
 pub const MEMORABLE_PART_LEN: usize = MAX_SUBDOMAIN_LEN - DISAMBIGUATION_LEN - 1; // Allow 1 for hyphen
 
 pub const DOMAIN_PART: &str = "www-dweb";
@@ -78,47 +78,48 @@ pub const TLD_PART: &str = "au";
 const VERSION_CHAR: u8 = b'v';
 const FIXED_WEBNAME_SEPARATOR: &str = "-f";
 
-/// WebName encapsulates a web name string of a dweb URL, and its component subdomain and domain
-/// parts which can be used to lookup the content for a version of a website.
+/// DwebHost corresponds to the HOST part of a dweb URL and encapsulates the component
+/// subdomain and domain parts which are used to lookup the content for a version of a
+/// website.
 ///
-pub struct WebName {
-    /// `v[<VERSION>].<SHORTNAME>.www-dweb.au`
-    pub web_name_string: String,
-    pub shortname: String,
+pub struct DwebHost {
+    /// `[v<VERSION>.]<DWEB-NAME>.www-dweb.au`
+    pub dweb_host_string: String,
+    pub dweb_name: String,
     /// None implies most recent version (highest number)
     pub version: Option<u64>,
 
-    #[feature("fixed-webnames")]
+    #[feature("fixed-dweb_hosts")]
     // Development build feature for non-versioned DirectoryTree references
-    pub is_fixed_webname: bool,
+    pub is_fixed_dweb_host: bool,
 }
 
-/// Make a valid SHORTNAME for a dweb URL
+/// Make a valid DWEB-NAME for a dweb URL
 ///
 /// memorable_part must start with an alphabetic character followed by zero or more alphanumeric
 /// characters which may be separated by single hyphens, up to a length of MEMORABLE_PART_LEN.
-pub fn make_shortname(memorable_part: &String, history_address: HistoryAddress) -> Result<String> {
+pub fn make_dweb_name(memorable_part: &String, history_address: HistoryAddress) -> Result<String> {
     if memorable_part.len() == 0 {
         return Err(eyre!(
-            "SHORTNAME memorable must include at least one alphabetic character"
+            "The memorable part of a DWEB-NAME must include at least one alphabetic character"
         ));
     }
 
     if !memorable_part.as_bytes()[0].is_ascii_alphabetic() {
         return Err(eyre!(
-            "SHORTNAME memorable part must begin with an alphabetic character"
+            "The memorable part of a DWEB-NAME must begin with an alphabetic character"
         ));
     }
 
     if !memorable_part.len() > MEMORABLE_PART_LEN {
         return Err(eyre!(
-            "SHORTNAME memorable part cannot exceed {MEMORABLE_PART_LEN} characters"
+            "The memorable part of a DWEB-NAME cannot exceed {MEMORABLE_PART_LEN} characters"
         ));
     }
 
     if memorable_part.contains("--") {
         return Err(eyre!(
-            "SHORTNAME memorable part cannot contain consecutive hyphens"
+            "The memorable part of a DWEB-NAME cannot contain consecutive hyphens"
         ));
     }
 
@@ -127,14 +128,14 @@ pub fn make_shortname(memorable_part: &String, history_address: HistoryAddress) 
         .all(|c| c.is_alphanumeric() || c == '-')
     {
         return Err(eyre!(
-            "SHORTNAME memorable part can only contain alphanumeric characters and hyphens"
+            "The memorable part of a DWEB-NAME can only contain alphanumeric characters and hyphens"
         ));
     }
 
     // Prevent clash with 'fixed version' web names
     if !memorable_part.ends_with(FIXED_WEBNAME_SEPARATOR) {
         return Err(eyre!(
-            "SHORTNAME memorable part cannot end with '{FIXED_WEBNAME_SEPARATOR}'"
+            "The memorable part of a DWEB-NAME cannot end with '{FIXED_WEBNAME_SEPARATOR}'"
         ));
     }
 
@@ -155,33 +156,33 @@ pub fn make_version_part(version: u64) -> String {
     }
 }
 
-#[feature("fixed-webnames")]
-pub fn make_fixed_shortname(
+#[feature("fixed-dweb-names")]
+pub fn make_fixed_dweb_name(
     memorable_part: &String,
     directory_address: DirectoryAddress,
 ) -> Result<String> {
     if memorable_part.len() == 0 {
         return Err(eyre!(
-            "SHORTNAME memorable must include at least one alphabetic character"
+            "The memorable part of a DWEB-NAME must include at least one alphabetic character"
         ));
     }
 
     if !memorable_part.as_bytes()[0].is_ascii_alphabetic() {
         return Err(eyre!(
-            "SHORTNAME memorable part must begin with an alphabetic character"
+            "The memorable part of a DWEB-NAME must begin with an alphabetic character"
         ));
     }
 
     const FIXED_MEMORABLE_PART_LEN: usize = MEMORABLE_PART_LEN - FIXED_WEBNAME_SEPARATOR.len();
     if !memorable_part.len() > FIXED_MEMORABLE_PART_LEN {
         return Err(eyre!(
-            "'fixed' version website SHORTNAME memorable part cannot exceed {FIXED_MEMORABLE_PART_LEN} characters"
+            "'fixed' version website The memorable part of a DWEB-NAME cannot exceed {FIXED_MEMORABLE_PART_LEN} characters"
         ));
     }
 
     if memorable_part.contains("--") {
         return Err(eyre!(
-            "SHORTNAME memorable part cannot contain consecutive hyphens"
+            "The memorable part of a DWEB-NAME cannot contain consecutive hyphens"
         ));
     }
 
@@ -190,14 +191,14 @@ pub fn make_fixed_shortname(
         .all(|c| c.is_alphanumeric() || c == '-')
     {
         return Err(eyre!(
-            "SHORTNAME memorable part can only contain alphanumeric characters and hyphens"
+            "The memorable part of a DWEB-NAME can only contain alphanumeric characters and hyphens"
         ));
     }
 
     // Prevent clash with 'fixed version' web names
     if !memorable_part.ends_with(FIXED_WEBNAME_SEPARATOR) {
         return Err(eyre!(
-            "SHORTNAME memorable part cannot end with '{FIXED_WEBNAME_SEPARATOR}'"
+            "The memorable part of a DWEB-NAME cannot end with '{FIXED_WEBNAME_SEPARATOR}'"
         ));
     }
 
@@ -210,13 +211,13 @@ pub fn make_fixed_shortname(
     Ok(web_name.to_ascii_lowercase())
 }
 
-/// Decode a web name string
-/// Returns a WebName which includes the validated web name string, SHORTNAME and VERSION (if present)
+/// Decode a dweb host string
+/// Returns a DwebHost which includes the validated web name string, DWEB-NAME and VERSION (if present)
 ///
 ///  For example, 'v2.awesome-f834.www-dweb.au' would return
-///     Ok(WebName{
-///         web_name_string: &"v2.awesome-f834.www-dweb.au",
-///         short_name: &"awesome-f834",
+///     Ok(DwebHost{
+///         dweb_host: &"v2.awesome-f834.www-dweb.au",
+///         dweb_name: &"awesome-f834",
 ///         version: Some(2)
 ///     })
 ///
@@ -224,45 +225,45 @@ pub fn make_fixed_shortname(
 ///
 /// ```
 /// use crate::dweb::web::name;
-/// assert!(name::decode_web_name("v2.awesome-f834.www-dweb.au").is_ok());
-/// assert!(name::decode_web_name("awesome-f834.www-dweb.au").is_ok());
-/// assert!(name::decode_web_name("awesome99-f834.www-dweb.au").is_ok());
-/// assert!(name::decode_web_name("awe-some-f834.www-dweb.au").is_ok());
-/// assert!(name::decode_web_name("awe-99some-f834.www-dweb.au").is_ok());
+/// assert!(name::decode_dweb_host("v2.awesome-f834.www-dweb.au").is_ok());
+/// assert!(name::decode_dweb_host("awesome-f834.www-dweb.au").is_ok());
+/// assert!(name::decode_dweb_host("awesome99-f834.www-dweb.au").is_ok());
+/// assert!(name::decode_dweb_host("awe-some-f834.www-dweb.au").is_ok());
+/// assert!(name::decode_dweb_host("awe-99some-f834.www-dweb.au").is_ok());
 ///
-/// assert!(name::decode_web_name("9awesome-f834.www-dweb.au").is_err());
-/// assert!(name::decode_web_name("awe=some-f834.www-dweb.au").is_err());
-/// assert!(name::decode_web_name("awe--some-f834.www-dweb.au").is_err());
-/// assert!(name::decode_web_name(&String::from("v.awesome-f834.www-dweb.au").as_str()).is_err());
+/// assert!(name::decode_dweb_host("9awesome-f834.www-dweb.au").is_err());
+/// assert!(name::decode_dweb_host("awe=some-f834.www-dweb.au").is_err());
+/// assert!(name::decode_dweb_host("awe--some-f834.www-dweb.au").is_err());
+/// assert!(name::decode_dweb_host(&String::from("v.awesome-f834.www-dweb.au").as_str()).is_err());
 ///
 /// ```
 //
-// Note: for --features=fixed-webnames, this will also decode fixed web names which are
-// differentiated by a SHORTNAME containing the String::from(FIXED_WEBNAME_SEPARATOR) + "-";
-pub fn decode_web_name(web_name: &str) -> Result<WebName> {
-    println!("DEBUG: decode_web_name({web_name})...");
-    if web_name.len() == 0 {
-        return Err(eyre!("Web name cannot be zero length"));
+// Note: for --features=fixed-dweb-names, this will also decode fixed web names which are
+// differentiated by a DWEB-NAME containing the String::from(FIXED_WEBNAME_SEPARATOR) + "-";
+pub fn decode_dweb_host(dweb_host: &str) -> Result<DwebHost> {
+    println!("DEBUG: decode_dweb_host({dweb_host})...");
+    if dweb_host.len() == 0 {
+        return Err(eyre!("Dweb host cannot be zero length"));
     }
 
-    let fixed_web_name_tag = String::from(FIXED_WEBNAME_SEPARATOR) + "-";
+    let fixed_dweb_host_tag = String::from(FIXED_WEBNAME_SEPARATOR) + "-";
 
-    let mut segments = web_name.split('.');
+    let mut segments = dweb_host.split('.');
     let total_segments = segments.clone().count();
     if total_segments > 4 || total_segments < 3 {
         return Err(eyre!(
-            "Web name must contain three or four segments, each separated by '.'"
+            "Dweb host must contain three or four segments, each separated by '.'"
         ));
     }
 
     let mut found_version_segment = false;
     // If four segments are present, process the first as 'v<VERSION>'
-    let version = if segments.clone().count() == 4 && web_name.as_bytes()[0] == VERSION_CHAR {
+    let version = if segments.clone().count() == 4 && dweb_host.as_bytes()[0] == VERSION_CHAR {
         match segments.next() {
             Some(str) => {
                 if !str.starts_with('v') {
                     return Err(eyre!(
-                        "Web name contains four segments (separated by '.') so first must start with 'v'"
+                        "Dweb host contains four segments (separated by '.') so first must start with 'v'"
                     ));
                 }
                 match str[1..].parse::<u64>() {
@@ -275,13 +276,15 @@ pub fn decode_web_name(web_name: &str) -> Result<WebName> {
                         }
                     }
                     Err(_) => {
-                        return Err(eyre!("VERSION must be an integer in web name: '{web_name}"));
+                        return Err(eyre!(
+                            "VERSION must be an integer in web name: '{dweb_host}"
+                        ));
                     } // }
                 }
             }
             None => {
                 return Err(eyre!(
-                    "Web name is missing SHORTNAME and domain part: '{web_name}"
+                    "Dweb host is missing DWEB-NAME and domain part: '{dweb_host}"
                 ));
             }
         }
@@ -291,40 +294,41 @@ pub fn decode_web_name(web_name: &str) -> Result<WebName> {
 
     if segments.clone().count() != 3 {
         return Err(eyre!(
-            "Web name must contain three or four segments, each separated by '.'"
+            "Dweb host must contain three or four segments, each separated by '.'"
         ));
     }
 
-    let shortname = match segments.next() {
-        Some(shortname) => shortname,
+    // Next should be a DWEB-NAME
+    let dweb_name = match segments.next() {
+        Some(dweb_name) => dweb_name,
         None => {
-            return Err(eyre!("Missing SHORTNAME in '{web_name}"));
+            return Err(eyre!("Missing DWEB-NAME in '{dweb_host}"));
         }
     };
 
-    if !shortname.as_bytes()[0].is_ascii_alphabetic() {
+    if !dweb_name.as_bytes()[0].is_ascii_alphabetic() {
         return Err(eyre!(
-            "Web name SHORTNAME must start with an alphbetic character"
+            "DWEB-NAME part must start with an alphbetic character"
         ));
     }
 
-    if !shortname[shortname.len() - 1..]
+    if !dweb_name[dweb_name.len() - 1..]
         .chars()
         .all(|c| c.is_alphanumeric())
     {
         return Err(eyre!(
-            "Web name SHORTNAME must end with an alphanumeric character"
+            "DWEB-NAME part must end with an alphanumeric character"
         ));
     }
 
-    if !shortname.chars().all(|c| c.is_alphanumeric() || c == '-') {
+    if !dweb_name.chars().all(|c| c.is_alphanumeric() || c == '-') {
         return Err(eyre!(
-            "Web name SHORTNAME can only contain letters, numbers (and non-consecutive hyphens)"
+            "DWEB-NAME part can only contain letters, numbers (and non-consecutive hyphens)"
         ));
     }
 
-    if shortname.contains("--") {
-        return Err(eyre!("Web name SHORTNAME cannot contain '--'"));
+    if dweb_name.contains("--") {
+        return Err(eyre!("DWEB-NAME part cannot contain '--'"));
     }
 
     let mut ends_with_dlp_tld = false;
@@ -340,38 +344,38 @@ pub fn decode_web_name(web_name: &str) -> Result<WebName> {
     if !ends_with_dlp_tld {
         return {
             Err(eyre!(
-                "Web name does not end with '{DOMAIN_PART}.{TLD_PART} after the SHORTNAME"
+                "Dweb host does not end with '{DOMAIN_PART}.{TLD_PART} after the DWEB-NAME"
             ))
         };
     }
 
-    #[feature("fixed-webnames")]
-    let is_fixed_webname = !found_version_segment && shortname.contains(&fixed_web_name_tag);
+    #[feature("fixed-dweb-names")]
+    let is_fixed_dweb_host = !found_version_segment && dweb_name.contains(&fixed_dweb_host_tag);
 
-    println!("DEBUG: returning WebName: version: {version:?}, shortname: '{shortname}'");
+    println!("DEBUG: returning DwebHost: version: {version:?}, dweb_name: '{dweb_name}'");
 
-    Ok(WebName {
-        web_name_string: web_name.to_ascii_lowercase(),
-        shortname: shortname.to_string().to_ascii_lowercase(),
+    Ok(DwebHost {
+        dweb_host_string: dweb_host.to_ascii_lowercase(),
+        dweb_name: dweb_name.to_string().to_ascii_lowercase(),
         version,
 
-        #[feature("fixed-webnames")]
-        is_fixed_webname,
+        #[feature("fixed-dweb_hosts")]
+        is_fixed_dweb_host,
     })
 }
 
 #[test]
 fn check_malformed_web_name() {
     use crate::web::name;
-    assert!(name::decode_web_name("awe=some-f834.www-dweb.au").is_err());
-    assert!(name::decode_web_name("awe@some-f834.www-dweb.au").is_err());
-    assert!(name::decode_web_name("awe--some-f834.www-dweb.au").is_err());
-    assert!(name::decode_web_name("awesom-f-e-f834.www-dweb.ant").is_err());
-    assert!(name::decode_web_name("awesome-f834-.www-dweb.au").is_err());
-    assert!(name::decode_web_name("awesome-f834.ww-dweb.au").is_err());
-    assert!(name::decode_web_name("awesome-f834.www-dweb.ant").is_err());
-    assert!(name::decode_web_name("awesome-f834.www-dweb.au.com").is_err());
-    assert!(name::decode_web_name("v2.9awesome-f834.www-dweb.au").is_err());
-    assert!(name::decode_web_name("v0.awesome-f834.www-dweb.au").is_err());
-    assert!(name::decode_web_name("v2nd.awesome-f834.www-dweb.au").is_err());
+    assert!(name::decode_dweb_host("awe=some-f834.www-dweb.au").is_err());
+    assert!(name::decode_dweb_host("awe@some-f834.www-dweb.au").is_err());
+    assert!(name::decode_dweb_host("awe--some-f834.www-dweb.au").is_err());
+    assert!(name::decode_dweb_host("awesom-f-e-f834.www-dweb.ant").is_err());
+    assert!(name::decode_dweb_host("awesome-f834-.www-dweb.au").is_err());
+    assert!(name::decode_dweb_host("awesome-f834.ww-dweb.au").is_err());
+    assert!(name::decode_dweb_host("awesome-f834.www-dweb.ant").is_err());
+    assert!(name::decode_dweb_host("awesome-f834.www-dweb.au.com").is_err());
+    assert!(name::decode_dweb_host("v2.9awesome-f834.www-dweb.au").is_err());
+    assert!(name::decode_dweb_host("v0.awesome-f834.www-dweb.au").is_err());
+    assert!(name::decode_dweb_host("v2nd.awesome-f834.www-dweb.au").is_err());
 }

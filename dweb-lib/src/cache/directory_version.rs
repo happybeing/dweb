@@ -15,8 +15,8 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Caching of dweb URLs and SHORTNAMEs is used to both reduce network access for repeated
-//! requests and to provide a local DNS based on SHORTNAME, where each SHORTNAME corresponds
+//! Caching of dweb URLs and DWEB-NAMEs is used to both reduce network access for repeated
+//! requests and to provide a local DNS based on DWEB-NAME, where each DWEB-NAME corresponds
 //! do a DirectoryTree history (History<DirectoryTree>).
 
 use std::sync::{LazyLock, Mutex};
@@ -27,22 +27,22 @@ use ant_registers::RegisterAddress as HistoryAddress;
 use xor_name::XorName as DirectoryAddress;
 
 use crate::trove::directory_tree::DirectoryTree;
-use crate::web::name::WebName;
+use crate::web::name::DwebHost;
 
 // TODO: tune these values
-const SHORTNAMES_CAPACITY: u32 = 1000; // When exceeded, SHORTNAMES will be forgotten and new versions inaccessible
-const VERSIONS_CAPACITY: u32 = 1000; // When exceeded, particular versions will be dropped but will remain accessible so long as the SHORTNAME is cached
+const DWEB_NAMES_CAPACITY: u32 = 1000; // When exceeded, DWEB-NAMES will be forgotten and new versions inaccessible
+const VERSIONS_CAPACITY: u32 = 1000; // When exceeded, particular versions will be dropped but will remain accessible so long as the DWEB-NAME is cached
 
 // Note:
-// I considered using SHORTNAME.www-dweb.au as the key to avoid clashes of the same
-// SHORTNAME were used for an app (ie SHORTNAME.app-dweb.au address) but since the SHORTNAME
+// I considered using DWEB-NAME.www-dweb.au as the key to avoid clashes of the same
+// DWEB-NAME were used for an app (ie DWEB-NAME.app-dweb.au address) but since the DWEB-NAME
 // contains a 16-bit disambibuator based on the HISTORY-ADDRESS, the chances of a clash
 // are negligible.
 
 /// DIRECTORY_VERSIONS is a cache of DirectoryVersion, the metadata needed to
-/// access a specific version of a DirectoryTree corrsponding to a WebName string.
+/// access a specific version of a DirectoryTree corrsponding to a DwebHost string.
 ///
-/// Key:     WebName.web_name_string, ie v[VERSION].SHORTNAME.www-dweb.au
+/// Key:     DwebHost.dweb_host_string, ie v[VERSION].DWEB-NAME.www-dweb.au
 ///
 /// Entry:   DirectoryVersion
 ///
@@ -54,28 +54,28 @@ pub static DIRECTORY_VERSIONS: LazyLock<Mutex<LruMap<String, DirectoryVersion>>>
         ))
     });
 
-/// HISTORY_NAMES is a cache which acts like local DNS, providing a lookup of SHORTNAME
+/// HISTORY_NAMES is a cache which acts like local DNS, providing a lookup of DWEB-NAME
 /// to HistoryAddress.
 ///
-/// Key:     SHORTNAME
+/// Key:     DWEB-NAME
 ///
 /// Entry:   HistoryAddress
 ///
-/// This cache is populated by a successful API call to create a SHORTNAME, so long as a
+/// This cache is populated by a successful API call to create a DWEB-NAME, so long as a
 /// a History can initialise using a supplied HISTORY-ADDRESS.
 ///
 // TODO use Mutex here because LazyLock.get_mut() is a Nightly Rust feature (01/2025)
 pub static HISTORY_NAMES: LazyLock<Mutex<LruMap<String, HistoryAddress>>> = LazyLock::new(|| {
     Mutex::<LruMap<String, HistoryAddress>>::new(LruMap::<String, HistoryAddress>::new(
-        ByLength::new(SHORTNAMES_CAPACITY),
+        ByLength::new(DWEB_NAMES_CAPACITY),
     ))
 });
 
 #[derive(Clone)]
 pub struct DirectoryVersion {
-    /// The 'v[VERSION].SHORTNAME.www-dweb.au' part of a dweb URL (see dweb::web::name)
-    web_name_string: String,
-    /// Address of a History<trove::DirectoryTree> on Autonomi (saves lookup based on SHORTNAME.www-dweb.au)
+    /// The 'v[VERSION].DWEB-NAME.www-dweb.au' part of a dweb URL (see dweb::web::name)
+    dweb_host_string: String,
+    /// Address of a History<trove::DirectoryTree> on Autonomi (saves lookup based on DWEB-NAME.www-dweb.au)
     pub history_address: HistoryAddress,
     /// A version of 0 implies use most recent version (highest available)
     version: Option<u64>,
@@ -84,25 +84,25 @@ pub struct DirectoryVersion {
     /// Directory / website metadata
     pub directory_tree: Option<DirectoryTree>,
 
-    #[feature("fixed-webnames")]
+    #[feature("fixed-dweb-names")]
     is_fixed_webname: bool,
 }
 
 impl DirectoryVersion {
     pub fn new(
-        web_name: &WebName,
+        web_name: &DwebHost,
         history_address: HistoryAddress,
         directory_address: DirectoryAddress,
         directory_tree: Option<DirectoryTree>,
     ) -> DirectoryVersion {
         DirectoryVersion {
-            web_name_string: web_name.web_name_string.clone(),
+            dweb_host_string: web_name.dweb_host_string.clone(),
             history_address,
             version: web_name.version,
             directory_address,
             directory_tree,
 
-            #[feature("fixed-webnames")]
+            #[feature("fixed-dweb-names")]
             is_fixed_webname: false,
         }
     }

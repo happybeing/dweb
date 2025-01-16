@@ -49,7 +49,6 @@ pub async fn serve(host: String, port: u16) -> io::Result<()> {
             // <SERVICE>-dweb.au routes
             // TODO add routes for SERVICE: solid, rclone etc.
             .service(api::dweb_v0::init_service(DWEB_SERVICE_API))
-            .service(api::test::init_service(DWEB_SERVICE_API))
             .service(app::test::init_service(DWEB_SERVICE_APP))
             //
             // <DIRECTORY-ADDRESS>|[vN].<HISTORY-ADDRESS>.www-dweb.au services must be

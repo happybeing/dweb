@@ -32,8 +32,8 @@ use crate::cache::directory_version::{DirectoryVersion, DIRECTORY_VERSIONS, HIST
 use crate::client::AutonomiClient;
 use crate::trove::directory_tree::DirectoryTree;
 use crate::trove::History;
-use crate::web::name::decode_web_name;
-use crate::web::name::WebName;
+use crate::web::name::decode_dweb_host;
+use crate::web::name::DwebHost;
 
 /// Fetch the requested resource from Autonomi or from cached data if available.
 ///  Assumes a dweb URL
@@ -47,7 +47,7 @@ pub async fn fetch(client: &AutonomiClient, url: Url) -> HttpResponse {
         }
     };
 
-    let web_name = match decode_web_name(host) {
+    let web_name = match decode_dweb_host(host) {
         Ok(web_name) => web_name,
         Err(_e) => {
             return HttpResponseBuilder::new(StatusCode::NOT_FOUND)
@@ -106,22 +106,22 @@ pub async fn fetch(client: &AutonomiClient, url: Url) -> HttpResponse {
 }
 
 /// Retrieve a given DirectoryVersion from the cache, or if not access the network and
-/// create a new DirectoryVersion based on the WebName.
+/// create a new DirectoryVersion based on the DwebHost.
 /// If the return is Ok(DirectoryVersion), it is guaranteed to have Some(DirectoryTree)
 //
 // Notes:
 //   1) ensures that cache locks are released ASAP, and not held during network access.
 //   2) may return an error, but still update the cache with an incomplete DirectoryVersion
 //      if it obtains the DirectoryVersion.directory_address but not the directory_tree. A subsequent call
-//      using the same WebName can then skip getting the directory_address and will just retry getting
+//      using the same DwebHost can then skip getting the directory_address and will just retry getting
 //      the directory_tree.
 pub async fn fetch_website_version(
     client: &AutonomiClient,
-    web_name: WebName,
+    web_name: DwebHost,
 ) -> Result<DirectoryVersion> {
     // If the cache has all the info we return, or if it has an entry but no DirectoryTree we can use the addresses
     let (history_address, directory_address) = if let Ok(lock) = &mut DIRECTORY_VERSIONS.lock() {
-        let cached_directory_version = lock.get(&web_name.web_name_string);
+        let cached_directory_version = lock.get(&web_name.dweb_host_string);
         if cached_directory_version.is_some()
             && cached_directory_version
                 .as_ref()
@@ -145,9 +145,9 @@ pub async fn fetch_website_version(
     let history_address = if history_address.is_none() {
         // We need the history to get either the DirectoryAddress and/or the DirectoryTree
         if let Ok(lock) = &mut HISTORY_NAMES.lock() {
-            lock.get(&web_name.shortname).copied().unwrap()
+            lock.get(&web_name.dweb_name).copied().unwrap()
         } else {
-            return Err(eyre!(format!("Unknown SHORTNAME '{}'", web_name.shortname)));
+            return Err(eyre!(format!("Unknown DWEB-NAME '{}'", web_name.dweb_name)));
         }
     } else {
         history_address.unwrap()
@@ -173,8 +173,8 @@ pub async fn fetch_website_version(
                 Ok(history) => history,
                 Err(e) => {
                     return Err(eyre!(
-                        "Failed to get History for SHORTNAME '{}': {e}",
-                        web_name.shortname,
+                        "Failed to get History for DWEB-NAME '{}': {e}",
+                        web_name.dweb_name,
                     ))
                 }
             };
@@ -198,7 +198,7 @@ pub async fn fetch_website_version(
 }
 
 pub fn update_cached_directory_version(
-    web_name: &WebName,
+    web_name: &DwebHost,
     history_address: HistoryAddress,
     directory_address: DirectoryAddress,
     directory_tree: Option<DirectoryTree>,
@@ -214,14 +214,14 @@ pub fn update_cached_directory_version(
     match &mut DIRECTORY_VERSIONS.lock() {
         Ok(lock) => {
             lock.insert(
-                web_name.web_name_string.clone(),
+                web_name.dweb_host_string.clone(),
                 new_directory_version.clone(),
             );
         }
         Err(e) => {
             return Err(eyre!(
-                "Failed to store DirectoryVersion in cache for SHORTNAME '{}': {e}",
-                web_name.shortname
+                "Failed to store DirectoryVersion in cache for DWEB-NAME '{}': {e}",
+                web_name.dweb_name
             ));
         }
     }

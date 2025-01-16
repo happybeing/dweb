@@ -46,7 +46,6 @@ const VERSIONS_CAPACITY: u32 = 1000; // When exceeded, particular versions will 
 ///
 /// Entry:   DirectoryVersion
 ///
-/// TODO: consider persisting the caches (do any feature serde?)
 // TODO use Mutex here because LazyLock.get_mut() is a Nightly Rust feature (01/2025)
 pub static DIRECTORY_VERSIONS: LazyLock<Mutex<LruMap<String, DirectoryVersion>>> =
     LazyLock::new(|| {

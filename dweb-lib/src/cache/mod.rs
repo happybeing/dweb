@@ -15,6 +15,15 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! A set of caches which serve to speed up access to data, and in
+//! the case of websites, enable access to different versions of a
+//! website to work in a standard browser. Without a way to map the
+//! 'host' part of a URL to a VERSION and HISTORY-ADDRESS, it would
+//! not be possible for a dweb server to know which version of a
+//! website an HttpRequest was related to.
+//!
+//! TODO: consider persisting the caches (do any feature serde?)
+
 // This module includes these cache implementations:
 
 pub mod directory;

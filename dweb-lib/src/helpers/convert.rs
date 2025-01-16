@@ -87,7 +87,7 @@ pub fn parse_port_number(str: &str) -> Result<u16> {
 pub fn parse_host(hostname: &str) -> Result<String> {
     let host = hostname.parse::<String>()?;
 
-    match url::Url::parse(&host) {
+    match url::Url::parse(&format!("https://{host}")) {
         Ok(_url) => Ok(String::from(hostname)),
         Err(e) => Err(eyre!(e)),
     }

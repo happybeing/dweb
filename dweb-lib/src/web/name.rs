@@ -306,30 +306,10 @@ pub fn decode_dweb_host(dweb_host: &str) -> Result<DwebHost> {
         }
     };
 
-    if !dweb_name.as_bytes()[0].is_ascii_alphabetic() {
-        return Err(eyre!(
-            "DWEB-NAME part must start with an alphbetic character"
-        ));
-    }
-
-    if !dweb_name[dweb_name.len() - 1..]
-        .chars()
-        .all(|c| c.is_alphanumeric())
-    {
-        return Err(eyre!(
-            "DWEB-NAME part must end with an alphanumeric character"
-        ));
-    }
-
-    if !dweb_name.chars().all(|c| c.is_alphanumeric() || c == '-') {
-        return Err(eyre!(
-            "DWEB-NAME part can only contain letters, numbers (and non-consecutive hyphens)"
-        ));
-    }
-
-    if dweb_name.contains("--") {
-        return Err(eyre!("DWEB-NAME part cannot contain '--'"));
-    }
+    match validate_dweb_name(&dweb_name) {
+        Ok(()) => (),
+        Err(e) => return Err(e),
+    };
 
     let mut ends_with_dlp_tld = false;
     if let Some(domain_part) = segments.next() {
@@ -362,6 +342,35 @@ pub fn decode_dweb_host(dweb_host: &str) -> Result<DwebHost> {
         #[feature("fixed-dweb_hosts")]
         is_fixed_dweb_host,
     })
+}
+
+pub fn validate_dweb_name(dweb_name: &str) -> Result<()> {
+    if !dweb_name.as_bytes()[0].is_ascii_alphabetic() {
+        return Err(eyre!(
+            "DWEB-NAME part must start with an alphbetic character"
+        ));
+    }
+
+    if !dweb_name[dweb_name.len() - 1..]
+        .chars()
+        .all(|c| c.is_alphanumeric())
+    {
+        return Err(eyre!(
+            "DWEB-NAME part must end with an alphanumeric character"
+        ));
+    }
+
+    if !dweb_name.chars().all(|c| c.is_alphanumeric() || c == '-') {
+        return Err(eyre!(
+            "DWEB-NAME part can only contain letters, numbers (and non-consecutive hyphens)"
+        ));
+    }
+
+    if dweb_name.contains("--") {
+        return Err(eyre!("DWEB-NAME part cannot contain '--'"));
+    }
+
+    Ok(())
 }
 
 #[test]

@@ -21,7 +21,7 @@ use actix_web::{
     http::header, post, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder,
 };
 
-use dweb::helpers::convert::awe_str_to_register_address;
+use dweb::helpers::convert::awe_str_to_history_address;
 
 use crate::services::request_as_html;
 
@@ -91,7 +91,7 @@ pub async fn www_handler(request: HttpRequest, path: web::Path<String>) -> HttpR
                     None
                 };
 
-                let history_address = awe_str_to_register_address(history);
+                let history_address = awe_str_to_history_address(history);
                 println!(
                     "4 -> history www-dweb.au address with VERSION '{version:?}' and HISTORY '{history}'"
                 );

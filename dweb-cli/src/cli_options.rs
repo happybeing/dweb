@@ -184,7 +184,7 @@ pub enum Subcommands {
         #[clap(long = "files-root", value_name = "FILES-ROOT")]
         files_root: PathBuf,
         /// The address of a register referencing each version of the website. Can begin with "awv://"
-        #[clap(long, name = "HISTORY-ADDRESS", value_parser = awe_str_to_register_address)]
+        #[clap(long, name = "HISTORY-ADDRESS", value_parser = awe_str_to_history_address)]
         history_address: HistoryAddress,
         // TODO when NRS, re-instate the following (and 'conflicts_with = "update"' above)
         // /// Update the website at given awe NRS name

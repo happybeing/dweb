@@ -20,6 +20,9 @@ use actix_web::{
     HttpResponse, HttpServer, Responder,
 };
 
+use dweb::cache::directory_version::HISTORY_NAMES;
+use dweb::helpers::convert::awe_str_to_history_address;
+
 pub fn init_service(host: &str) -> impl HttpServiceFactory {
     // TODO modify this and the get to accept /{api}/{version}/{operation} etc (see www::init_service())
     actix_web::web::scope("/dweb/v0")
@@ -27,17 +30,52 @@ pub fn init_service(host: &str) -> impl HttpServiceFactory {
         .guard(guard::Host(host))
 }
 
-/// Test API
-/// Test url: http://api-dweb.au:8080/test/some/thing
+// Test url: http://api-dweb.au:8080/dweb/v0/webname/register/smartypants/ddd
 
-#[get("/dwebname/register/{name}/{history_address}")]
+#[get("/dwebname/register/{dweb_name}/{history_address}")]
 pub async fn api_dwebname_register(
     params: web::Path<(String, String)>,
-    client_data: Data<dweb::client::AutonomiClient>,
+    _client_data: Data<dweb::client::AutonomiClient>,
 ) -> impl Responder {
-    let (name, history_address) = params.into_inner();
-    println!("api_dwebname_register({name}, {history_address})...");
-    let body = format!("api_dwebname_register({name}, {history_address})");
+    let (dweb_name, history_address_string) = params.into_inner();
+    match dweb::web::name::validate_dweb_name(&dweb_name) {
+        Ok(()) => (),
+        Err(e) => {
+            return HttpResponse::BadRequest()
+                .body(format!("Invalid DWEB-NAME '{dweb_name}' - {e}"));
+        }
+    };
 
-    HttpResponse::Ok().body(body)
+    let history_address = match awe_str_to_history_address(&history_address_string) {
+        Ok(history_address) => history_address,
+        Err(e) => {
+            return HttpResponse::BadRequest()
+                .body(format!("Invalid HISTORY-ADDRESS '{dweb_name}' - {e}"));
+        }
+    };
+
+    match &mut HISTORY_NAMES.lock() {
+        Ok(lock) => {
+            let cached_history_address = lock.get(&dweb_name);
+            if cached_history_address.is_some() {
+                let cached_history_address = cached_history_address.unwrap();
+                if history_address != *cached_history_address {
+                    return HttpResponse::BadRequest()
+                        .body(format!("DWEB-NAME '{dweb_name}' already in use for HISTORY-ADDRESS '{cached_history_address}'"));
+                }
+                println!("DWEB-NAME '{dweb_name}' already registered for {history_address_string}");
+            } else {
+                lock.insert(dweb_name.clone(), history_address);
+                println!(
+                    "DWEB-NAME '{dweb_name}' successfully registered for {history_address_string}"
+                );
+            }
+        }
+        Err(e) => {
+            return HttpResponse::InternalServerError()
+                .body(format!("Failed to access dweb name cache - {e}"));
+        }
+    };
+
+    HttpResponse::Ok().body("success")
 }

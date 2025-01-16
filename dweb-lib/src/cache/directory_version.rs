@@ -42,7 +42,7 @@ const VERSIONS_CAPACITY: u32 = 1000; // When exceeded, particular versions will 
 /// DIRECTORY_VERSIONS is a cache of DirectoryVersion, the metadata needed to
 /// access a specific version of a DirectoryTree corrsponding to a DwebHost string.
 ///
-/// Key:     DwebHost.dweb_host_string, ie v[VERSION].DWEB-NAME.www-dweb.au
+/// Key:     DwebHost.dweb_host_string, ie [vVERSION.]DWEB-NAME.www-dweb.au
 ///
 /// Entry:   DirectoryVersion
 ///

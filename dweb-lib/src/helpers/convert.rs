@@ -6,9 +6,7 @@
 // KIND, either express or implied. Please review the Licences for the specific language governing
 // permissions and limitations relating to use of the SAFE Network Software.
 
-use std::f64::MAX_10_EXP;
-
-use ant_registers::{Entry, RegisterAddress};
+use ant_registers::{Entry, RegisterAddress as HistoryAddress};
 use color_eyre::eyre::{eyre, Result};
 use xor_name::XorName;
 
@@ -16,14 +14,14 @@ use xor_name::XorName;
 
 /// Parse a hex register address with optional URL scheme
 /// TODO modify for dweb use: Parse a hex register address with optional URL scheme
-pub fn str_to_register_address(str: &str) -> Result<RegisterAddress> {
+pub fn str_to_register_address(str: &str) -> Result<HistoryAddress> {
     // let str = if str.starts_with(AWE_PROTOCOL_REGISTER) {
     //     &str[AWE_PROTOCOL_REGISTER.len()..]
     // } else {
     //     &str
     // };
 
-    match RegisterAddress::from_hex(str) {
+    match HistoryAddress::from_hex(str) {
         Ok(register_address) => Ok(register_address),
         Err(e) => Err(eyre!("Invalid register address string '{str}':\n{e:?}")),
     }
@@ -94,16 +92,30 @@ pub fn parse_host(hostname: &str) -> Result<String> {
 }
 
 /// Parse a hex register address with optional URL scheme
-pub fn awe_str_to_register_address(str: &str) -> Result<RegisterAddress> {
+pub fn awe_str_to_register_address(str: &str) -> Result<HistoryAddress> {
     let str = if str.starts_with(AWE_PROTOCOL_REGISTER) {
         &str[AWE_PROTOCOL_REGISTER.len()..]
     } else {
         &str
     };
 
-    match RegisterAddress::from_hex(str) {
+    match HistoryAddress::from_hex(str) {
         Ok(register_address) => Ok(register_address),
         Err(e) => Err(eyre!("Invalid register address string '{str}':\n{e:?}")),
+    }
+}
+
+/// Parse a hex register address with optional URL scheme
+pub fn awe_str_to_history_address(str: &str) -> Result<HistoryAddress> {
+    let str = if str.starts_with(AWE_PROTOCOL_REGISTER) {
+        &str[AWE_PROTOCOL_REGISTER.len()..]
+    } else {
+        &str
+    };
+
+    match HistoryAddress::from_hex(str) {
+        Ok(history_address) => Ok(history_address),
+        Err(e) => Err(eyre!("Invalid history address string '{str}':\n{e:?}")),
     }
 }
 

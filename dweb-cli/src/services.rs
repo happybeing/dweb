@@ -38,6 +38,9 @@ const DWEB_SERVICE_WWW: &str = "www-dweb.au";
 const DWEB_SERVICE_API: &str = "api-dweb.au";
 const DWEB_SERVICE_APP: &str = "app-dweb.au";
 
+#[cfg(feature = "development")]
+const DWEB_SERVICE_DEBUG: &str = "debug-dweb.au";
+
 pub async fn serve(host: String, port: u16) -> io::Result<()> {
     let client = dweb::client::AutonomiClient::initialise_and_connect(None)
         .await
@@ -55,6 +58,7 @@ pub async fn serve(host: String, port: u16) -> io::Result<()> {
             // after above routes or will consume them too!
             .service(www::test::init_service())
             .service(www::www::init_service())
+            .service(www::debug::init_service())
             //
             // TODO: (eventually!) remove these basic test routes
             .service(hello)

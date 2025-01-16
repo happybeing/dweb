@@ -11,12 +11,18 @@ repository.workspace = true
 name = "dweb"
 path = "src/main.rs"
 
+[profile.dev]
+default = ["skip-network-compatibility-check", "development", "fixed-dweb-hosts"]
+
 [features]
 # updated for autonomi v0.2.4
 default = ["skip-network-compatibility-check"]
 local = ["ant-bootstrap/local", "autonomi/local", "dweb/local"]
 ametrics = ["ant-logging/process-metrics"]
+
 skip-network-compatibility-check = []   # Avoid need to upload avp type and include xor address in build
+development = []
+fixed-dweb-hosts = []
 
 [dependencies]
 # Generated using: awe-dependencies --branch stable

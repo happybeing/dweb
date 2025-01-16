@@ -89,7 +89,7 @@ pub struct DwebHost {
     /// None implies most recent version (highest number)
     pub version: Option<u64>,
 
-    #[feature("fixed-dweb_hosts")]
+    #[cfg(feature = "fixed-dweb-hosts")]
     // Development build feature for non-versioned DirectoryTree references
     pub is_fixed_dweb_host: bool,
 }
@@ -156,7 +156,7 @@ pub fn make_version_part(version: u64) -> String {
     }
 }
 
-#[feature("fixed-dweb-names")]
+#[cfg(feature = "fixed-dweb-hosts")]
 pub fn make_fixed_dweb_name(
     memorable_part: &String,
     directory_address: DirectoryAddress,
@@ -329,7 +329,7 @@ pub fn decode_dweb_host(dweb_host: &str) -> Result<DwebHost> {
         };
     }
 
-    #[feature("fixed-dweb-names")]
+    #[cfg(feature = "fixed-dweb-hosts")]
     let is_fixed_dweb_host = !found_version_segment && dweb_name.contains(&fixed_dweb_host_tag);
 
     println!("DEBUG: returning DwebHost: version: {version:?}, dweb_name: '{dweb_name}'");
@@ -339,7 +339,7 @@ pub fn decode_dweb_host(dweb_host: &str) -> Result<DwebHost> {
         dweb_name: dweb_name.to_string().to_ascii_lowercase(),
         version,
 
-        #[feature("fixed-dweb_hosts")]
+        #[cfg(feature = "fixed-dweb-hosts")]
         is_fixed_dweb_host,
     })
 }

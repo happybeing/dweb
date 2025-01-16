@@ -14,6 +14,18 @@ crate-type = ["cdylib", "rlib"]
 [lints]
 workspace = true
 
+[profile.dev]
+default = ["skip-network-compatibility-check", "development", "fixed-dweb-hosts"]
+
+[features]
+default = ["skip-network-compatibility-check"]
+local = ["autonomi/local"]
+metrics = ["ant-logging/process-metrics"]
+
+skip-network-compatibility-check = []   # Avoid need to upload avp type and include xor address in build
+development = []
+fixed-dweb-hosts = []
+
 [dependencies]
 # Generated using: awe-dependencies --branch stable --ant-path ../../../autonomi/autonomi/
 # autonomi = { version = "0.3.0", path = "../../../autonomi/autonomi/autonomi", features = [
@@ -79,9 +91,3 @@ evmlib = "0.1.6"
 actix-web = "4.9.0"
 mime_guess = "2.0.5"
 schnellru = "0.2.4"
-
-[features]
-default = ["skip-network-compatibility-check"]
-local = ["autonomi/local"]
-metrics = ["ant-logging/process-metrics"]
-skip-network-compatibility-check = []   # Avoid need to upload avp type and include xor address in build

@@ -84,7 +84,7 @@ pub struct DirectoryVersion {
     /// Directory / website metadata
     pub directory_tree: Option<DirectoryTree>,
 
-    #[feature("fixed-dweb-names")]
+    #[cfg(feature = "fixed-dweb-hosts")]
     is_fixed_webname: bool,
 }
 
@@ -102,7 +102,7 @@ impl DirectoryVersion {
             directory_address,
             directory_tree,
 
-            #[feature("fixed-dweb-names")]
+            #[cfg(feature = "fixed-dweb-hosts")]
             is_fixed_webname: false,
         }
     }

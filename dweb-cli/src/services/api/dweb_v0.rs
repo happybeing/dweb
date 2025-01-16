@@ -63,11 +63,11 @@ pub async fn api_dwebname_register(
                     return HttpResponse::BadRequest()
                         .body(format!("DWEB-NAME '{dweb_name}' already in use for HISTORY-ADDRESS '{cached_history_address}'"));
                 }
-                println!("DWEB-NAME '{dweb_name}' already registered for {history_address_string}");
+                // println!("DWEB-NAME '{dweb_name}' already registered for {history_address_string}");
             } else {
                 lock.insert(dweb_name.clone(), history_address);
                 println!(
-                    "DWEB-NAME '{dweb_name}' successfully registered for {history_address_string}"
+                    // "DWEB-NAME '{dweb_name}' successfully registered for {history_address_string}"
                 );
             }
         }

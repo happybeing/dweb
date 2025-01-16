@@ -24,12 +24,13 @@ use std::io;
 use std::time::Duration;
 
 use actix_web::{
-    body, dev::HttpServiceFactory, get, guard, post, web, App, HttpRequest, HttpResponse,
-    HttpServer, Responder,
+    body, dev::HttpServiceFactory, get, guard, post, web, web::Data, App, HttpRequest,
+    HttpResponse, HttpServer, Responder,
 };
 use clap::Parser;
 
 use crate::cli_options::Opt;
+use dweb::helpers::convert::awe_str_to_xor_name;
 
 const CONNECTION_TIMEOUT: u64 = 75;
 
@@ -38,8 +39,12 @@ const DWEB_SERVICE_API: &str = "api-dweb.au";
 const DWEB_SERVICE_APP: &str = "app-dweb.au";
 
 pub async fn serve(host: String, port: u16) -> io::Result<()> {
+    let client = dweb::client::AutonomiClient::initialise_and_connect(None)
+        .await
+        .expect("Failed to connect to Autonomi Network");
+
     println!("dweb serve listening on {host}:{port}");
-    HttpServer::new(|| {
+    HttpServer::new(move || {
         App::new()
             // <SERVICE>-dweb.au routes
             // TODO add routes for SERVICE: solid, rclone etc.
@@ -61,6 +66,7 @@ pub async fn serve(host: String, port: u16) -> io::Result<()> {
                 web::get().to(manual_test_show_request),
             )
             .route("/test-connect", web::get().to(manual_test_connect))
+            .app_data(Data::new(client.clone()))
             .default_service(web::get().to(manual_test_default_route))
     })
     .keep_alive(Duration::from_secs(CONNECTION_TIMEOUT))
@@ -139,14 +145,25 @@ pub fn request_as_html(request: &HttpRequest) -> String {
 }
 
 #[get("/awf/{datamap_address:.*}")]
-async fn test_fetch_file(datamap_address: web::Path<String>) -> impl Responder {
-    // return HttpResponse::Ok().body(format!(
-    //     "<!DOCTYPE html><head></head><body>test /awf/&lt;DATAMAP-ADDRESS&gt;:<br/>xor: {}<body>",
-    //     datamap_address.to_string()
-    // ));
+async fn test_fetch_file(
+    datamap_address: web::Path<String>,
+    client_data: Data<dweb::client::AutonomiClient>,
+) -> impl Responder {
+    println!("test_fetch_file()...");
 
-    // HttpResponse::Ok().body(fetdh_content(&datamap_address).await)
-    HttpResponse::Ok().body("TODO: implement test_fetch_file()")
+    let file_address = match awe_str_to_xor_name(datamap_address.as_str()) {
+        Ok(file_address) => file_address,
+        Err(e) => {
+            return HttpResponse::BadRequest().body(format!("Invalid address. {e}"));
+        }
+    };
+
+    match client_data.data_get_public(file_address).await {
+        Ok(bytes) => HttpResponse::Ok().body(bytes),
+        Err(e) => {
+            return HttpResponse::NotFound().body(format!("404 NOT FOUND. {e}"));
+        }
+    }
 }
 
 async fn manual_test_connect() -> impl Responder {

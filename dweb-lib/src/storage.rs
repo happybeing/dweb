@@ -68,7 +68,7 @@ pub async fn publish_or_update_files(
 
     let mut files_history: History<DirectoryTree>;
     let (history_address, version) = if let Some(history_address) = history_address {
-        // Update existing file tree
+        // Update existing directory
         println!("Uploading update to network...");
         let files_address = publish_files(&client, files_root, &website_config).await?;
 

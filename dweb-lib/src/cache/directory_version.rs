@@ -39,13 +39,13 @@ const VERSIONS_CAPACITY: u32 = 1000; // When exceeded, particular versions will 
 // contains a 16-bit disambibuator based on the HISTORY-ADDRESS, the chances of a clash
 // are negligible.
 
-/// DIRECTORY_VERSIONS is a cache of DirectoryVersion, which contains the metadata for
-/// a specific version of a DirectoryTree.
-///
-/// A sync cache for looking up a website version based on a WebName string
+/// DIRECTORY_VERSIONS is a cache of DirectoryVersion, the metadata needed to
+/// access a specific version of a DirectoryTree corrsponding to a WebName string.
 ///
 /// Key:     WebName.web_name_string, ie v[VERSION].SHORTNAME.www-dweb.au
+///
 /// Entry:   DirectoryVersion
+///
 /// TODO: consider persisting the caches (do any feature serde?)
 // TODO use Mutex here because LazyLock.get_mut() is a Nightly Rust feature (01/2025)
 pub static DIRECTORY_VERSIONS: LazyLock<Mutex<LruMap<String, DirectoryVersion>>> =
@@ -55,12 +55,16 @@ pub static DIRECTORY_VERSIONS: LazyLock<Mutex<LruMap<String, DirectoryVersion>>>
         ))
     });
 
-/// HISTORY_NAMES is a cache of HistoryAddress indexed on SHORTNAME to lookup the address of
-/// a History<DirectoryTree> which acts like a local DNS.
+/// HISTORY_NAMES is a cache which acts like local DNS, providing a lookup of SHORTNAME
+/// to HistoryAddress.
+///
 /// Key:     SHORTNAME
+///
 /// Entry:   HistoryAddress
-/// Typically this cache is used only when the DIRECTORY_VERSIONS cache doesn't hold the
-/// version of the directory you require.
+///
+/// This cache is populated by a successful API call to create a SHORTNAME, so long as a
+/// a History can initialise using a supplied HISTORY-ADDRESS.
+///
 // TODO use Mutex here because LazyLock.get_mut() is a Nightly Rust feature (01/2025)
 pub static HISTORY_NAMES: LazyLock<Mutex<LruMap<String, HistoryAddress>>> = LazyLock::new(|| {
     Mutex::<LruMap<String, HistoryAddress>>::new(LruMap::<String, HistoryAddress>::new(

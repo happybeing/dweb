@@ -47,8 +47,8 @@ pub async fn fetch(client: &AutonomiClient, url: Url) -> HttpResponse {
         }
     };
 
-    let web_name = match decode_dweb_host(host) {
-        Ok(web_name) => web_name,
+    let dweb_host = match decode_dweb_host(host) {
+        Ok(dweb_host) => dweb_host,
         Err(_e) => {
             return HttpResponseBuilder::new(StatusCode::NOT_FOUND)
                 .reason("failed to decode web name")
@@ -57,7 +57,7 @@ pub async fn fetch(client: &AutonomiClient, url: Url) -> HttpResponse {
     };
 
     let mut reason: &'static str = "";
-    let response = match fetch_website_version(client, web_name).await {
+    let response = match fetch_website_version(client, dweb_host).await {
         // TODO cache function that wraps fetching the History/DirectoryTree
         Ok(cache_version_entry) => {
             match cache_version_entry
@@ -117,11 +117,11 @@ pub async fn fetch(client: &AutonomiClient, url: Url) -> HttpResponse {
 //      the directory_tree.
 pub async fn fetch_website_version(
     client: &AutonomiClient,
-    web_name: DwebHost,
+    dweb_host: DwebHost,
 ) -> Result<DirectoryVersion> {
     // If the cache has all the info we return, or if it has an entry but no DirectoryTree we can use the addresses
     let (history_address, directory_address) = if let Ok(lock) = &mut DIRECTORY_VERSIONS.lock() {
-        let cached_directory_version = lock.get(&web_name.dweb_host_string);
+        let cached_directory_version = lock.get(&dweb_host.dweb_host_string);
         if cached_directory_version.is_some()
             && cached_directory_version
                 .as_ref()
@@ -145,9 +145,12 @@ pub async fn fetch_website_version(
     let history_address = if history_address.is_none() {
         // We need the history to get either the DirectoryAddress and/or the DirectoryTree
         if let Ok(lock) = &mut HISTORY_NAMES.lock() {
-            lock.get(&web_name.dweb_name).copied().unwrap()
+            lock.get(&dweb_host.dweb_name).copied().unwrap()
         } else {
-            return Err(eyre!(format!("Unknown DWEB-NAME '{}'", web_name.dweb_name)));
+            return Err(eyre!(format!(
+                "Unknown DWEB-NAME '{}'",
+                dweb_host.dweb_name
+            )));
         }
     } else {
         history_address.unwrap()
@@ -162,7 +165,7 @@ pub async fn fetch_website_version(
                 Err(e) => return Err(eyre!("Failed to download directory from network: {e}")),
             };
         return update_cached_directory_version(
-            &web_name,
+            &dweb_host,
             history_address,
             directory_address,
             Some(directory_tree),
@@ -174,13 +177,13 @@ pub async fn fetch_website_version(
                 Err(e) => {
                     return Err(eyre!(
                         "Failed to get History for DWEB-NAME '{}': {e}",
-                        web_name.dweb_name,
+                        dweb_host.dweb_name,
                     ))
                 }
             };
 
         let (directory_address, directory_tree) =
-            match history.fetch_version_metadata(web_name.version).await {
+            match history.fetch_version_metadata(dweb_host.version).await {
                 Some(directory_tree) => match history.get_cached_version() {
                     Some(cached_version) => (cached_version.metadata_address(), directory_tree),
                     None => return Err(eyre!("History failed to get_cached_version()")),
@@ -189,7 +192,7 @@ pub async fn fetch_website_version(
             };
 
         return update_cached_directory_version(
-            &web_name,
+            &dweb_host,
             history_address,
             directory_address,
             Some(directory_tree),
@@ -198,14 +201,14 @@ pub async fn fetch_website_version(
 }
 
 pub fn update_cached_directory_version(
-    web_name: &DwebHost,
+    dweb_host: &DwebHost,
     history_address: HistoryAddress,
     directory_address: DirectoryAddress,
     directory_tree: Option<DirectoryTree>,
 ) -> Result<DirectoryVersion> {
     // TODO may need both version_retrieved and version_requested in DirectoryVersion
     let new_directory_version = DirectoryVersion::new(
-        &web_name,
+        &dweb_host,
         history_address,
         directory_address,
         directory_tree,
@@ -214,14 +217,14 @@ pub fn update_cached_directory_version(
     match &mut DIRECTORY_VERSIONS.lock() {
         Ok(lock) => {
             lock.insert(
-                web_name.dweb_host_string.clone(),
+                dweb_host.dweb_host_string.clone(),
                 new_directory_version.clone(),
             );
         }
         Err(e) => {
             return Err(eyre!(
                 "Failed to store DirectoryVersion in cache for DWEB-NAME '{}': {e}",
-                web_name.dweb_name
+                dweb_host.dweb_name
             ));
         }
     }

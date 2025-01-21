@@ -23,6 +23,7 @@ use actix_web::{
     post, web, App, Error, HttpRequest, HttpResponse, HttpResponseBuilder, HttpServer, Responder,
 };
 use color_eyre::eyre::{eyre, Result};
+use mime;
 use url::Url;
 use xor_name::XorName as DirectoryAddress;
 
@@ -37,7 +38,9 @@ use crate::web::name::DwebHost;
 
 /// Fetch the requested resource from Autonomi or from cached data if available.
 ///  Assumes a dweb URL
+/// TODO update to use response_with_body() instead of reason()
 pub async fn fetch(client: &AutonomiClient, url: Url) -> HttpResponse {
+    println!("DEBUG fetch({url:?})...");
     let host = match url.host_str() {
         Some(host) => host,
         None => {
@@ -119,24 +122,23 @@ pub async fn fetch_website_version(
     client: &AutonomiClient,
     dweb_host: DwebHost,
 ) -> Result<DirectoryVersion> {
+    println!(
+        "DEBUG fetch([ {}, {}, {:?} ])...",
+        dweb_host.dweb_host_string, dweb_host.dweb_name, dweb_host.version
+    );
     // If the cache has all the info we return, or if it has an entry but no DirectoryTree we can use the addresses
     let (history_address, directory_address) = if let Ok(lock) = &mut DIRECTORY_VERSIONS.lock() {
-        let cached_directory_version = lock.get(&dweb_host.dweb_host_string);
-        if cached_directory_version.is_some()
-            && cached_directory_version
-                .as_ref()
-                .unwrap()
-                .directory_tree
-                .is_some()
-        {
-            let directory_version = cached_directory_version.unwrap().clone();
-            return Ok(directory_version);
+        if let Some(cached_directory_version) = lock.get(&dweb_host.dweb_host_string) {
+            if cached_directory_version.directory_tree.is_some() {
+                return Ok(cached_directory_version.clone());
+            } else {
+                (
+                    Some(cached_directory_version.history_address),
+                    Some(cached_directory_version.directory_address),
+                )
+            }
         } else {
-            let directory_version = cached_directory_version.unwrap().clone();
-            (
-                Some(directory_version.history_address),
-                Some(directory_version.directory_address),
-            )
+            (None, None)
         }
     } else {
         (None, None)
@@ -145,12 +147,16 @@ pub async fn fetch_website_version(
     let history_address = if history_address.is_none() {
         // We need the history to get either the DirectoryAddress and/or the DirectoryTree
         if let Ok(lock) = &mut HISTORY_NAMES.lock() {
-            lock.get(&dweb_host.dweb_name).copied().unwrap()
+            if let Some(history_address) = lock.get(&dweb_host.dweb_name).copied() {
+                history_address
+            } else {
+                return Err(eyre!(format!(
+                    "unknown DWEB-NAME '{}'",
+                    dweb_host.dweb_name
+                )));
+            }
         } else {
-            return Err(eyre!(format!(
-                "Unknown DWEB-NAME '{}'",
-                dweb_host.dweb_name
-            )));
+            return Err(eyre!(format!("failed to access DWEB-NAME cache",)));
         }
     } else {
         history_address.unwrap()
@@ -162,7 +168,7 @@ pub async fn fetch_website_version(
         let directory_tree =
             match History::<DirectoryTree>::raw_trove_download(client, directory_address).await {
                 Ok(directory_tree) => directory_tree,
-                Err(e) => return Err(eyre!("Failed to download directory from network: {e}")),
+                Err(e) => return Err(eyre!("failed to download directory from network: {e}")),
             };
         return update_cached_directory_version(
             &dweb_host,
@@ -171,16 +177,21 @@ pub async fn fetch_website_version(
             Some(directory_tree),
         );
     } else {
-        let mut history =
-            match History::<DirectoryTree>::new(client.clone(), Some(history_address)).await {
-                Ok(history) => history,
-                Err(e) => {
-                    return Err(eyre!(
-                        "Failed to get History for DWEB-NAME '{}': {e}",
-                        dweb_host.dweb_name,
-                    ))
-                }
-            };
+        let mut history = match History::<DirectoryTree>::from_history_address(
+            client.clone(),
+            history_address,
+            None,
+        )
+        .await
+        {
+            Ok(history) => history,
+            Err(e) => {
+                return Err(eyre!(
+                    "failed to get History for DWEB-NAME '{}': {e}",
+                    dweb_host.dweb_name,
+                ));
+            }
+        };
 
         let (directory_address, directory_tree) =
             match history.fetch_version_metadata(dweb_host.version).await {
@@ -230,4 +241,34 @@ pub fn update_cached_directory_version(
     }
 
     Ok(new_directory_version)
+}
+
+const NO_REASON: &str = "";
+
+pub fn response_with_body(status: StatusCode, reason: Option<String>) -> HttpResponse {
+    if let Some(reason) = reason {
+        let html = format!(
+            "<html>
+            <head><title>{status}</title></head>
+            <body>
+            <p>{status}</p>
+            <p>{reason}</p>
+            </body>
+            </html>",
+            // status.as_str(),
+            // status.as_str()
+        );
+        #[cfg(feature = "development")]
+        let reason = Box::leak(reason.into_boxed_str()); // This memory is leaked, hence development only
+
+        #[cfg(not(feature = "development"))]
+        let reason = NO_REASON;
+
+        return HttpResponseBuilder::new(status)
+            .append_header(header::ContentType(mime::TEXT_HTML))
+            .reason(reason)
+            .body(html);
+    } else {
+        HttpResponseBuilder::new(status).finish()
+    }
 }

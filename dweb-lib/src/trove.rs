@@ -138,7 +138,7 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
     }
 
     /// Load a Register from the network and return wrapped in History
-    /// The owner_secret is only required for publish/update using the returned History (not access)
+    /// The owner_secret is not required for read access, only if doing publish/update subsequently
     pub async fn from_history_address(
         client: AutonomiClient,
         history_address: HistoryAddress,
@@ -149,7 +149,7 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
         let mut history = if result.is_ok() {
             History::<T>::from_client_register(client, result.unwrap(), owner_secret)
         } else {
-            println!("DEBUG: from_history_address() error:");
+            println!("DEBUG from_history_address() error:");
             return Err(eyre!("register not found on network"));
         };
         history.update_default_version();

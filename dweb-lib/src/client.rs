@@ -63,7 +63,7 @@ impl AutonomiClient {
             Ok(network) => network,
             Err(_e) => Network::default(),
         };
-        println!("DEBUG: selected network {network:?}");
+        println!("DEBUG selected network {network:?}");
 
         let peers_args = if peers_args.is_some() {
             peers_args.unwrap()
@@ -79,7 +79,7 @@ impl AutonomiClient {
 
                 match Client::init_with_config(client_config).await {
                     Ok(client) => {
-                        println!("DEBUG: Connected to the Network");
+                        println!("DEBUG Connected to the Network");
                         client
                     }
                     Err(e) => return Err(eyre!("Failed to connect to the network: {e}")),

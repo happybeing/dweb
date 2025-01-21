@@ -24,13 +24,17 @@ use std::io;
 use std::time::Duration;
 
 use actix_web::{
-    body, dev::HttpServiceFactory, get, guard, post, web, web::Data, App, HttpRequest,
-    HttpResponse, HttpServer, Responder,
+    body, dev::HttpServiceFactory, dev::Service, dev::ServiceResponse, get, guard,
+    http::StatusCode, middleware::Logger, post, web, web::Data, App, HttpRequest, HttpResponse,
+    HttpResponseBuilder, HttpServer, Responder,
 };
 use clap::Parser;
+use env_logger::Env;
+use futures_util::future::FutureExt; // Needed for logging Requests and Responses to terminal
 
 use crate::cli_options::Opt;
 use dweb::helpers::convert::awe_str_to_xor_name;
+use dweb::web::fetch::response_with_body;
 
 const CONNECTION_TIMEOUT: u64 = 75;
 
@@ -46,10 +50,36 @@ pub async fn serve(host: String, port: u16) -> io::Result<()> {
         .await
         .expect("Failed to connect to Autonomi Network");
 
+    // TODO control using CLI? (this enables Autonomi and HttpRequest logging to terminal)
+    // env_logger::init_from_env(Env::default().default_filter_or("info"));
+
     println!("dweb serve listening on {host}:{port}");
     HttpServer::new(move || {
         App::new()
-            // <SERVICE>-dweb.au routes
+            // Macro logging using env_logger for both actix and libs such as Autonomi
+            .wrap(Logger::default())
+            // Log Requests and Responses to terminal
+            .wrap_fn(|req, srv| {
+                println!("DEBUG HttpRequest : {} {}", req.head().method, req.path());
+                let fut = srv.call(req);
+                async {
+                    let res = fut.await?;
+
+                    let reason = res.response().head().reason();
+                    let reason = if !reason.is_empty() {
+                        if res.response().head().reason() != "OK" {
+                            &format!(" ({})", res.response().head().reason())
+                        } else {
+                            ""
+                        }
+                    } else {
+                        ""
+                    };
+                    println!("DEBUG HttpResponse: {} {}", res.status(), reason);
+
+                    Ok(res)
+                }
+            }) // <SERVICE>-dweb.au routes
             // TODO add routes for SERVICE: solid, rclone etc.
             .service(api::dweb_v0::init_service(DWEB_SERVICE_API))
             .service(app::test::init_service(DWEB_SERVICE_APP))
@@ -158,14 +188,17 @@ async fn test_fetch_file(
     let file_address = match awe_str_to_xor_name(datamap_address.as_str()) {
         Ok(file_address) => file_address,
         Err(e) => {
-            return HttpResponse::BadRequest().body(format!("Invalid address. {e}"));
+            return response_with_body(
+                StatusCode::BAD_REQUEST,
+                Some(format!("invalid address. {e}")),
+            );
         }
     };
 
     match client_data.data_get_public(file_address).await {
         Ok(bytes) => HttpResponse::Ok().body(bytes),
         Err(e) => {
-            return HttpResponse::NotFound().body(format!("404 NOT FOUND. {e}"));
+            return response_with_body(StatusCode::NOT_FOUND, Some(format!("{e}")));
         }
     }
 }

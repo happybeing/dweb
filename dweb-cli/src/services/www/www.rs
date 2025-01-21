@@ -17,13 +17,20 @@
 
 // use actix_web::{body, get, post, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use actix_web::{
-    body, dev::HttpServiceFactory, dev::ServiceRequest, dev::ServiceResponse, get, guard,
-    http::header, post, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder,
+    body,
+    dev::{HttpServiceFactory, ServiceRequest, ServiceResponse},
+    get, guard,
+    http::{
+        header::{self, HeaderValue},
+        StatusCode,
+    },
+    post,
+    web::{self, Data},
+    App, Error, HttpRequest, HttpResponse, HttpResponseBuilder, HttpServer, Responder,
 };
+use mime;
 
-use dweb::helpers::convert::awe_str_to_history_address;
-
-use crate::services::request_as_html;
+use dweb::web::fetch::{fetch_website_version, response_with_body};
 
 pub fn init_service() -> impl HttpServiceFactory {
     web::resource("/{path:.*}")
@@ -48,16 +55,14 @@ pub fn init_service() -> impl HttpServiceFactory {
 }
 
 /// Handle Autonomi www requests of the form:
-/// fixed website:			<DIRECTORY-ADDRESS>.www-dweb.au[<PATH>][?params]
-///	versioned website: 		<HISTORY-ADDRESS>.v[<version>].www-dweb.au[<PATH>][?params]
-///
-/// Example urls:
 ///     http://something.www-dweb.au:8080/here/is/a/path.html
 ///     http://v123.something.www-dweb.au:8080/here/is/a/history/path.html
-
-/// WWW service - handler for Autonomi websites
-pub async fn www_handler(request: HttpRequest, path: web::Path<String>) -> HttpResponse {
-    println!("www_handler({path})...");
+pub async fn www_handler(
+    request: HttpRequest,
+    path: web::Path<String>,
+    client: Data<dweb::client::AutonomiClient>,
+) -> HttpResponse {
+    println!("DEBUG www_handler(/{path})...");
     let mut host = None;
     if let Some(req_host) = request.head().headers().get(header::HOST) {
         if let Ok(req_host) = &req_host.to_str() {
@@ -69,47 +74,71 @@ pub async fn www_handler(request: HttpRequest, path: web::Path<String>) -> HttpR
         }
     };
 
-    if host.is_some() {
-        let subdomains: Vec<&str> = host.unwrap().split_terminator('.').collect();
-        match subdomains.len() {
-            3 => {
-                // <DIRECTORY-ADDRESS>.www-dweb.au has three parts
-                let directory = subdomains[0];
-                println!("3 -> fixed: www-dweb.au address with DIRECTORY '{directory}'");
+    if !host.is_some() {
+        return response_with_body(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Some(String::from("www_handler() failed to determine host")),
+        );
+    };
+
+    let dweb_host = match dweb::web::name::decode_dweb_host(host.unwrap()) {
+        Ok(dweb_host) => dweb_host,
+        Err(e) => return response_with_body(StatusCode::BAD_REQUEST, Some(format!("{e}"))),
+    };
+
+    let directory_version = match fetch_website_version(&client, dweb_host).await {
+        Ok(directory_version) => directory_version,
+        Err(e) => {
+            return response_with_body(
+                StatusCode::BAD_REQUEST,
+                Some(format!("fetch_website_version() error: {e}")),
+            )
+        }
+    };
+
+    let directory_tree = if !directory_version.directory_tree.is_some() {
+        return response_with_body(
+            StatusCode::BAD_GATEWAY, //StatusCode::INTERNAL_SERVER_ERROR,
+            Some(
+                "fetch_website_version() returned invalid directory_version - this appears to be a bug".to_string(),
+            ),
+        );
+    } else {
+        directory_version.directory_tree.unwrap()
+    };
+
+    match directory_tree.lookup_web_resource(&(String::from("/") + path.as_str())) {
+        Ok((file_address, content_type)) => match client.data_get_public(file_address).await {
+            Ok(content) => {
+                let mut response = HttpResponse::Ok();
+                if let Some(content_type) = content_type {
+                    response.insert_header(("Content-Type", content_type.as_str()));
+                }
+                return response.body(content);
             }
-            4 => {
-                // <HISTORY-ADDRESS>.v[<version>].www-dweb.au has four parts
-                let version = subdomains[0];
-                let history = subdomains[1];
-
-                let version = if version.starts_with('v') {
-                    match subdomains[0][1..].parse::<u64>() {
-                        Ok(version) => Some(version),
-                        Err(_) => None,
-                    }
-                } else {
-                    None
-                };
-
-                let history_address = awe_str_to_history_address(history);
-                println!(
-                    "4 -> history www-dweb.au address with VERSION '{version:?}' and HISTORY '{history}'"
+            Err(e) => {
+                return response_with_body(
+                    StatusCode::BAD_GATEWAY,
+                    Some(String::from(format!(
+                        "DirectoryTree::lookup_web_resource({}) failed: {e}",
+                        path.as_str()
+                    ))),
                 );
             }
-            _ => {
-                println!("invalid www-dweb.au address");
-            }
+        },
+        Err(e) => {
+            let status_code = if let Ok(status_code) = StatusCode::from_u16(e.as_u16()) {
+                status_code
+            } else {
+                StatusCode::INTERNAL_SERVER_ERROR
+            };
+            return response_with_body(
+                status_code,
+                Some(String::from(format!(
+                    "DirectoryTree::lookup_web_resource({}) failed",
+                    path.as_str()
+                ))),
+            );
         }
-    }
-
-    let request_html = request_as_html(&request);
-    let body = format!(
-        "
-    <!DOCTYPE html><head></head><body>
-    <h3>www_handler(request, path: /{path})</h3>
-    {request_html}
-    </body>"
-    );
-
-    HttpResponse::Ok().body(body)
+    };
 }

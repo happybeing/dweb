@@ -241,7 +241,7 @@ pub fn make_fixed_dweb_name(
 // Note: for --features=fixed-dweb-names, this will also decode fixed web names which are
 // differentiated by a DWEB-NAME containing the String::from(FIXED_WEBNAME_SEPARATOR) + "-";
 pub fn decode_dweb_host(dweb_host: &str) -> Result<DwebHost> {
-    println!("DEBUG: decode_dweb_host({dweb_host})...");
+    println!("DEBUG decode_dweb_host({dweb_host})...");
     if dweb_host.len() == 0 {
         return Err(eyre!("Dweb host cannot be zero length"));
     }
@@ -332,7 +332,7 @@ pub fn decode_dweb_host(dweb_host: &str) -> Result<DwebHost> {
     #[cfg(feature = "fixed-dweb-hosts")]
     let is_fixed_dweb_host = !found_version_segment && dweb_name.contains(&fixed_dweb_host_tag);
 
-    println!("DEBUG: returning DwebHost: version: {version:?}, dweb_name: '{dweb_name}'");
+    println!("DEBUG returning DwebHost: version: {version:?}, dweb_name: '{dweb_name}'");
 
     Ok(DwebHost {
         dweb_host_string: dweb_host.to_ascii_lowercase(),

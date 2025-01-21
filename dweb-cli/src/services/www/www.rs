@@ -30,7 +30,8 @@ use actix_web::{
 };
 use mime;
 
-use dweb::web::fetch::{fetch_website_version, response_with_body};
+use crate::services::DWEB_SERVICE_WWW;
+use dweb::web::fetch::{fetch_website_version, response_redirect, response_with_body};
 
 pub fn init_service() -> impl HttpServiceFactory {
     web::resource("/{path:.*}")
@@ -46,7 +47,7 @@ pub fn init_service() -> impl HttpServiceFactory {
                         host
                     };
                     // println!("tesing host: {host}");
-                    let service_tail = String::from(".") + crate::services::DWEB_SERVICE_WWW;
+                    let service_tail = String::from(".") + DWEB_SERVICE_WWW;
                     return host.ends_with(&service_tail);
                 }
             }
@@ -86,7 +87,7 @@ pub async fn www_handler(
         Err(e) => return response_with_body(StatusCode::BAD_REQUEST, Some(format!("{e}"))),
     };
 
-    let directory_version = match fetch_website_version(&client, dweb_host).await {
+    let (version, directory_version) = match fetch_website_version(&client, &dweb_host).await {
         Ok(directory_version) => directory_version,
         Err(e) => {
             return response_with_body(
@@ -98,7 +99,7 @@ pub async fn www_handler(
 
     let directory_tree = if !directory_version.directory_tree.is_some() {
         return response_with_body(
-            StatusCode::BAD_GATEWAY, //StatusCode::INTERNAL_SERVER_ERROR,
+            StatusCode::INTERNAL_SERVER_ERROR,
             Some(
                 "fetch_website_version() returned invalid directory_version - this appears to be a bug".to_string(),
             ),
@@ -106,6 +107,17 @@ pub async fn www_handler(
     } else {
         directory_version.directory_tree.unwrap()
     };
+
+    // If the dweb_host is not versioned, generate a versioned DwebHost URL and redirect to that
+    // It will be in the cache so no extra network access is incurred, just an extra response/request with the browser
+    println!(
+        "DEBUG version: {}, dweb_host.version: {:?}",
+        version, dweb_host.version
+    );
+    if version != 0 && dweb_host.version.is_none() {
+        let versioned_host = format!("v{version}.{}.{}", &dweb_host.dweb_name, DWEB_SERVICE_WWW);
+        return response_redirect(&request, &versioned_host, Some(&path));
+    }
 
     match directory_tree.lookup_web_resource(&(String::from("/") + path.as_str())) {
         Ok((file_address, content_type)) => match client.data_get_public(file_address).await {

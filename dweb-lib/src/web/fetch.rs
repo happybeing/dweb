@@ -26,7 +26,7 @@ use xor_name::XorName as DirectoryAddress;
 
 use ant_registers::RegisterAddress as HistoryAddress;
 
-use crate::cache::directory_version::{DirectoryVersion, DIRECTORY_VERSIONS, HISTORY_NAMES};
+use crate::cache::directory_version::{self, DirectoryVersion, DIRECTORY_VERSIONS, HISTORY_NAMES};
 use crate::client::AutonomiClient;
 use crate::trove::directory_tree::DirectoryTree;
 use crate::trove::History;
@@ -57,9 +57,9 @@ pub async fn fetch(client: &AutonomiClient, url: Url) -> HttpResponse {
     };
 
     let mut reason: &'static str = "";
-    let response = match fetch_website_version(client, dweb_host).await {
+    let response = match fetch_website_version(client, &dweb_host).await {
         // TODO cache function that wraps fetching the History/DirectoryTree
-        Ok(cache_version_entry) => {
+        Ok((version, cache_version_entry)) => {
             match cache_version_entry
                 .directory_tree
                 .unwrap() // Guaranteed to be Some() by fetch_website_version()
@@ -107,7 +107,8 @@ pub async fn fetch(client: &AutonomiClient, url: Url) -> HttpResponse {
 
 /// Retrieve a given DirectoryVersion from the cache, or if not access the network and
 /// create a new DirectoryVersion based on the DwebHost.
-/// If the return is Ok(DirectoryVersion), it is guaranteed to have Some(DirectoryTree)
+/// If the return is Ok(version, DirectoryVersion), the DirectoryVersion will have Some(DirectoryTree).
+/// The version returned is the version retrieved, which is useful if dweb_host.version is None.
 //
 // Notes:
 //   1) ensures that cache locks are released ASAP, and not held during network access.
@@ -115,10 +116,11 @@ pub async fn fetch(client: &AutonomiClient, url: Url) -> HttpResponse {
 //      if it obtains the DirectoryVersion.directory_address but not the directory_tree. A subsequent call
 //      using the same DwebHost can then skip getting the directory_address and will just retry getting
 //      the directory_tree.
+// TODO refactor fetch_website_version() to reduce complexity
 pub async fn fetch_website_version(
     client: &AutonomiClient,
-    dweb_host: DwebHost,
-) -> Result<DirectoryVersion> {
+    dweb_host: &DwebHost,
+) -> Result<(u64, DirectoryVersion)> {
     println!(
         "DEBUG fetch([ {}, {}, {:?} ])...",
         dweb_host.dweb_host_string, dweb_host.dweb_name, dweb_host.version
@@ -127,7 +129,8 @@ pub async fn fetch_website_version(
     let (history_address, directory_address) = if let Ok(lock) = &mut DIRECTORY_VERSIONS.lock() {
         if let Some(cached_directory_version) = lock.get(&dweb_host.dweb_host_string) {
             if cached_directory_version.directory_tree.is_some() {
-                return Ok(cached_directory_version.clone());
+                // Version 0 is ok here because if we have the tree we will already have cached the version
+                return Ok((0, cached_directory_version.clone()));
             } else {
                 (
                     Some(cached_directory_version.history_address),
@@ -190,21 +193,45 @@ pub async fn fetch_website_version(
             }
         };
 
-        let (directory_address, directory_tree) =
+        let (directory_address, directory_tree, version) =
             match history.fetch_version_metadata(dweb_host.version).await {
                 Some(directory_tree) => match history.get_cached_version() {
-                    Some(cached_version) => (cached_version.metadata_address(), directory_tree),
+                    Some(cached_version) => (
+                        cached_version.metadata_address(),
+                        directory_tree,
+                        cached_version.version,
+                    ),
                     None => return Err(eyre!("History failed to get_cached_version()")),
                 },
                 None => return Err(eyre!("History failed to fetch_version_metadata()")),
             };
 
-        return update_cached_directory_version(
+        // When retrieving the most recent version, ensure that the corresponding versioned DwebHost is cached
+        let default_result = update_cached_directory_version(
             &dweb_host,
             history_address,
             directory_address,
-            Some(directory_tree),
+            Some(directory_tree.clone()),
         );
+
+        // When retrieving the most recent version, ensure that the corresponding versioned DwebHost is cached
+        if dweb_host.version.is_none() {
+            let versioned_host = format!("v{version}.{}", dweb_host.dweb_host_string);
+            let versioned_dweb_host = DwebHost {
+                dweb_host_string: versioned_host,
+                dweb_name: dweb_host.dweb_name.clone(),
+                version: Some(version),
+            };
+
+            return update_cached_directory_version(
+                &versioned_dweb_host,
+                history_address,
+                directory_address,
+                Some(directory_tree),
+            );
+        }
+
+        return default_result;
     };
 }
 
@@ -213,7 +240,7 @@ pub fn update_cached_directory_version(
     history_address: HistoryAddress,
     directory_address: DirectoryAddress,
     directory_tree: Option<DirectoryTree>,
-) -> Result<DirectoryVersion> {
+) -> Result<(u64, DirectoryVersion)> {
     // TODO may need both version_retrieved and version_requested in DirectoryVersion
     let new_directory_version = DirectoryVersion::new(
         &dweb_host,
@@ -224,6 +251,12 @@ pub fn update_cached_directory_version(
 
     match &mut DIRECTORY_VERSIONS.lock() {
         Ok(lock) => {
+            #[cfg(feature = "development")]
+            println!(
+                "DEBUG directory version (v {:?}) added to cache for host: {}",
+                dweb_host.version, dweb_host.dweb_host_string
+            );
+
             lock.insert(
                 dweb_host.dweb_host_string.clone(),
                 new_directory_version.clone(),
@@ -237,7 +270,7 @@ pub fn update_cached_directory_version(
         }
     }
 
-    Ok(new_directory_version)
+    Ok((dweb_host.version.unwrap_or(0), new_directory_version))
 }
 
 #[cfg(not(feature = "development"))]

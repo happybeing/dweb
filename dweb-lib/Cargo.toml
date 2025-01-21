@@ -14,9 +14,6 @@ crate-type = ["cdylib", "rlib"]
 [lints]
 workspace = true
 
-[profile.dev]
-default = ["skip-network-compatibility-check", "development", "fixed-dweb-hosts"]
-
 [features]
 default = ["skip-network-compatibility-check"]
 local = ["autonomi/local"]
@@ -70,7 +67,6 @@ multiaddr = "0.18.1"
 tempfile = "3.10.1"
 xor_name = "5.0.0"
 color-eyre = "0.6.3"
-env_logger = "0.11.3"
 dirs-next = "2.0.0"
 structopt = "0.3.26"
 clap = "4.5.4"
@@ -91,3 +87,4 @@ evmlib = "0.1.6"
 actix-web = "4.9.0"
 mime_guess = "2.0.5"
 schnellru = "0.2.4"
+mime = "0.3.17"

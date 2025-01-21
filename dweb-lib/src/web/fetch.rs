@@ -19,8 +19,13 @@ use actix_web::{
     body,
     dev::{HttpServiceFactory, ServiceRequest, ServiceResponse},
     get, guard,
-    http::{header, header::HeaderValue, StatusCode},
-    post, web, App, Error, HttpRequest, HttpResponse, HttpResponseBuilder, HttpServer, Responder,
+    http::{
+        header::{self, HeaderValue},
+        StatusCode,
+    },
+    post,
+    web::{self, redirect, Redirect},
+    App, Error, HttpRequest, HttpResponse, HttpResponseBuilder, HttpServer, Responder,
 };
 use color_eyre::eyre::{eyre, Result};
 use mime;
@@ -271,4 +276,31 @@ pub fn response_with_body(status: StatusCode, reason: Option<String>) -> HttpRes
     } else {
         HttpResponseBuilder::new(status).finish()
     }
+}
+
+pub fn response_redirect(req: &HttpRequest, host: &String, path: Option<&String>) -> HttpResponse {
+    let scheme = &String::from(req.full_url().scheme());
+    let port = if let Some(port) = req.full_url().port() {
+        &format!(":{port}")
+    } else {
+        ""
+    };
+
+    #[cfg(feature = "development")]
+    println!("DEBUG req.full_url(): {}", req.full_url());
+    println!("DEBUG scheme   : {scheme}");
+    println!("DEBUG port     : {port}");
+
+    let mut redirect_url = String::from(scheme) + "://" + host;
+    if let Some(path) = path {
+        redirect_url = redirect_url + &path;
+    }
+
+    redirect_url = redirect_url + port;
+
+    #[cfg(feature = "development")]
+    println!("DEBUG response_redirect() redirecting to {redirect_url}");
+    HttpResponseBuilder::new(StatusCode::SEE_OTHER)
+        .insert_header((header::LOCATION, redirect_url))
+        .finish()
 }

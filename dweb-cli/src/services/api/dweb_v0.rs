@@ -19,9 +19,13 @@ use actix_web::{
     body, dev::HttpServiceFactory, get, guard, post, web, web::Data, App, HttpRequest,
     HttpResponse, HttpServer, Responder,
 };
+use qstring::QString;
 
 use dweb::cache::directory_version::HISTORY_NAMES;
 use dweb::helpers::convert::awe_str_to_history_address;
+use dweb::web::fetch::response_redirect;
+
+use crate::services::DWEB_SERVICE_WWW;
 
 pub fn init_service(host: &str) -> impl HttpServiceFactory {
     // TODO modify this and the get to accept /{api}/{version}/{operation} etc (see www::init_service())
@@ -30,14 +34,25 @@ pub fn init_service(host: &str) -> impl HttpServiceFactory {
         .guard(guard::Host(host))
 }
 
-// Test url: http://api-dweb.au:8080/dweb/v0/webname/register/smartypants/ddd
-
+/// Register a DwebName and optionally redirect to the Dweb URL for the most version
+/// Optional query parameters control the redirection:
+///   ?redirect=false
+// Test url: http://api-dweb.au:8080/dweb/v0/dwebname/register/smartypants/91ab27dd1dc342f36c9f16fbe4ea725372d46a857677299d0336bb5eff24392da5d4412c36b6925a4b1857cc558f31e4ef4aae8c3170a4e3d6251bbb637a313d31b5b887aa20a3c81fc358981ccf9d19
 #[get("/dwebname/register/{dweb_name}/{history_address}")]
 pub async fn api_dwebname_register(
+    req: HttpRequest,
     params: web::Path<(String, String)>,
     _client_data: Data<dweb::client::AutonomiClient>,
 ) -> impl Responder {
     let (dweb_name, history_address_string) = params.into_inner();
+
+    let qs = QString::from(req.query_string());
+    let redirect: bool = match qs.get("redirect").unwrap_or("true") {
+        "false" => false,
+        "0" => false,
+        _ => true,
+    };
+
     match dweb::web::name::validate_dweb_name(&dweb_name) {
         Ok(()) => (),
         Err(e) => {
@@ -66,10 +81,19 @@ pub async fn api_dwebname_register(
                 // println!("DWEB-NAME '{dweb_name}' already registered for {history_address_string}");
             } else {
                 lock.insert(dweb_name.clone(), history_address);
-                println!(
-                    // "DWEB-NAME '{dweb_name}' successfully registered for {history_address_string}"
-                );
+                // println!(
+                //     "DWEB-NAME '{dweb_name}' successfully registered for {history_address_string}"
+                // );
             }
+            if redirect {
+                println!("DEBUG redirecting...");
+                // return response_redirect(&req, &String::from("smartypants.www-dweb.au"), None);
+                return response_redirect(
+                    &req,
+                    &(dweb_name.clone() + "." + DWEB_SERVICE_WWW),
+                    None,
+                );
+            };
         }
         Err(e) => {
             return HttpResponse::InternalServerError()

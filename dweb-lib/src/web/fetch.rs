@@ -16,16 +16,8 @@
 */
 
 use actix_web::{
-    body,
-    dev::{HttpServiceFactory, ServiceRequest, ServiceResponse},
-    get, guard,
-    http::{
-        header::{self, HeaderValue},
-        StatusCode,
-    },
-    post,
-    web::{self, redirect, Redirect},
-    App, Error, HttpRequest, HttpResponse, HttpResponseBuilder, HttpServer, Responder,
+    http::{header, StatusCode},
+    HttpRequest, HttpResponse, HttpResponseBuilder,
 };
 use color_eyre::eyre::{eyre, Result};
 use mime;
@@ -248,6 +240,7 @@ pub fn update_cached_directory_version(
     Ok(new_directory_version)
 }
 
+#[cfg(not(feature = "development"))]
 const NO_REASON: &str = "";
 
 pub fn response_with_body(status: StatusCode, reason: Option<String>) -> HttpResponse {
@@ -260,8 +253,6 @@ pub fn response_with_body(status: StatusCode, reason: Option<String>) -> HttpRes
             <p>{reason}</p>
             </body>
             </html>",
-            // status.as_str(),
-            // status.as_str()
         );
         #[cfg(feature = "development")]
         let reason = Box::leak(reason.into_boxed_str()); // This memory is leaked, hence development only

@@ -204,11 +204,10 @@ pub async fn publish_content(
         return Err(eyre!("Path to files is empty: {files_root:?}"));
     }
 
-    let wallet = load_wallet()?;
     println!("Uploading files from: {files_root:?}");
     let archive = match client
         .client
-        .dir_upload_public(files_root.clone(), &wallet)
+        .dir_upload_public(files_root.clone(), &client.wallet)
         .await
     {
         Ok(archive) => archive,

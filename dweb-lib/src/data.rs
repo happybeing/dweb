@@ -19,7 +19,7 @@ use bytes::Bytes;
 use color_eyre::Result;
 use xor_name::XorName as FileAddress;
 
-use autonomi::client::data::GetError;
+use autonomi::client::GetError;
 
 use crate::client::AutonomiClient;
 

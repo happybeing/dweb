@@ -10,16 +10,13 @@ use std::collections::HashMap;
 
 use autonomi::client::{
     address::{addr_to_str, str_to_addr},
-    files::{archive::PrivateArchiveAccess, archive_public::ArchiveAddr},
-    registers::{RegisterAddress, RegisterSecretKey},
+    files::archive_private::PrivateArchiveAccess,
+    files::archive_public::ArchiveAddr,
     vault::UserData,
 };
 use color_eyre::eyre::Result;
 
-use super::{
-    data_dir::get_client_data_dir_path,
-    keys::{create_register_signing_key_file, get_register_signing_key},
-};
+use super::data_dir::get_client_data_dir_path;
 
 use serde::{Deserialize, Serialize};
 
@@ -30,14 +27,10 @@ struct PrivateFileArchive {
 }
 
 pub fn get_local_user_data() -> Result<UserData> {
-    let register_sk = get_register_signing_key().map(|k| k.to_hex()).ok();
-    let registers = get_local_registers()?;
     let file_archives = get_local_public_file_archives()?;
     let private_file_archives = get_local_private_file_archives()?;
 
     let user_data = UserData {
-        register_sk,
-        registers,
         file_archives,
         private_file_archives,
     };
@@ -77,27 +70,6 @@ pub fn get_local_private_archive_access(local_addr: &str) -> Result<PrivateArchi
     Ok(private_file_archive_access)
 }
 
-pub fn get_local_registers() -> Result<HashMap<RegisterAddress, String>> {
-    let data_dir = get_client_data_dir_path()?;
-    let user_data_path = data_dir.join("user_data");
-    let registers_path = user_data_path.join("registers");
-    std::fs::create_dir_all(&registers_path)?;
-
-    let mut registers = HashMap::new();
-    for entry in walkdir::WalkDir::new(registers_path)
-        .min_depth(1)
-        .max_depth(1)
-    {
-        let entry = entry?;
-        let file_name = entry.file_name().to_string_lossy();
-        let register_address = RegisterAddress::from_hex(&file_name)?;
-        let file_content = std::fs::read_to_string(entry.path())?;
-        let register_name = file_content;
-        registers.insert(register_address, register_name);
-    }
-    Ok(registers)
-}
-
 pub fn get_local_public_file_archives() -> Result<HashMap<ArchiveAddr, String>> {
     let data_dir = get_client_data_dir_path()?;
     let user_data_path = data_dir.join("user_data");
@@ -119,15 +91,6 @@ pub fn get_local_public_file_archives() -> Result<HashMap<ArchiveAddr, String>> 
 }
 
 pub fn write_local_user_data(user_data: &UserData) -> Result<()> {
-    if let Some(register_key) = &user_data.register_sk {
-        let sk = RegisterSecretKey::from_hex(register_key)?;
-        create_register_signing_key_file(sk)?;
-    }
-
-    for (register, name) in user_data.registers.iter() {
-        write_local_register(register, name)?;
-    }
-
     for (archive, name) in user_data.file_archives.iter() {
         write_local_public_file_archive(addr_to_str(*archive), name)?;
     }
@@ -136,15 +99,6 @@ pub fn write_local_user_data(user_data: &UserData) -> Result<()> {
         write_local_private_file_archive(archive.to_hex(), archive.address(), name)?;
     }
 
-    Ok(())
-}
-
-pub fn write_local_register(register: &RegisterAddress, name: &str) -> Result<()> {
-    let data_dir = get_client_data_dir_path()?;
-    let user_data_path = data_dir.join("user_data");
-    let registers_path = user_data_path.join("registers");
-    std::fs::create_dir_all(&registers_path)?;
-    std::fs::write(registers_path.join(register.to_hex()), name)?;
     Ok(())
 }
 

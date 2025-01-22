@@ -171,7 +171,7 @@ pub enum WalletCmd {
 }
 
 pub async fn handle_subcommand(opt: Opt) -> Result<()> {
-    let peers = crate::access::network::get_peers(opt.peers);
+    let peers = crate::autonomi::access::network::get_peers(opt.peers);
     let cmd = opt.command;
 
     match cmd {

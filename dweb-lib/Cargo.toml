@@ -16,7 +16,6 @@ workspace = true
 
 [features]
 default = ["skip-network-compatibility-check"]
-local = ["autonomi/local"]
 metrics = ["ant-logging/process-metrics"]
 
 skip-network-compatibility-check = []   # Avoid need to upload avp type and include xor address in build
@@ -38,19 +37,29 @@ fixed-dweb-hosts = []
 # ant-protocol = { version = "0.3.0", path = "../../../autonomi/autonomi//ant-protocol" }
 # ant-registers = { version = "0.4.4", path = "../../../autonomi/autonomi//ant-registers" }
 
+# Generated using: awe-dependencies --branch main --ant-path ../../autonomi
+autonomi = { version = "0.3.4", path = "../../autonomi/autonomi", features = [ "loud", ]}
+ant-bootstrap = { version = "0.1.4", path = "../../autonomi/ant-bootstrap" }
+ant-build-info = { version = "0.1.23", path = "../../autonomi/ant-build-info" }
+ant-logging = { version = "0.2.45", path = "../../autonomi/ant-logging" }
+ant-networking = { version = "0.3.4", path = "../../autonomi/ant-networking" }
+ant-protocol = { version = "0.3.3", path = "../../autonomi/ant-protocol" }
+ant-evm = { version = "0.1.8", path = "../../autonomi/ant-evm" }
+#ant-metrics = { version = "0.1.24", path = "../../autonomi/ant-metrics" }
+
 # Generated using: awe-dependencies --branch stable
-autonomi = { version = "0.3.1", features = [
-    "fs",
-    "vault",
-    "registers",
-    "loud",
-] }
-ant-bootstrap = { version = "0.1.1" }
-ant-build-info = { version = "0.1.21" }
-ant-logging = { version = "0.2.42" }
-ant-networking = { version = "0.3.1" }
-ant-protocol = { version = "0.3.1" }
-ant-registers = { version = "0.4.5" }
+# autonomi = { version = "0.3.1", features = [
+#     "fs",
+#     "vault",
+#     "registers",
+#     "loud",
+# ] }
+# ant-bootstrap = { version = "0.1.1" }
+# ant-build-info = { version = "0.1.21" }
+# ant-logging = { version = "0.2.42" }
+# ant-networking = { version = "0.3.1" }
+# ant-protocol = { version = "0.3.1" }
+# ant-registers = { version = "0.4.5" }
 
 ## Everything else
 http = "1.1.0"
@@ -83,7 +92,6 @@ const-hex = "1.13.1"
 hex = "0.4.3"
 rpassword = "7.3.1"
 thiserror = "2.0.0"
-evmlib = "0.1.6"
 actix-web = "4.9.0"
 mime_guess = "2.0.5"
 schnellru = "0.2.4"

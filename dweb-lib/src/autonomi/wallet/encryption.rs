@@ -6,7 +6,8 @@
 // KIND, either express or implied. Please review the Licences for the specific language governing
 // permissions and limitations relating to use of the SAFE Network Software.
 
-use crate::autonomi::wallet::error::Error;
+use color_eyre::eyre::eyre;
+use color_eyre::Result;
 use rand::Rng;
 use ring::aead::{BoundKey, Nonce, NonceSequence};
 use ring::error::Unspecified;
@@ -28,7 +29,7 @@ impl NonceSequence for NonceSeq {
     }
 }
 
-pub fn encrypt_private_key(private_key: &str, password: &str) -> Result<String, Error> {
+pub fn encrypt_private_key(private_key: &str, password: &str) -> Result<String> {
     // Generate a random salt
     // Salt is used to ensure unique derived keys even for identical passwords
     let mut salt = [0u8; SALT_LENGTH];
@@ -55,7 +56,7 @@ pub fn encrypt_private_key(private_key: &str, password: &str) -> Result<String, 
     // Create an unbound key using CHACHA20_POLY1305 algorithm
     // CHACHA20_POLY1305 is a fast and secure AEAD (Authenticated Encryption with Associated Data) algorithm
     let unbound_key = ring::aead::UnboundKey::new(&ring::aead::CHACHA20_POLY1305, &key)
-        .map_err(|_| Error::FailedToEncryptKey(String::from("Could not create unbound key")))?;
+        .map_err(|_| eyre!("Failed to encrypt key: Could not create unbound key"))?;
 
     // Create a sealing key with the unbound key and nonce
     let mut sealing_key = ring::aead::SealingKey::new(unbound_key, NonceSeq(nonce));
@@ -68,7 +69,7 @@ pub fn encrypt_private_key(private_key: &str, password: &str) -> Result<String, 
     // seal_in_place_append_tag encrypts the data and appends an authentication tag to ensure data integrity
     sealing_key
         .seal_in_place_append_tag(aad, &mut encrypted_private_key)
-        .map_err(|_| Error::FailedToEncryptKey(String::from("Could not seal sealing key")))?;
+        .map_err(|_| eyre!("Failed to encrypt key: Could not seal sealing key"))?;
 
     let mut encrypted_data = Vec::new();
     encrypted_data.extend_from_slice(&salt);
@@ -79,17 +80,17 @@ pub fn encrypt_private_key(private_key: &str, password: &str) -> Result<String, 
     Ok(hex::encode(encrypted_data))
 }
 
-pub fn decrypt_private_key(encrypted_data: &str, password: &str) -> Result<String, Error> {
+pub fn decrypt_private_key(encrypted_data: &str, password: &str) -> Result<String> {
     let encrypted_data = hex::decode(encrypted_data)
-        .map_err(|_| Error::FailedToDecryptKey(String::from("Encrypted data is invalid")))?;
+        .map_err(|_| eyre!("Failed to decrypt key: Encrypted data is invalid"))?;
 
     let salt: [u8; SALT_LENGTH] = encrypted_data[..SALT_LENGTH]
         .try_into()
-        .map_err(|_| Error::FailedToDecryptKey(String::from("Could not find salt")))?;
+        .map_err(|_| eyre!("Failed to decrypt key: Could not find salt"))?;
 
     let nonce: [u8; NONCE_LENGTH] = encrypted_data[SALT_LENGTH..SALT_LENGTH + NONCE_LENGTH]
         .try_into()
-        .map_err(|_| Error::FailedToDecryptKey(String::from("Could not find nonce")))?;
+        .map_err(|_| eyre!("Failed to decrypt key: Could not find nonce"))?;
 
     let encrypted_private_key = &encrypted_data[SALT_LENGTH + NONCE_LENGTH..];
 
@@ -106,7 +107,7 @@ pub fn decrypt_private_key(encrypted_data: &str, password: &str) -> Result<Strin
 
     // Create an unbound key from the previously reconstructed key
     let unbound_key = ring::aead::UnboundKey::new(&ring::aead::CHACHA20_POLY1305, &key)
-        .map_err(|_| Error::FailedToDecryptKey(String::from("Could not create unbound key")))?;
+        .map_err(|_| eyre!("Failed to decrypt key: Could not create unbound key"))?;
 
     // Create an opening key using the unbound key and original nonce
     let mut opening_key = ring::aead::OpeningKey::new(unbound_key, NonceSeq(nonce));
@@ -118,16 +119,12 @@ pub fn decrypt_private_key(encrypted_data: &str, password: &str) -> Result<Strin
     let decrypted_data = opening_key
         .open_in_place(aad, &mut encrypted_private_key)
         .map_err(|_| {
-            Error::FailedToDecryptKey(String::from(
-                "Could not open encrypted key, please check the password",
-            ))
+            eyre!("Failed to decrypt key: Could not open encrypted key, please check the password")
         })?;
 
-    let mut private_key_bytes = [0u8; 66];
-    private_key_bytes.copy_from_slice(&decrypted_data[0..66]);
-
     // Create secret key from decrypted byte
-    Ok(String::from_utf8(private_key_bytes.to_vec()).expect("not able to convert private key"))
+    String::from_utf8(decrypted_data.to_vec())
+        .map_err(|e| eyre!("Failed to convert private key: {e}"))
 }
 
 #[cfg(test)]

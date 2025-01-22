@@ -6,26 +6,24 @@
 // KIND, either express or implied. Please review the Licences for the specific language governing
 // permissions and limitations relating to use of the SAFE Network Software.
 
-use crate::autonomi::*;
-use access::keys::{get_secret_key_from_env, load_evm_wallet_from_env};
+use crate::autonomi::access::keys::{get_secret_key_from_env, load_evm_wallet_from_env};
+use crate::autonomi::wallet::fs::{select_wallet_from_disk, select_wallet_private_key};
 use autonomi::{Network, Wallet};
-use wallet::fs::{select_wallet, select_wallet_private_key};
 
 pub(crate) mod encryption;
-pub(crate) mod error;
 pub(crate) mod fs;
 pub(crate) mod input;
 
 pub const DUMMY_NETWORK: Network = Network::ArbitrumSepolia;
 
 /// Load wallet from ENV or disk
-pub fn load_wallet() -> color_eyre::Result<Wallet> {
+pub(crate) fn load_wallet(evm_network: &Network) -> color_eyre::Result<Wallet> {
     // First try wallet from ENV
-    if let Ok(wallet) = load_evm_wallet_from_env() {
+    if let Ok(wallet) = load_evm_wallet_from_env(evm_network) {
         return Ok(wallet);
     }
 
-    let wallet = select_wallet()?;
+    let wallet = select_wallet_from_disk(evm_network)?;
 
     Ok(wallet)
 }

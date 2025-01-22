@@ -25,12 +25,13 @@ use bytes::Bytes;
 use color_eyre::{eyre::eyre, Result};
 use xor_name::XorName as FileAddress;
 
-use ant_bootstrap::PeersArgs;
-use autonomi::client::data::GetError;
+use ant_bootstrap;
 use autonomi::client::registers::{Register, RegisterSecretKey};
 use autonomi::client::Client;
+use autonomi::client::GetError;
 
-use autonomi::{get_evm_network_from_env, ClientConfig, Network, Wallet};
+use autonomi::evmlib::load_evm_wallet_from_env;
+use autonomi::{ClientConfig, Network, Wallet};
 
 use crate::autonomi::access::keys::get_register_signing_key;
 use crate::autonomi::wallet::load_wallet;

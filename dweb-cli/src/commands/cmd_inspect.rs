@@ -17,26 +17,18 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 use chrono::offset::Utc;
 use chrono::DateTime;
 use color_eyre::{eyre::eyre, Result};
-//use crdts::merkle_reg::{Hash, MerkleReg, Node};
 use xor_name::XorName;
 
-use ant_registers::{Entry, RegisterAddress};
-use autonomi::client::registers::Register;
+use ant_protocol::storage::{Pointer, PointerAddress};
 
 use dweb::client::AutonomiClient;
-use dweb::helpers::{convert::xorname_from_entry, node_entries_as_vec};
 use dweb::trove::directory_tree::DirectoryTree;
 
 use crate::cli_options::{EntriesRange, FilesArgs};
-use crate::connect::connect_to_network;
 
-/// Implement 'inspect-register' subcommand
-///
-/// Treats a register as a vector of nodes with one Entry per element, so branches are treated as a single node
-///
-/// TODO extend treatment to handle register with branches etc (post stabilisation of the Autonomi API)
-pub async fn handle_inspect_register(
-    register_address: RegisterAddress,
+/// Implement 'inspect-history' subcommand
+pub async fn handle_inspect_pointer(
+    pointer_address: PointerAddress,
     print_summary: bool,
     print_type: bool,
     print_size: bool,
@@ -50,44 +42,42 @@ pub async fn handle_inspect_register(
         .await
         .expect("Failed to connect to Autonomi Network");
 
-    let result = client.client.register_get(register_address).await;
-    let register = if result.is_ok() {
-        result.unwrap()
-    } else {
-        return Err(eyre!(
-            "Error: register not found on network\n\
-            This may be due to connection issues"
-        ));
+    let pointer = match client.client.pointer_get(pointer_address).await {
+        Ok(pointer) => pointer,
+        Err(e) => {
+            let message = format!("Failed to get pointer from network - {e}");
+            println!("{message}");
+            return Err(eyre!(message));
+        }
     };
 
-    let entries_vec = node_entries_as_vec(&register);
-    let size = entries_vec.len();
+    let count = pointer.count();
     if print_summary {
-        do_print_summary(&register, register.address(), &entries_vec, size)?;
+        do_print_summary(&pointer, &pointer_address)?;
     } else {
         if print_type {
-            if size > 0 {
-                do_print_type(Some(&entries_vec[0]))?;
-            } else {
-                do_print_type(None)?;
-            }
+            // if size > 0 {
+            //     do_print_type(Some(&entries_vec[0]))?;
+            // } else {
+            //     do_print_type(None)?;
+            // }
         }
 
         if print_size {
-            do_print_size(size)?;
+            // do_print_size(size)?;
         }
     }
 
-    if let Some(entries_range) = entries_range {
-        do_print_entries(
-            &client,
-            &entries_range,
-            entries_vec,
-            include_files,
-            &files_args,
-        )
-        .await?;
-    };
+    // if let Some(entries_range) = entries_range {
+    //     do_print_entries(
+    //         &client,
+    //         &entries_range,
+    //         entries_vec,
+    //         include_files,
+    //         &files_args,
+    //     )
+    //     .await?;
+    // };
 
     // if print_audit {
     //     let _ = do_print_audit(&register);
@@ -100,33 +90,27 @@ pub async fn handle_inspect_register(
     Ok(())
 }
 
-fn do_print_summary(
-    register: &Register,
-    reg_address: &RegisterAddress,
-    entries_vec: &Vec<Entry>,
-    size: usize,
-) -> Result<()> {
-    println!("register    : {}", reg_address.to_hex());
-    println!("owner       : {:?}", reg_address.owner());
-    // println!("permissions : {:?}", register.permissions());
-    println!("num roots   : {:?}", register.values().len());
+fn do_print_summary(pointer: &Pointer, pointer_address: &PointerAddress) -> Result<()> {
+    println!("pointer     : {}", pointer_address.to_hex());
+    // println!("owner       : {:?}", pointer.owner());
+    // println!("permissions : {:?}", pointer.permissions());
+    println!("count       : {:?}", pointer.count());
 
-    if entries_vec.len() > 0 {
-        do_print_type(Some(&entries_vec[0]))?;
-    } else {
-        do_print_type(None)?;
-    }
-    do_print_size(size)?;
+    // if entries_vec.len() > 0 {
+    //     do_print_type(Some(&entries_vec[0]))?;
+    // } else {
+    //     do_print_type(None)?;
+    // }
+    // do_print_size(size)?;
     // do_print_audit_summary(&register)?;
     Ok(())
 }
 
-fn do_print_type(reg_type: Option<&Entry>) -> Result<()> {
-    if reg_type.is_some() {
-        let xor_name = xorname_from_entry(reg_type.unwrap());
-        println!("app reg type: {xor_name}");
+fn do_print_type(history_type: Option<XorName>) -> Result<()> {
+    if history_type.is_some() {
+        println!("history type: {:64x}", history_type.unwrap());
     } else {
-        println!("app reg type: not set");
+        println!("history type: not set");
     }
     Ok(())
 }
@@ -272,59 +256,59 @@ fn do_print_size(size: usize) -> Result<()> {
 //     Ok(())
 // }
 
-async fn do_print_entries(
-    client: &AutonomiClient,
-    entries_range: &EntriesRange,
-    entries_vec: Vec<Entry>,
-    include_files: bool,
-    files_args: &FilesArgs,
-) -> Result<()> {
-    let size = entries_vec.len();
-    if size == 0 {
-        return Ok(());
-    }
+// async fn do_print_entries(
+//     client: &AutonomiClient,
+//     entries_range: &EntriesRange,
+//     entries_vec: Vec<Entry>,
+//     include_files: bool,
+//     files_args: &FilesArgs,
+// ) -> Result<()> {
+//     let size = entries_vec.len();
+//     if size == 0 {
+//         return Ok(());
+//     }
 
-    let first = if entries_range.start.is_some() {
-        entries_range.start.unwrap()
-    } else {
-        0
-    };
+//     let first = if entries_range.start.is_some() {
+//         entries_range.start.unwrap()
+//     } else {
+//         0
+//     };
 
-    let last = if entries_range.end.is_some() {
-        entries_range.end.unwrap()
-    } else {
-        size - 1
-    };
+//     let last = if entries_range.end.is_some() {
+//         entries_range.end.unwrap()
+//     } else {
+//         size - 1
+//     };
 
-    if last > size - 1 {
-        return Err(eyre!(
-            "range exceeds maximum register entry which is {}",
-            size - 1
-        ));
-    }
+//     if last > size - 1 {
+//         return Err(eyre!(
+//             "range exceeds maximum register entry which is {}",
+//             size - 1
+//         ));
+//     }
 
-    // As entries_vec[] is in reverse order we adjust the start and end and count backwards
-    println!("entries {first} to {last}:");
-    for index in first..=last {
-        let xor_name = xorname_from_entry(&entries_vec[index]);
-        if include_files {
-            println!("entry {index} - fetching metadata at {xor_name:64x}");
-            match DirectoryTree::directory_tree_download(client, xor_name).await {
-                Ok(metadata) => {
-                    let _ = do_print_files(&metadata, &files_args);
-                }
-                Err(e) => {
-                    println!("Failed to get website metadata from network");
-                    return Err(eyre!(e));
-                }
-            };
-        } else {
-            println!("{xor_name:64x}");
-        }
-    }
+//     // As entries_vec[] is in reverse order we adjust the start and end and count backwards
+//     println!("entries {first} to {last}:");
+//     for index in first..=last {
+//         let xor_name = xorname_from_entry(&entries_vec[index]);
+//         if include_files {
+//             println!("entry {index} - fetching metadata at {xor_name:64x}");
+//             match DirectoryTree::directory_tree_download(client, xor_name).await {
+//                 Ok(metadata) => {
+//                     let _ = do_print_files(&metadata, &files_args);
+//                 }
+//                 Err(e) => {
+//                     println!("Failed to get website metadata from network");
+//                     return Err(eyre!(e));
+//                 }
+//             };
+//         } else {
+//             println!("{xor_name:64x}");
+//         }
+//     }
 
-    Ok(())
-}
+//     Ok(())
+// }
 
 fn do_print_files(metadata: &DirectoryTree, files_args: &FilesArgs) -> Result<()> {
     let metadata_stats = if files_args.print_metadata_summary

@@ -12,9 +12,8 @@ name = "dweb"
 path = "src/main.rs"
 
 [features]
-# updated for autonomi v0.2.4
+# updated for autonomi v0.3.4
 default = ["skip-network-compatibility-check"]
-local = ["development", "ant-bootstrap/local", "autonomi/local", "dweb/local", "dweb/development"]
 ametrics = ["ant-logging/process-metrics"]
 development = ["fixed-dweb-hosts"]
 
@@ -22,19 +21,13 @@ skip-network-compatibility-check = []   # Avoid need to upload avp type and incl
 fixed-dweb-hosts = []
 
 [dependencies]
-# Generated using: awe-dependencies --branch stable
-autonomi = { version = "0.3.1", features = [
-    "fs",
-    "vault",
-    "registers",
-    "loud",
-] }
-ant-bootstrap = { version = "0.1.1" }
-ant-build-info = { version = "0.1.21" }
-ant-logging = { version = "0.2.42" }
-ant-networking = { version = "0.3.1" }
-ant-protocol = { version = "0.3.1" }
-ant-registers = { version = "0.4.5" }
+# Generated using: awe-dependencies --branch main --ant-path ../../autonomi
+autonomi = { version = "0.3.4", path = "../../autonomi/autonomi", features = [ "loud", ]}
+ant-bootstrap = { version = "0.1.4", path = "../../autonomi/ant-bootstrap" }
+ant-build-info = { version = "0.1.23", path = "../../autonomi/ant-build-info" }
+ant-logging = { version = "0.2.45", path = "../../autonomi/ant-logging" }
+ant-networking = { version = "0.3.4", path = "../../autonomi/ant-networking" }
+ant-protocol = { version = "0.3.3", path = "../../autonomi/ant-protocol" }
 
 dweb = { path = "../dweb-lib", version = "0.2.0", features = ["development"]}
 

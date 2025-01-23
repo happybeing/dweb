@@ -19,15 +19,16 @@ pub mod directory_tree;
 
 use std::marker::PhantomData;
 
-use bytes::Bytes;
 use color_eyre::eyre::{eyre, Error, Result};
 use serde::{de::DeserializeOwned, Serialize};
 use xor_name::XorName;
 
-use ant_registers::RegisterAddress as HistoryAddress;
-use autonomi::client::registers::{Register, RegisterSecretKey};
+use ant_protocol::storage::{
+    ChunkAddress, Pointer, PointerAddress as HistoryAddress, PointerTarget,
+};
+use autonomi::client::vault::VaultSecretKey as SecretKey;
 
-use crate::autonomi::access::keys::get_register_signing_key;
+use crate::autonomi::access::keys::get_vault_secret_key;
 use crate::client::AutonomiClient;
 use crate::data::autonomi_get_file_public;
 
@@ -54,11 +55,6 @@ pub trait Trove {
 /// can be used to create and access versions of a file, a collection of
 /// files such as a directory, or all the files and settings that make up a website,
 /// and so on.
-/// TODO replace use of deprecated Register with new Autonomi types (Pointer + Transaction)
-/// TODO revise variable naming such as 'xor_address' to match dweb terminology:
-/// TODO    HISTORY-ADDRESS     - address of History stored on Autonomi
-/// TODO    DIRECTORY-ADDRESS   - address of DirectoryTree stored on Autonomi
-/// TODO    FILE-ADDRESS        - address of file/datamap stored on Autonomi
 pub struct History<T: Trove + Serialize + DeserializeOwned + Clone> {
     client: AutonomiClient,
 
@@ -67,69 +63,92 @@ pub struct History<T: Trove + Serialize + DeserializeOwned + Clone> {
     // Cached data for the selected version
     cached_version: Option<TroveVersion<T>>,
 
-    // owner_secret is only required for publish/update (not access)
-    owner_secret: Option<RegisterSecretKey>,
-    register: Register,
+    // owner_secret is only required to create a new History (not for update or access)
+    owner_secret: Option<SecretKey>,
+    pointer: Pointer,
 
     // Pretend we hold a Trove so we can restrict some values to type T in the implementation
     phantom: std::marker::PhantomData<T>,
 }
 
 impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
-    /// Gets an existing Register or creates a new register online
+    /// Get an existing Pointer or create a new one online
     /// The owner_secret is required when creating and for adding entries (publish/update)
     pub async fn new(client: AutonomiClient, address: Option<HistoryAddress>) -> Result<Self> {
-        let mut register_signing_key = None;
-        let register = if let Some(addr) = address {
-            client.client.register_get(addr).await
+        let mut option_secret_key = None;
+        let pointer = if let Some(addr) = address {
+            client.client.pointer_get(addr).await
         } else {
-            let signing_key = match get_register_signing_key() {
-                Ok(signing_key) => signing_key,
+            let secret_key = match get_vault_secret_key() {
+                Ok(secret_key) => secret_key,
                 Err(e) => {
-                    println!("Failed to get register signing key: {e}");
-                    return Err(e);
+                    let message = format!(
+                        "History::new() is unable to create a new History without a secret key - {e}"
+                    );
+                    println!("DEBUG {message}");
+                    return Err(eyre!(message));
                 }
             };
+            option_secret_key = Some(secret_key.clone());
 
-            register_signing_key = Some(signing_key.clone());
-            let mut rng = rand::thread_rng();
-            let name = format!("{:64x}", XorName::random(&mut rng));
-            client
+            let pointer = Self::create_pointer_for_update(0, Self::trove_type(), &secret_key);
+            match client
                 .client
-                .register_create(None, name.as_str(), signing_key.clone(), &client.wallet)
+                .pointer_put(pointer.clone(), &client.wallet)
                 .await
+            {
+                Ok(pointer_address) => {
+                    println!(
+                        "DEBUG History::new() created new pointer at {:64x}",
+                        pointer_address.xorname()
+                    );
+                    Ok(pointer)
+                }
+                Err(e) => {
+                    let message = format!("History::new() failed to create pointer: {e}");
+                    println!("DEBUG {message}");
+                    return Err(eyre!(message));
+                }
+            }
         };
 
-        if register.is_ok() {
-            let mut history = History {
-                client,
+        if pointer.is_ok() {
+            let history = History {
+                client: client.clone(),
                 default_version: None,
                 cached_version: None,
-                register: register.unwrap(),
-                owner_secret: register_signing_key,
+                pointer: pointer.unwrap(),
+                owner_secret: option_secret_key,
                 phantom: PhantomData,
             };
 
-            // Write the trove_type to the first entry
-            history.add_xor_name(&Self::trove_type()).await?;
-            history.update_default_version();
             Ok(history)
         } else {
-            Err(register.unwrap_err().into())
+            Err(pointer.unwrap_err().into())
         }
     }
 
+    fn create_pointer_for_update(counter: u32, value: XorName, signing_key: &SecretKey) -> Pointer {
+        let pointer_target = PointerTarget::ChunkAddress(ChunkAddress::new(value));
+        Pointer::new(
+            signing_key.public_key(),
+            counter,
+            pointer_target,
+            signing_key,
+        )
+    }
+
     /// The owner_secret is only required for publish/update using the returned History (not access)
-    pub fn from_client_register(
+    pub fn from_pointer(
         client: AutonomiClient,
-        client_register: Register,
-        owner_secret: Option<RegisterSecretKey>,
+        pointer: Pointer,
+        owner_secret: Option<SecretKey>,
     ) -> History<T> {
         let mut history = History::<T> {
             client,
             default_version: None,
             cached_version: None,
-            register: client_register,
+            pointer,
             owner_secret: owner_secret.clone(),
             phantom: PhantomData,
         };
@@ -142,21 +161,21 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
     pub async fn from_history_address(
         client: AutonomiClient,
         history_address: HistoryAddress,
-        owner_secret: Option<RegisterSecretKey>,
+        owner_secret: Option<SecretKey>,
     ) -> Result<History<T>> {
         // Check it exists to avoid accidental creation (and payment)
-        let result = client.client.register_get(history_address).await;
+        let result = client.client.pointer_get(history_address).await;
         let mut history = if result.is_ok() {
-            History::<T>::from_client_register(client, result.unwrap(), owner_secret)
+            History::<T>::from_pointer(client, result.unwrap(), owner_secret)
         } else {
             println!("DEBUG from_history_address() error:");
-            return Err(eyre!("register not found on network"));
+            return Err(eyre!("History pointer not found on network"));
         };
         history.update_default_version();
         Ok(history)
     }
 
-    fn owner_secret(&self) -> Result<RegisterSecretKey, Error> {
+    fn owner_secret(&self) -> Result<SecretKey, Error> {
         match self.owner_secret.clone() {
             Some(owner_secret) => Ok(owner_secret),
             None => Err(eyre!(
@@ -173,8 +192,8 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
         self.default_version
     }
 
-    pub fn history_address(&self) -> &HistoryAddress {
-        self.register.address()
+    pub fn history_address(&self) -> HistoryAddress {
+        self.pointer.network_address()
     }
 
     fn trove_type() -> XorName {
@@ -188,20 +207,20 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
     /// the type). Example types include file system
     /// and website.
     pub fn num_entries(&self) -> u64 {
-        crate::helpers::node_entries_as_vec(&self.register).len() as u64
+        self.pointer.count() as u64
     }
 
     /// Return the number of available versions
     /// or an error if no versions are available.
     /// The first version is 1 last version is num_versions()
     pub fn num_versions(&self) -> Result<u64> {
-        let num_entries = self.num_entries();
+        let num_entries = self.pointer.count();
 
         if num_entries == 0 {
-            let message = "register is empty (0 entries)";
+            let message = "pointer is empty (0 entries)";
             Err(eyre!(message))
         } else {
-            Ok(num_entries - 1)
+            Ok(num_entries as u64 - 1)
         }
     }
 
@@ -238,29 +257,26 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
     /// The first entry in the register is version 0, but that is reserved so the
     /// first version of a website is 1 and the last is the number of entries - 1
     pub fn get_version_entry(&self, version: u64) -> Result<XorName> {
-        println!("DEBUG XXXXXX get_version_entry(version: {version})");
-        let entries_vec = crate::helpers::node_entries_as_vec(&self.register);
-        let num_entries = entries_vec.len();
+        println!("DEBUG History::get_version_entry(version: {version})");
+        let num_entries = self.pointer.count() + 1;
 
-        // This is used to hold a value for use by the Svelte frontend
+        // The first entry is the Trove<T>::trove_type(), and not used so max version is num_entries - 1
         let max_version = if num_entries > 0 {
             num_entries as u64 - 1
         } else {
             0
         };
 
-        // set_version_max(max_version as u64); // TODO awe needs to set this explicitly
-
-        // Note the first node is a marker, and not used so max version is length - 1
-        if version <= max_version {
-            let entry = &entries_vec[version as usize];
-            Ok(crate::helpers::convert::xorname_from_entry(&entry))
-        } else {
-            Err(eyre!(
-                "Version {version} too large. Maximum is {}",
-                max_version
-            ))
+        // TODO implement access to version < max_version when using GraphEntry
+        if version != max_version {
+            let message = format!(
+                "History::get_version_entry({version}) out of range for max_version: {max_version}"
+            );
+            println!("{message}");
+            return Err(eyre!(message));
         }
+
+        Ok(self.pointer.xorname())
     }
 
     // Returns the version of the cached entry if present
@@ -273,86 +289,44 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
         None
     }
 
-    /// Adds an XorName to the register, merging any branches
-    pub async fn add_xor_name(&mut self, xor_value: &XorName) -> Result<()> {
-        let register_xor_address = self.register.address().to_hex();
-        println!("Updating register    : {register_xor_address}");
+    /// Add an XorName to the History and return the index of the most recent entry (1 = first entry)
+    pub async fn add_xor_name(&mut self, xor_value: &XorName) -> Result<u32> {
+        let history_address = self.pointer.network_address().to_hex();
+        println!("Updating History at {history_address}");
         // The first register_get() has been added for testing (as reg_update() isn't always changing some registers)
         match self
             .client
             .client
-            .register_get(self.register.address().clone())
+            .pointer_get(self.pointer.network_address())
             .await
         {
-            Ok(register) => {
+            Ok(old_pointer) => {
+                if !old_pointer.verify() {
+                    let message =
+                        format!("Error - pointer retrieved from network has INVALID SIGNATURE");
+                    println!("{message}");
+                    return Err(eyre!(message));
+                }
                 let owner_secret = if self.owner_secret.is_some() {
                     self.owner_secret.clone().unwrap()
                 } else {
-                    return Err(eyre!(
-                        "Cannot update Register - register secret key is None"
-                    ));
+                    return Err(eyre!("Cannot update Pointer - register secret key is None"));
                 };
-                let register_xor_address = register.address().to_hex();
-                println!("Register get returned: {register_xor_address}");
-                let values = self.register.values();
-                println!("Before register_update()...do client.register_get()...");
-                println!("      Register has {} values", values.len());
-                println!("      Register has {} entries", self.num_entries());
-                // let merkle_reg = self.register.inner_merkle_reg();
-                // println!("      Register {merkle_reg:?}");
-
-                println!("Calling register_update() with value: {xor_value}");
+                println!("Pointer retrieved with counter {}", old_pointer.count());
+                let new_pointer = Self::create_pointer_for_update(
+                    old_pointer.count() + 1,
+                    *xor_value,
+                    &owner_secret,
+                );
+                println!("Calling pointer_put() with new value: {xor_value}");
                 match self
                     .client
                     .client
-                    .register_update(
-                        self.register.clone(),
-                        Bytes::from(xor_value.to_vec()),
-                        owner_secret.clone(),
-                    )
+                    .pointer_put(new_pointer.clone(), &self.client.wallet)
                     .await
                 {
                     Ok(_) => {
-                        let values = self.register.values();
-                        println!("After update...");
-                        println!("      Register has {} values", values.len());
-                        println!("      Register has {} entries", self.num_entries());
-                        // let merkle_reg = self.register.inner_merkle_reg();
-                        // println!("      Register {merkle_reg:?}");
-
-                        // It is necessary to get the register from the network to have it's entries accessible
-                        self.register = match self
-                            .client
-                            .client
-                            .register_get(self.register.address().clone())
-                            .await
-                        {
-                            Ok(register) => {
-                                let values = self.register.values();
-                                println!("After update...and get...");
-                                println!("      Register has {} values", values.len());
-                                println!("      Register has {} entries", self.num_entries());
-                                // let merkle_reg = self.register.inner_merkle_reg();
-                                // println!("      Register {merkle_reg:?}");
-
-                                let register_xor_address = self.register.address().to_hex();
-                                println!("client.register_update() added entry to register: {register_xor_address}");
-                                self.update_default_version();
-                                register
-                            }
-                            Err(e) => {
-                                return Err(eyre!(
-                                    "DEBUG failed to get register that was just updated!\n{e}"
-                                ))
-                            }
-                        };
-
-                        let register_xor_address = self.register.address().to_hex();
-                        println!(
-                            "DEBUG client.register_update() added entry to register: {register_xor_address}"
-                        );
-                        // let merkle_reg = self.register.inner_merkle_reg();
-                        // println!("DEBUG register.inner_merkle_reg():\n{merkle_reg:?}");
+                        self.pointer = new_pointer;
                     }
                     Err(e) => {
                         return Err(eyre!("Failed to add XorName to register: {e:?}"));
@@ -362,7 +336,7 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
             Err(e) => return Err(eyre!("DEBUG failed to get register prior to update!\n{e}")),
         };
 
-        Ok(())
+        Ok(self.pointer.count())
     }
 
     /// Publishes a new version pointing to the metadata provided

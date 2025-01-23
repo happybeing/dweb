@@ -23,7 +23,7 @@ use std::sync::{LazyLock, Mutex};
 
 use schnellru::{ByLength, LruMap};
 
-use ant_registers::RegisterAddress as HistoryAddress;
+use ant_protocol::storage::PointerAddress as HistoryAddress;
 use xor_name::XorName as DirectoryAddress;
 
 use crate::trove::directory_tree::DirectoryTree;

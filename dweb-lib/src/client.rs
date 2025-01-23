@@ -25,23 +25,20 @@ use bytes::Bytes;
 use color_eyre::{eyre::eyre, Result};
 use xor_name::XorName as FileAddress;
 
-use ant_bootstrap;
-use autonomi::client::registers::{Register, RegisterSecretKey};
-use autonomi::client::Client;
-use autonomi::client::GetError;
-
-use autonomi::evmlib::load_evm_wallet_from_env;
+use ant_bootstrap::PeersArgs;
+use autonomi::client::{Client, GetError};
 use autonomi::{ClientConfig, Network, Wallet};
 
-use crate::autonomi::access::keys::get_register_signing_key;
-use crate::autonomi::wallet::load_wallet;
+use crate::autonomi::access::keys::load_evm_wallet_from_env;
 
 #[derive(Clone)]
 pub struct AutonomiClient {
     pub client: Client,
     pub network: Network,
-    pub wallet: Wallet,
-    pub register_secret: Option<RegisterSecretKey>,
+    pub wallet: Wallet, // Must be loaded and funded for writing to the network
+
+                        // Can't do this because bls::SecretKey doesn't imp Copy which causes problems in use:
+                        // pub secret_key: Option<SecretKey>, // Needed when creating owned or private data
 }
 
 impl AutonomiClient {
@@ -60,12 +57,7 @@ impl AutonomiClient {
     /// variable. For example, setting this to 'arbitrum-sepolia' selects the
     /// Artbitrum test network.
     pub async fn initialise_and_connect(peers_args: Option<PeersArgs>) -> Result<AutonomiClient> {
-        let network = match get_evm_network_from_env() {
-            Ok(network) => network,
-            Err(_e) => Network::default(),
-        };
-        println!("DEBUG selected network {network:?}");
-
+        // TODO: may become redundant (PR #2613: https://github.com/maidsafe/autonomi/pull/2613?notification_referrer_id=NT_kwDOACFS17MxNDE5MjMxNDExMzoyMTgzODk1&notifications_query=is%3Aunread)
         let peers_args = if peers_args.is_some() {
             peers_args.unwrap()
         } else {
@@ -73,12 +65,14 @@ impl AutonomiClient {
         };
 
         let mut client_config = ClientConfig::default();
+        let network = &client_config.evm_network;
+        println!("DEBUG selected network {network:?}");
 
         let client = match crate::autonomi::access::network::get_peers(peers_args).await {
             Ok(peers) => {
                 client_config.peers = Some(peers);
 
-                match Client::init_with_config(client_config).await {
+                match Client::init_with_config(client_config.clone()).await {
                     Ok(client) => {
                         println!("DEBUG Connected to the Network");
                         client
@@ -89,8 +83,7 @@ impl AutonomiClient {
             Err(e) => return Err(eyre!("Failed to get peers: {e}")),
         };
 
-        // TODO: may become redundant (PR #2613: https://github.com/maidsafe/autonomi/pull/2613?notification_referrer_id=NT_kwDOACFS17MxNDE5MjMxNDExMzoyMTgzODk1&notifications_query=is%3Aunread)
-        let wallet = match load_wallet() {
+        let wallet = match load_evm_wallet_from_env(&client.evm_network) {
             Ok(wallet) => wallet,
             Err(_e) => {
                 println!("Failed to load wallet for payments - client will only have read accesss to Autonomi");
@@ -98,19 +91,10 @@ impl AutonomiClient {
             }
         };
 
-        let register_secret = match get_register_signing_key() {
-            Ok(register_secret) => Some(register_secret),
-            Err(_e) => {
-                println!("Register signing key not found.\nThe signing key is Not needed for browsing, but use 'ant register generate-key' if you wish to publish.");
-                None
-            }
-        };
-
         Ok(AutonomiClient {
             client,
-            network,
+            network: network.clone(),
             wallet,
-            register_secret,
         })
     }
 

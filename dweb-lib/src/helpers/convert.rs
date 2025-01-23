@@ -6,36 +6,23 @@
 // KIND, either express or implied. Please review the Licences for the specific language governing
 // permissions and limitations relating to use of the SAFE Network Software.
 
-use ant_registers::{Entry, RegisterAddress as HistoryAddress};
+use ant_protocol::storage::PointerAddress as HistoryAddress;
 use color_eyre::eyre::{eyre, Result};
 use xor_name::XorName;
 
 // The following functions copied from sn_cli with minor changes (eg to message text)
 
-/// Parse a hex register address with optional URL scheme
-/// TODO modify for dweb use: Parse a hex register address with optional URL scheme
-pub fn str_to_register_address(str: &str) -> Result<HistoryAddress> {
-    // let str = if str.starts_with(AWE_PROTOCOL_REGISTER) {
-    //     &str[AWE_PROTOCOL_REGISTER.len()..]
-    // } else {
-    //     &str
-    // };
-
-    match HistoryAddress::from_hex(str) {
-        Ok(register_address) => Ok(register_address),
-        Err(e) => Err(eyre!("Invalid register address string '{str}':\n{e:?}")),
+/// Parse a hex HistoryAddress  with optional URL scheme
+pub fn str_to_pointer_address(str: &str) -> Result<HistoryAddress> {
+    match str_to_xor_name(str) {
+        Ok(xor_name) => Ok(HistoryAddress::new(xor_name)),
+        Err(e) => Err(eyre!(
+            "Invalid History (pointer) address string '{str}':\n{e:?}"
+        )),
     }
 }
 
-/// TODO modify for dweb use: Parse a hex xor address with optional URL scheme
 pub fn str_to_xor_name(str: &str) -> Result<XorName> {
-    // let mut str = if str.starts_with(AWE_PROTOCOL_METADATA) {
-    //     &str[AWE_PROTOCOL_METADATA.len()..]
-    // } else if str.starts_with(AWE_PROTOCOL_FILE) {
-    //     &str[AWE_PROTOCOL_FILE.len()..]
-    // } else {
-    //     &str
-    // };
     let str = if str.ends_with('/') {
         &str[0..str.len() - 1]
     } else {
@@ -91,21 +78,7 @@ pub fn parse_host(hostname: &str) -> Result<String> {
     }
 }
 
-/// Parse a hex register address with optional URL scheme
-pub fn awe_str_to_register_address(str: &str) -> Result<HistoryAddress> {
-    let str = if str.starts_with(AWE_PROTOCOL_REGISTER) {
-        &str[AWE_PROTOCOL_REGISTER.len()..]
-    } else {
-        &str
-    };
-
-    match HistoryAddress::from_hex(str) {
-        Ok(register_address) => Ok(register_address),
-        Err(e) => Err(eyre!("Invalid register address string '{str}':\n{e:?}")),
-    }
-}
-
-/// Parse a hex register address with optional URL scheme
+/// Parse a hex HistoryAddress with optional URL scheme
 pub fn awe_str_to_history_address(str: &str) -> Result<HistoryAddress> {
     let str = if str.starts_with(AWE_PROTOCOL_REGISTER) {
         &str[AWE_PROTOCOL_REGISTER.len()..]
@@ -113,14 +86,30 @@ pub fn awe_str_to_history_address(str: &str) -> Result<HistoryAddress> {
         &str
     };
 
-    match HistoryAddress::from_hex(str) {
+    match str_to_pointer_address(str) {
         Ok(history_address) => Ok(history_address),
-        Err(e) => Err(eyre!("Invalid history address string '{str}':\n{e:?}")),
+        Err(e) => Err(eyre!(
+            "Invalid History (pointer) address string '{str}':\n{e:?}"
+        )),
+    }
+}
+
+/// Parse a hex PointerAddress with optional URL scheme
+pub fn awe_str_to_pointer_address(str: &str) -> Result<HistoryAddress> {
+    let str = if str.starts_with(AWE_PROTOCOL_REGISTER) {
+        &str[AWE_PROTOCOL_REGISTER.len()..]
+    } else {
+        &str
+    };
+
+    match str_to_pointer_address(str) {
+        Ok(pointer_address) => Ok(pointer_address),
+        Err(e) => Err(eyre!("Invalid pointer address string '{str}':\n{e:?}")),
     }
 }
 
 pub fn awe_str_to_xor_name(str: &str) -> Result<XorName> {
-    let mut str = if str.starts_with(AWE_PROTOCOL_METADATA) {
+    let str = if str.starts_with(AWE_PROTOCOL_METADATA) {
         &str[AWE_PROTOCOL_METADATA.len()..]
     } else if str.starts_with(AWE_PROTOCOL_FILE) {
         &str[AWE_PROTOCOL_FILE.len()..]
@@ -140,12 +129,4 @@ pub fn awe_str_to_xor_name(str: &str) -> Result<XorName> {
         },
         Err(e) => Err(eyre!("XorName not valid due to {e:?}")),
     }
-}
-
-// From FoldersApi
-// Helper to convert a Register/Folder entry into a XorName
-pub fn xorname_from_entry(entry: &Entry) -> XorName {
-    let mut xorname = [0; xor_name::XOR_NAME_LEN];
-    xorname.copy_from_slice(entry);
-    XorName(xorname)
 }

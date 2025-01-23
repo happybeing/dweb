@@ -24,7 +24,7 @@ use mime;
 use url::Url;
 use xor_name::XorName as DirectoryAddress;
 
-use ant_registers::RegisterAddress as HistoryAddress;
+use ant_protocol::storage::PointerAddress as HistoryAddress;
 
 use crate::cache::directory_version::{self, DirectoryVersion, DIRECTORY_VERSIONS, HISTORY_NAMES};
 use crate::client::AutonomiClient;
@@ -221,6 +221,10 @@ pub async fn fetch_website_version(
                 dweb_host_string: versioned_host,
                 dweb_name: dweb_host.dweb_name.clone(),
                 version: Some(version),
+
+                #[cfg(feature = "fixed-dweb-hosts")]
+                // Development build feature for non-versioned DirectoryTree references
+                is_fixed_dweb_host: false,
             };
 
             return update_cached_directory_version(

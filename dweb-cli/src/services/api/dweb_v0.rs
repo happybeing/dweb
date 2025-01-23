@@ -75,8 +75,10 @@ pub async fn api_dwebname_register(
             if cached_history_address.is_some() {
                 let cached_history_address = cached_history_address.unwrap();
                 if history_address != *cached_history_address {
-                    return HttpResponse::BadRequest()
-                        .body(format!("DWEB-NAME '{dweb_name}' already in use for HISTORY-ADDRESS '{cached_history_address}'"));
+                    return HttpResponse::BadRequest().body(format!(
+                        "DWEB-NAME '{dweb_name}' already in use for HISTORY-ADDRESS '{}'",
+                        cached_history_address.to_hex()
+                    ));
                 }
                 // println!("DWEB-NAME '{dweb_name}' already registered for {history_address_string}");
             } else {

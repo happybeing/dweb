@@ -19,10 +19,9 @@ use std::path::PathBuf;
 use walkdir::WalkDir;
 use xor_name::XorName;
 
-use ant_registers::RegisterAddress as HistoryAddress;
+use ant_protocol::storage::PointerAddress as HistoryAddress;
 use autonomi::client::files::archive_public::PublicArchive;
 
-use crate::autonomi::wallet::load_wallet;
 use crate::client::AutonomiClient;
 use crate::trove::directory_tree::{osstr_to_string, DirectoryTree, JsonSettings, WebsiteSettings};
 use crate::trove::History;
@@ -136,12 +135,12 @@ pub fn report_content_published_or_updated(
 
     println!(
         "\n{type_str} {action_str} (version {version}). All versions available at XOR-URL:\nawv://{}",
-        &history_address
+        &history_address.to_hex()
     );
     println!("\nNOTE:\n- To update this content, use 'awe {update_str}' as follows:\n\n   awe {update_str} --history-address {} --files-root {}\n", &files_history, &files_root);
     println!(
         "- To browse the content use 'awe awv://<HISTORY-ADDRESS>' as follows:\n\n   awe awv://{}\n",
-        &history_address
+        &history_address.to_hex()
     );
     println!("- For help use 'awe --help'\n");
 }

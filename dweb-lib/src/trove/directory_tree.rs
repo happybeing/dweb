@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use ant_registers::RegisterAddress as HistoryAddress;
+use ant_protocol::storage::PointerAddress as HistoryAddress;
 use bytes::{BufMut, BytesMut};
 use chrono::{DateTime, Utc};
 use color_eyre::eyre::{eyre, Result};
@@ -414,7 +414,7 @@ pub async fn lookup_resource_for_website_version(
     version: Option<u64>,
 ) -> Result<(FileAddress, Option<String>), StatusCode> {
     println!("DEBUG lookup_resource_for_website_version() version {version:?}");
-    println!("DEBUG history_address: {history_address}");
+    println!("DEBUG history_address: {}", history_address.to_hex());
     println!("DEBUG resource_path    : {resource_path}");
 
     match History::<DirectoryTree>::from_history_address(client.clone(), history_address, None)

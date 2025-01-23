@@ -99,7 +99,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             include_files,
             files_args,
         }) => {
-            match crate::commands::cmd_inspect::handle_inspect_register(
+            match crate::commands::cmd_inspect::handle_inspect_pointer(
                 register_address,
                 print_register_summary,
                 print_type,

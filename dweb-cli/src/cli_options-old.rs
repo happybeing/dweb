@@ -155,12 +155,15 @@ pub enum Subcommands {
         /// The root directory of the content to be published
         #[clap(long = "files-root", value_name = "FILES-ROOT")]
         files_root: PathBuf,
-        /// Publish a website and associate it with this name
-        /// Defaults to the name of the website directory (FILES-ROOT)
-        #[clap(long, short = 'n', conflicts_with = "history_address")]
-        name: Option<String>,
+        // TODO when NRS, re-instate the following (and 'conflicts_with = "update"' above)
+        // /// Update the website at given awe NRS name
+        // #[clap(
+        //     long,
+        //     short = 'n',
+        //     conflicts_with = "history_address"
+        // )]
+        // name: String,
         /// Optional configuration when uploading content for a website, such as default index file(s), redirects etc.
-        /// TODO review implementation when dweb-lib implements config via a file in the website directory
         #[clap(long = "website-config", short = 'c', value_name = "JSON-FILE")]
         website_config: Option<PathBuf>,
         //
@@ -180,12 +183,20 @@ pub enum Subcommands {
         /// The root directory containing the new website content to be uploaded
         #[clap(long = "files-root", value_name = "FILES-ROOT")]
         files_root: PathBuf,
-        /// The name used when the website was first published
-        /// Defaults to use the name of the website directory (FILES-ROOT)
-        #[clap(long, short = 'n', conflicts_with = "history_address")]
-        name: Option<String>,
+        /// The address of a register referencing each version of the website. Can begin with "awv://"
+        #[clap(long, name = "HISTORY-ADDRESS", value_parser = awe_str_to_history_address)]
+        history_address: HistoryAddress,
+        // TODO when NRS, re-instate the following (and 'conflicts_with = "update"' above)
+        // /// Update the website at given awe NRS name
+        // #[clap(
+        //     long,
+        //     short = 'u',
+        //     conflicts_with = "new",
+        //     conflicts_with = "estimate_cost",
+        //     conflicts_with = "history_address"
+        // )]
+        // update: String,
         /// Optional configuration when uploading content for a website, such as default index file(s), redirects etc.
-        /// TODO review implementation when dweb-lib implements config via a file in the website directory
         #[clap(long = "website-config", short = 'c', value_name = "JSON-FILE")]
         website_config: Option<PathBuf>,
     },

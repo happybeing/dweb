@@ -35,7 +35,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
         }
         Some(Subcommands::Publish_new {
             files_root,
-            name,
+            // name: String, // TODO when NRS, re-instate name
             website_config,
             is_new_network: _,
         }) => {
@@ -43,10 +43,8 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                 .await
                 .expect("Failed to connect to Autonomi Network");
 
-            let (name, history_address, version) =
-                match publish_or_update_files(&client, &files_root, name, website_config, true)
-                    .await
-                {
+            let (history_address, version) =
+                match publish_or_update_files(&client, &files_root, None, website_config).await {
                     Ok(history_address) => history_address,
                     Err(e) => {
                         println!("Failed to publish files: {e}");
@@ -54,30 +52,28 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                     }
                 };
 
-            report_content_published_or_updated(
-                &history_address,
-                &name,
-                version,
-                &files_root,
-                true,
-                true,
-            );
+            report_content_published_or_updated(&history_address, version, &files_root, true, true);
         }
         Some(Subcommands::Publish_update {
             files_root,
-            name,
+            // name: String, // TODO when NRS, re-instate name
+            history_address,
             website_config,
         }) => {
             let client = dweb::client::AutonomiClient::initialise_and_connect(None)
                 .await
                 .expect("Failed to connect to Autonomi Network");
 
-            let (name, history_address, version) =
-                publish_or_update_files(&client, &files_root, name, website_config, false).await?;
+            let (history_address, version) = publish_or_update_files(
+                &client,
+                &files_root,
+                Some(history_address),
+                website_config,
+            )
+            .await?;
 
             report_content_published_or_updated(
                 &history_address,
-                &name,
                 version,
                 &files_root,
                 true,

@@ -72,59 +72,103 @@ pub struct History<T: Trove + Serialize + DeserializeOwned + Clone> {
 }
 
 impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
-    /// Get an existing Pointer or create a new one online
-    /// The owner_secret is required when creating and for adding entries (publish/update)
-    pub async fn new(client: AutonomiClient, address: Option<HistoryAddress>) -> Result<Self> {
-        let mut option_secret_key = None;
-        let pointer = if let Some(addr) = address {
-            client.client.pointer_get(addr).await
-        } else {
-            let secret_key = match get_vault_secret_key() {
+    /// Create a History for read-write access and store it on the network
+    /// Uses the name and a SecretKey to create a HistoryAddress
+    /// If not provided, uses the default SecretKey
+    /// To update a History, the name and SecretKey must be consistent
+    pub async fn create_online(
+        client: AutonomiClient,
+        name: String,
+        secret_key: Option<SecretKey>,
+    ) -> Result<Self> {
+        let main_secret_key = secret_key
+            .unwrap_or(match get_vault_secret_key() {
                 Ok(secret_key) => secret_key,
                 Err(e) => {
-                    let message = format!(
-                        "History::new() is unable to create a new History without a secret key - {e}"
-                    );
+                    let message =
+                        format!("History::create_online() failed to get secret key - {e}");
                     println!("DEBUG {message}");
                     return Err(eyre!(message));
                 }
-            };
-            option_secret_key = Some(secret_key.clone());
+            })
+            .clone();
 
-            let pointer = Self::create_pointer_for_update(0, Self::trove_type(), &secret_key);
-            match client
-                .client
-                .pointer_put(pointer.clone(), &client.wallet)
-                .await
-            {
-                Ok(pointer_address) => {
-                    println!(
-                        "DEBUG History::new() created new pointer at {:64x}",
-                        pointer_address.xorname()
-                    );
-                    Ok(pointer)
-                }
-                Err(e) => {
-                    let message = format!("History::new() failed to create pointer: {e}");
-                    println!("DEBUG {message}");
-                    return Err(eyre!(message));
-                }
+        let child_secret_key = main_secret_key.derive_child(name.as_bytes());
+        let pointer = Self::create_pointer_for_update(0, Self::trove_type(), &child_secret_key);
+        match client
+            .client
+            .pointer_put(pointer.clone(), &client.wallet)
+            .await
+        {
+            Ok(pointer_address) => {
+                println!(
+                    "DEBUG History::new() created new pointer at {:64x}",
+                    pointer_address.xorname()
+                );
+                let history = History {
+                    client: client.clone(),
+                    default_version: None,
+                    cached_version: None,
+                    pointer,
+                    owner_secret: Some(child_secret_key),
+                    phantom: PhantomData,
+                };
+
+                Ok(history)
             }
-        };
+            Err(e) => {
+                let message = format!("History::new() failed to create pointer: {e}");
+                println!("DEBUG {message}");
+                return Err(eyre!(message));
+            }
+        }
+    }
 
-        if pointer.is_ok() {
-            let history = History {
-                client: client.clone(),
-                default_version: None,
-                cached_version: None,
-                pointer: pointer.unwrap(),
-                owner_secret: option_secret_key,
-                phantom: PhantomData,
-            };
+    /// Load a History from the network that has read and write access
+    /// Uses the name and a SecretKey to create a HistoryAddress
+    /// If not provided, uses the default SecretKey
+    /// To update a History, the name and SecretKey must be consistent
+    pub async fn from_name(
+        client: AutonomiClient,
+        name: String,
+        secret_key: Option<SecretKey>,
+    ) -> Result<Self> {
+        let main_secret_key = secret_key
+            .unwrap_or(match get_vault_secret_key() {
+                Ok(secret_key) => secret_key,
+                Err(e) => {
+                    let message = format!("History::from_name() failed to get secret key - {e}");
+                    println!("DEBUG {message}");
+                    return Err(eyre!(message));
+                }
+            })
+            .clone();
 
-            Ok(history)
-        } else {
-            Err(pointer.unwrap_err().into())
+        let child_secret_key = main_secret_key.derive_child(name.as_bytes());
+        let history_address = HistoryAddress::from_owner(child_secret_key.public_key());
+        match client.client.pointer_get(history_address).await {
+            Ok(pointer) => {
+                println!(
+                    "DEBUG History::from_name() created new pointer at {:64x}",
+                    pointer.network_address().xorname()
+                );
+
+                let history = History {
+                    client: client.clone(),
+                    default_version: None,
+                    cached_version: None,
+                    pointer,
+                    owner_secret: Some(child_secret_key),
+                    phantom: PhantomData,
+                };
+
+                Ok(history)
+            }
+            Err(e) => {
+                let message = format!("History::from_name() failed to create pointer: {e}");
+                println!("DEBUG {message}");
+                return Err(eyre!(message));
+            }
         }
     }
 
@@ -156,7 +200,7 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
         history
     }
 
-    /// Load a Register from the network and return wrapped in History
+    /// Load a read-only History from the network
     /// The owner_secret is not required for read access, only if doing publish/update subsequently
     pub async fn from_history_address(
         client: AutonomiClient,

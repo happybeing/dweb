@@ -33,7 +33,7 @@ use env_logger::Env;
 use futures_util::future::FutureExt; // Needed for logging Requests and Responses to terminal
 
 use crate::cli_options::Opt;
-use dweb::helpers::convert::awe_str_to_xor_name;
+use dweb::helpers::convert::str_to_xor_name;
 use dweb::web::fetch::response_with_body;
 
 const CONNECTION_TIMEOUT: u64 = 75;
@@ -185,7 +185,7 @@ async fn test_fetch_file(
 ) -> impl Responder {
     println!("test_fetch_file()...");
 
-    let file_address = match awe_str_to_xor_name(datamap_address.as_str()) {
+    let file_address = match str_to_xor_name(datamap_address.as_str()) {
         Ok(file_address) => file_address,
         Err(e) => {
             return response_with_body(

@@ -34,14 +34,15 @@ use crate::trove::History;
 pub async fn publish_or_update_files(
     client: &AutonomiClient,
     files_root: &PathBuf,
-    history_address: Option<HistoryAddress>,
+    name: Option<String>,
     website_config: Option<PathBuf>,
-) -> Result<(HistoryAddress, u64)> {
+    is_publish: bool,
+) -> Result<(String, HistoryAddress, u64)> {
     println!("DEBUG publish_or_update_files()...");
     check_path_for_upload(&files_root)?;
 
     #[cfg(not(feature = "skip-network-compatibility-check"))]
-    if history_address.is_none() && !is_new_network && !is_compatible_network(&client).await {
+    if is_publish && !is_new_network && !is_compatible_network(&client).await {
         let message = format!(
             "ERROR: This version of awe cannot publish to this Autonomi network\
         \nERROR: Please update awe and try again. See {MAIN_REPOSITORY}"
@@ -56,60 +57,53 @@ pub async fn publish_or_update_files(
         .await
         .inspect_err(|e| println!("{}", e))?;
 
-    // TODO remove?
-    // let register_type = if is_new_network {
-    //     files_address
-    // } else {
-    //     awe_client::str_to_xor_name(
-    //         awe_files_history::awv_register_type_string().as_str(),
-    //     )?
-    // };
-
-    let mut files_history: History<DirectoryTree>;
-    let (history_address, version) = if let Some(history_address) = history_address {
-        // Update existing directory
-        println!("Uploading update to network...");
-        let files_address = publish_files(&client, files_root, &website_config).await?;
-
-        println!("Updating versions history {}", history_address.to_hex());
-        files_history =
-            match History::<DirectoryTree>::new(client.clone(), Some(history_address)).await {
-                Ok(files_history) => files_history,
-                Err(e) => {
-                    println!("Failed to access versions. {}", e.root_cause());
-                    return Err(e);
-                }
-            };
-
-        match files_history.publish_new_version(&files_address).await {
-            Ok(version) => (files_history.history_address(), version),
-            Err(e) => {
-                let message = format!("Failed to update version: {e:?}");
-                println!("{message}");
-                return Err(eyre!(message));
-            }
+    let name = if name.is_none() {
+        if let Some(osstr) = files_root.file_name() {
+            osstr_to_string(osstr)
+        } else {
+            None
         }
     } else {
-        // Publish new website
-        println!("Creating versions history, please wait...");
-        println!("got wallet... calling History<DirectoryTree>::new_register()");
-        files_history = History::<DirectoryTree>::new(client.clone(), None)
-            .await
-            .inspect_err(|e| println!("{}", e))?;
-        match files_history.publish_new_version(&files_address).await {
-            Ok(version) => (files_history.history_address(), version),
-            Err(e) => {
-                println!("Failed to publish new version: {}", e.root_cause());
-                return Err(e);
-            }
+        name
+    };
+    let name = if let Some(name) = name {
+        name
+    } else {
+        return Err(eyre!(
+            "DEBUG failed to obtain directory name from files_root: {files_root:?}"
+        ));
+    };
+
+    let result = if is_publish {
+        println!("Creating History on network...");
+        History::<DirectoryTree>::create_online(client.clone(), name.clone(), None).await
+    } else {
+        println!("Getting History from network...");
+        History::<DirectoryTree>::from_name(client.clone(), name.clone(), None).await
+    };
+
+    let mut files_history = match result {
+        Ok(history) => history,
+        Err(e) => {
+            println!("DEBUG failed - {e}");
+            return Err(e);
         }
     };
 
-    Ok((history_address.clone(), version))
+    println!("Updating History...");
+    match files_history.publish_new_version(&files_address).await {
+        Ok(version) => Ok((name, files_history.history_address(), version)),
+        Err(e) => {
+            let message = format!("Failed to update History: {e:?}");
+            println!("{message}");
+            return Err(eyre!(message));
+        }
+    }
 }
 
 pub fn report_content_published_or_updated(
     history_address: &HistoryAddress,
+    name: &String,
     version: u64,
     files_root: &PathBuf,
     is_website: bool,
@@ -137,10 +131,9 @@ pub fn report_content_published_or_updated(
         "\n{type_str} {action_str} (version {version}). All versions available at XOR-URL:\nawv://{}",
         &history_address.to_hex()
     );
-    println!("\nNOTE:\n- To update this content, use 'awe {update_str}' as follows:\n\n   awe {update_str} --history-address {} --files-root {}\n", &files_history, &files_root);
+    println!("\nNOTE:\n- To update this content, use 'awe {update_str}' as follows:\n\n   awe {update_str} --name {name} --files-root {files_root:?}\n");
     println!(
-        "- To browse the content use 'awe awv://<HISTORY-ADDRESS>' as follows:\n\n   awe awv://{}\n",
-        &history_address.to_hex()
+        "- To browse the content use 'awe awv://<HISTORY-ADDRESS>' as follows:\n\n   awe awv://{files_history}\n"
     );
     println!("- For help use 'awe --help'\n");
 }

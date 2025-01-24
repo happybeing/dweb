@@ -51,7 +51,7 @@ pub async fn handle_inspect_pointer(
         }
     };
 
-    let count = pointer.count();
+    let count = pointer.counter();
     if print_summary {
         do_print_summary(&pointer, &pointer_address)?;
     } else {
@@ -94,7 +94,7 @@ fn do_print_summary(pointer: &Pointer, pointer_address: &PointerAddress) -> Resu
     println!("pointer     : {}", pointer_address.to_hex());
     // println!("owner       : {:?}", pointer.owner());
     // println!("permissions : {:?}", pointer.permissions());
-    println!("count       : {:?}", pointer.count());
+    println!("count       : {:?}", pointer.counter());
 
     // if entries_vec.len() > 0 {
     //     do_print_type(Some(&entries_vec[0]))?;

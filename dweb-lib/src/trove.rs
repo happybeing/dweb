@@ -100,7 +100,7 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
             .pointer_put(pointer.clone(), &client.wallet)
             .await
         {
-            Ok(pointer_address) => {
+            Ok((_cost, pointer_address)) => {
                 println!(
                     "DEBUG History::new() created new pointer at {:64x}",
                     pointer_address.xorname()
@@ -174,12 +174,7 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
 
     fn create_pointer_for_update(counter: u32, value: XorName, signing_key: &SecretKey) -> Pointer {
         let pointer_target = PointerTarget::ChunkAddress(ChunkAddress::new(value));
-        Pointer::new(
-            signing_key.public_key(),
-            counter,
-            pointer_target,
-            signing_key,
-        )
+        Pointer::new(signing_key, counter, pointer_target)
     }
 
     /// The owner_secret is only required for publish/update using the returned History (not access)
@@ -251,14 +246,14 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
     /// the type). Example types include file system
     /// and website.
     pub fn num_entries(&self) -> u64 {
-        self.pointer.count() as u64
+        self.pointer.counter() as u64
     }
 
     /// Return the number of available versions
     /// or an error if no versions are available.
     /// The first version is 1 last version is num_versions()
     pub fn num_versions(&self) -> Result<u64> {
-        let num_entries = self.pointer.count();
+        let num_entries = self.pointer.counter();
 
         if num_entries == 0 {
             let message = "pointer is empty (0 entries)";
@@ -302,7 +297,7 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
     /// first version of a website is 1 and the last is the number of entries - 1
     pub fn get_version_entry(&self, version: u64) -> Result<XorName> {
         println!("DEBUG History::get_version_entry(version: {version})");
-        let num_entries = self.pointer.count() + 1;
+        let num_entries = self.pointer.counter() + 1;
 
         // The first entry is the Trove<T>::trove_type(), and not used so max version is num_entries - 1
         let max_version = if num_entries > 0 {
@@ -356,9 +351,9 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
                 } else {
                     return Err(eyre!("Cannot update Pointer - register secret key is None"));
                 };
-                println!("Pointer retrieved with counter {}", old_pointer.count());
+                println!("Pointer retrieved with counter {}", old_pointer.counter());
                 let new_pointer = Self::create_pointer_for_update(
-                    old_pointer.count() + 1,
+                    old_pointer.counter() + 1,
                     *xor_value,
                     &owner_secret,
                 );
@@ -380,7 +375,7 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
             Err(e) => return Err(eyre!("DEBUG failed to get register prior to update!\n{e}")),
         };
 
-        Ok(self.pointer.count())
+        Ok(self.pointer.counter())
     }
 
     /// Publishes a new version pointing to the metadata provided

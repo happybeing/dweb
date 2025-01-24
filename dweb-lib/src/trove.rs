@@ -81,6 +81,7 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
         name: String,
         secret_key: Option<SecretKey>,
     ) -> Result<Self> {
+        println!("DEBUG History::create_online({name})");
         let main_secret_key = secret_key
             .unwrap_or(match get_vault_secret_key() {
                 Ok(secret_key) => secret_key,
@@ -133,6 +134,8 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
         name: String,
         secret_key: Option<SecretKey>,
     ) -> Result<Self> {
+        println!("DEBUG History::from_name({name})");
+
         let main_secret_key = secret_key
             .unwrap_or(match get_vault_secret_key() {
                 Ok(secret_key) => secret_key,
@@ -183,6 +186,8 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
         pointer: Pointer,
         owner_secret: Option<SecretKey>,
     ) -> History<T> {
+        println!("DEBUG History::from_pointer()");
+
         let mut history = History::<T> {
             client,
             default_version: None,
@@ -202,6 +207,11 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
         history_address: HistoryAddress,
         owner_secret: Option<SecretKey>,
     ) -> Result<History<T>> {
+        println!(
+            "DEBUG History::from_history_address({})",
+            history_address.to_hex()
+        );
+
         // Check it exists to avoid accidental creation (and payment)
         let result = client.client.pointer_get(history_address).await;
         let mut history = if result.is_ok() {
@@ -228,6 +238,10 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
             Ok(version) => Some(version),
             Err(_) => None,
         };
+        println!(
+            "update_default_version() set to {}",
+            self.default_version.unwrap()
+        );
         self.default_version
     }
 
@@ -253,7 +267,7 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
     /// or an error if no versions are available.
     /// The first version is 1 last version is num_versions()
     pub fn num_versions(&self) -> Result<u64> {
-        let num_entries = self.pointer.counter();
+        let num_entries = self.pointer.counter() + 1;
 
         if num_entries == 0 {
             let message = "pointer is empty (0 entries)";
@@ -385,6 +399,7 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
         self.add_xor_name(metadata_address).await?;
         println!("metadata_address added to register: {metadata_address:64x}");
         let version = self.num_versions()?;
+        self.default_version = Some(version);
         self.cached_version = Some(TroveVersion::<T>::new(
             version,
             metadata_address.clone(),
@@ -403,7 +418,7 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
     // specifying a version of LARGEST_VERSION
     pub async fn fetch_version_metadata(&mut self, version: Option<u64>) -> Option<T> {
         println!(
-            "DEBUG fetch_version_metadata() self.cached_version.is_some(): {}",
+            "DEBUG fetch_version_metadata(version: {version:?}) self.cached_version.is_some(): {}",
             self.cached_version.is_some()
         );
         let mut version = if version.is_some() {

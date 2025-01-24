@@ -255,6 +255,7 @@ impl DirectoryTree {
         name: &String,
         resources_vec: &Vec<(String, FileAddress, std::time::SystemTime, u64, String)>,
     ) -> Option<FileAddress> {
+        println!("DEBUG lookup_name_in_vec({name}");
         for (resource_name, xor_name, _modified, _size, _json_metadata) in resources_vec {
             if resource_name.eq(name) {
                 return Some(xor_name.clone());

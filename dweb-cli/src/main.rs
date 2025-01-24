@@ -20,7 +20,6 @@ extern crate tracing;
 
 mod cli_options;
 mod commands;
-mod connect;
 mod generated_rs;
 mod helpers;
 mod services;
@@ -75,7 +74,8 @@ async fn main() -> Result<()> {
     }
 
     // TODO temp hack until awe_subcommands is stable - then call via the Serve subcommand with port/host
-    services::serve(String::from("127.0.0.1"), 8080).await?;
+    let peers = dweb::autonomi::access::network::get_peers(opt.peers);
+    services::serve(peers.await?, String::from("127.0.0.1"), 8080).await?;
     // awe_subcommands::cli_commands(opt).await?;
 
     Ok(())

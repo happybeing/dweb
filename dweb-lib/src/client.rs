@@ -25,9 +25,9 @@ use bytes::Bytes;
 use color_eyre::{eyre::eyre, Result};
 use xor_name::XorName as FileAddress;
 
-use ant_bootstrap::PeersArgs;
+use crate::autonomi::access::network::NetworkPeers;
 use autonomi::client::{Client, GetError};
-use autonomi::{ClientConfig, Network, Wallet};
+use autonomi::{Network, Wallet};
 
 use crate::autonomi::access::keys::load_evm_wallet_from_env;
 
@@ -56,44 +56,22 @@ impl AutonomiClient {
     /// The EMV network can be overridden by setting the EVM_NETWORK environment
     /// variable. For example, setting this to 'arbitrum-sepolia' selects the
     /// Artbitrum test network.
-    pub async fn initialise_and_connect(peers_args: Option<PeersArgs>) -> Result<AutonomiClient> {
-        // TODO: may become redundant (PR #2613: https://github.com/maidsafe/autonomi/pull/2613?notification_referrer_id=NT_kwDOACFS17MxNDE5MjMxNDExMzoyMTgzODk1&notifications_query=is%3Aunread)
-        let peers_args = if peers_args.is_some() {
-            peers_args.unwrap()
-        } else {
-            PeersArgs::default()
-        };
-
-        let mut client_config = ClientConfig::default();
-        let network = &client_config.evm_network;
-        println!("DEBUG selected network {network:?}");
-
-        let client = match crate::autonomi::access::network::get_peers(peers_args).await {
-            Ok(peers) => {
-                client_config.peers = Some(peers);
-
-                match Client::init_with_config(client_config.clone()).await {
-                    Ok(client) => {
-                        println!("DEBUG Connected to the Network");
-                        client
-                    }
-                    Err(e) => return Err(eyre!("Failed to connect to the network: {e}")),
-                }
-            }
-            Err(e) => return Err(eyre!("Failed to get peers: {e}")),
-        };
+    pub async fn initialise_and_connect(peers: NetworkPeers) -> Result<AutonomiClient> {
+        let client = crate::autonomi::actions::connect_to_network(peers).await?;
 
         let wallet = match load_evm_wallet_from_env(&client.evm_network) {
             Ok(wallet) => wallet,
             Err(_e) => {
+                let client = client.clone();
                 println!("Failed to load wallet for payments - client will only have read accesss to Autonomi");
-                Wallet::new_with_random_wallet(network.clone())
+                Wallet::new_with_random_wallet(client.evm_network.clone())
             }
         };
 
+        let client = client.clone();
         Ok(AutonomiClient {
-            client,
-            network: network.clone(),
+            client: client.clone(),
+            network: client.evm_network.clone(),
             wallet,
         })
     }

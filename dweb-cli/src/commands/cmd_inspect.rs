@@ -21,13 +21,14 @@ use xor_name::XorName;
 
 use ant_protocol::storage::{Pointer, PointerAddress};
 
-use dweb::client::AutonomiClient;
+use dweb::autonomi::access::network::NetworkPeers;
 use dweb::trove::directory_tree::DirectoryTree;
 
 use crate::cli_options::{EntriesRange, FilesArgs};
 
 /// Implement 'inspect-history' subcommand
 pub async fn handle_inspect_pointer(
+    peers: NetworkPeers,
     pointer_address: PointerAddress,
     print_summary: bool,
     print_type: bool,
@@ -38,7 +39,7 @@ pub async fn handle_inspect_pointer(
     include_files: bool,
     files_args: FilesArgs,
 ) -> Result<()> {
-    let client = dweb::client::AutonomiClient::initialise_and_connect(None)
+    let client = dweb::client::AutonomiClient::initialise_and_connect(peers)
         .await
         .expect("Failed to connect to Autonomi Network");
 
@@ -392,8 +393,12 @@ fn do_print_total_bytes(total_bytes: u64) -> Result<()> {
 /// Accepts a metadata address
 ///
 /// TODO extend treatment to handle register with branches etc (post stabilisation of the Autonomi API)
-pub async fn handle_inspect_files(metadata_address: XorName, files_args: FilesArgs) -> Result<()> {
-    let client = dweb::client::AutonomiClient::initialise_and_connect(None)
+pub async fn handle_inspect_files(
+    peers: NetworkPeers,
+    metadata_address: XorName,
+    files_args: FilesArgs,
+) -> Result<()> {
+    let client = dweb::client::AutonomiClient::initialise_and_connect(peers)
         .await
         .expect("Failed to connect to Autonomi Network");
 

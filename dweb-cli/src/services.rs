@@ -23,16 +23,15 @@ mod www;
 use std::io;
 use std::time::Duration;
 
+use crate::cli_options::Opt;
 use actix_web::{
     body, dev::HttpServiceFactory, dev::Service, dev::ServiceResponse, get, guard,
     http::StatusCode, middleware::Logger, post, web, web::Data, App, HttpRequest, HttpResponse,
     HttpResponseBuilder, HttpServer, Responder,
 };
 use clap::Parser;
-use env_logger::Env;
-use futures_util::future::FutureExt; // Needed for logging Requests and Responses to terminal
 
-use crate::cli_options::Opt;
+use dweb::autonomi::access::network::NetworkPeers;
 use dweb::helpers::convert::str_to_xor_name;
 use dweb::web::fetch::response_with_body;
 
@@ -45,8 +44,8 @@ const DWEB_SERVICE_APP: &str = "app-dweb.au";
 #[cfg(feature = "development")]
 const DWEB_SERVICE_DEBUG: &str = "debug-dweb.au";
 
-pub async fn serve(host: String, port: u16) -> io::Result<()> {
-    let client = dweb::client::AutonomiClient::initialise_and_connect(None)
+pub async fn serve(peers: NetworkPeers, host: String, port: u16) -> io::Result<()> {
+    let client = dweb::client::AutonomiClient::initialise_and_connect(peers)
         .await
         .expect("Failed to connect to Autonomi Network");
 

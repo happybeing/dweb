@@ -9,8 +9,8 @@
 use super::get_progress_bar;
 use autonomi::{
     client::{
-        address::str_to_addr,
-        files::{archive::PrivateArchiveAccess, archive_public::ArchiveAddr},
+        address::str_to_addr, files::archive_private::PrivateArchiveAccess,
+        files::archive_public::ArchiveAddr,
     },
     Client,
 };
@@ -22,9 +22,10 @@ use std::path::PathBuf;
 
 pub async fn download(addr: &str, dest_path: &str, client: &mut Client) -> Result<()> {
     let public_address = str_to_addr(addr).ok();
-    let private_address = crate::user_data::get_local_private_archive_access(addr)
-        .inspect_err(|e| println!("Failed to get private archive access: {e}"))
-        .ok();
+    let private_address =
+        crate::autonomi::access::user_data::get_local_private_archive_access(addr)
+            .inspect_err(|e| println!("Failed to get private archive access: {e}"))
+            .ok();
 
     match (public_address, private_address) {
         (Some(public_address), _) => download_public(addr, public_address, dest_path, client).await,
@@ -71,6 +72,7 @@ async fn download_private(
 
     if all_errs.is_empty() {
         println!("Successfully downloaded private data with local address: {addr}");
+        println!("Successfully downloaded private data with local address: {addr}");
         Ok(())
     } else {
         let err_no = all_errs.len();
@@ -115,6 +117,7 @@ async fn download_public(
     progress_bar.finish_and_clear();
 
     if all_errs.is_empty() {
+        println!("Successfully downloaded data at: {addr}");
         println!("Successfully downloaded data at: {addr}");
         Ok(())
     } else {

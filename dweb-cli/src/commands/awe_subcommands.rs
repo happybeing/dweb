@@ -23,9 +23,11 @@ use crate::cli_options::{Opt, Subcommands};
 
 // Returns true if command complete, false to start the browser
 pub async fn cli_commands(opt: Opt) -> Result<bool> {
+    let peers = dweb::autonomi::access::network::get_peers(opt.peers);
+
     match opt.cmd {
         Some(Subcommands::Estimate { files_root }) => {
-            let client = dweb::client::AutonomiClient::initialise_and_connect(None)
+            let client = dweb::client::AutonomiClient::initialise_and_connect(peers.await?)
                 .await
                 .expect("Failed to connect to Autonomi Network");
             match client.client.file_cost(&files_root).await {
@@ -39,7 +41,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             website_config,
             is_new_network: _,
         }) => {
-            let client = dweb::client::AutonomiClient::initialise_and_connect(None)
+            let client = dweb::client::AutonomiClient::initialise_and_connect(peers.await?)
                 .await
                 .expect("Failed to connect to Autonomi Network");
 
@@ -68,7 +70,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             name,
             website_config,
         }) => {
-            let client = dweb::client::AutonomiClient::initialise_and_connect(None)
+            let client = dweb::client::AutonomiClient::initialise_and_connect(peers.await?)
                 .await
                 .expect("Failed to connect to Autonomi Network");
 
@@ -104,6 +106,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             files_args,
         }) => {
             match crate::commands::cmd_inspect::handle_inspect_pointer(
+                peers.await?,
                 register_address,
                 print_register_summary,
                 print_type,
@@ -129,6 +132,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             files_args,
         }) => {
             match crate::commands::cmd_inspect::handle_inspect_files(
+                peers.await?,
                 files_metadata_address,
                 files_args,
             )
@@ -152,7 +156,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
         }
 
         Some(Subcommands::Serve { host: _, port: _ }) => {
-            println!("TODO: implement subcommand 'serve'");
+            println!("TODO: implement subcommand 'serve'"); // THIS IS REALLY FOR DWEB-CLI
         }
 
         // Default is not to return, but open the browser by continuing

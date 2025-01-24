@@ -111,11 +111,6 @@ pub fn report_content_published_or_updated(
 ) {
     let type_str = if is_website { "WEBSITE" } else { "FILES" };
     let action_str = if is_new { "PUBLISHED" } else { "UPDATED" };
-    let update_str = if is_new {
-        "publish-update"
-    } else {
-        "upload-update"
-    };
 
     let files_history = history_address.to_hex();
     let root_default = format!("<{type_str}-ROOT>");
@@ -128,10 +123,10 @@ pub fn report_content_published_or_updated(
     };
 
     println!(
-        "\n{type_str} {action_str} (version {version}). All versions available at XOR-URL:\nawv://{}",
+        "\n{type_str} {action_str} (version {version}). All versions available at XOR-URL:\nawv://{}\nNAME:\n{name}",
         &history_address.to_hex()
     );
-    println!("\nNOTE:\n- To update this content, use 'awe {update_str}' as follows:\n\n   awe {update_str} --name {name} --files-root {files_root:?}\n");
+    println!("\nNOTE:\n- To update thiscontent, use 'awe publish-update' as follows:\n\n   awe publish-update --name \"{name}\" --files-root {files_root:?}\n");
     println!(
         "- To browse the content use 'awe awv://<HISTORY-ADDRESS>' as follows:\n\n   awe awv://{files_history}\n"
     );
@@ -290,7 +285,6 @@ fn check_path_for_upload(files_root: &PathBuf) -> Result<()> {
             ));
         }
     }
-    println!("Returning OK");
     Ok(())
 }
 

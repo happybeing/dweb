@@ -123,7 +123,7 @@ pub fn report_content_published_or_updated(
     };
 
     println!(
-        "\n{type_str} {action_str} (version {version}). All versions available at XOR-URL:\nawv://{}\nNAME:\n{name}",
+        "\n{type_str} {action_str} (version {version}). All versions available at XOR-URL:\nawv://{}\nDWEBNAME:\n{name}",
         &history_address.to_hex()
     );
     println!("\nNOTE:\n- To update thiscontent, use 'awe publish-update' as follows:\n\n   awe publish-update --name \"{name}\" --files-root {files_root:?}\n");

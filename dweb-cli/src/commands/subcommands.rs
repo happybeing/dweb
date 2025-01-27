@@ -15,7 +15,7 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-use color_eyre::Result;
+use color_eyre::{eyre::eyre, Result};
 
 use dweb::storage::{publish_or_update_files, report_content_published_or_updated};
 
@@ -155,8 +155,14 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             println!("TODO: implement subcommand 'download'");
         }
 
-        Some(Subcommands::Serve { host: _, port: _ }) => {
-            println!("TODO: implement subcommand 'serve'"); // THIS IS REALLY FOR DWEB-CLI
+        Some(Subcommands::Serve { host, port }) => {
+            match crate::services::serve(peers.await?, host, port).await {
+                Ok(_) => return Ok(true),
+                Err(e) => {
+                    println!("{e:?}");
+                    return Err(eyre!(e));
+                }
+            }
         }
 
         // Default is not to return, but open the browser by continuing

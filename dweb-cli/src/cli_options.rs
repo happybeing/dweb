@@ -157,7 +157,7 @@ pub enum Subcommands {
         files_root: PathBuf,
         /// Publish a website and associate it with this name
         /// Defaults to the name of the website directory (FILES-ROOT)
-        #[clap(long, short = 'n', conflicts_with = "history_address")]
+        #[clap(long, short = 'n')]
         name: Option<String>,
         /// Optional configuration when uploading content for a website, such as default index file(s), redirects etc.
         /// TODO review implementation when dweb-lib implements config via a file in the website directory

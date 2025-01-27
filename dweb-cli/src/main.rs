@@ -32,7 +32,7 @@ use tracing::Level;
 // use ant_logging::metrics::init_metrics;
 use ant_logging::{LogBuilder, LogFormat, ReloadHandle, WorkerGuard};
 
-use crate::commands::awe_subcommands;
+use crate::commands::subcommands;
 use cli_options::Opt;
 
 #[actix_web::main]
@@ -73,10 +73,7 @@ async fn main() -> Result<()> {
         std::env::set_var("RUST_SPANTRACE", "0");
     }
 
-    // TODO temp hack until awe_subcommands is stable - then call via the Serve subcommand with port/host
-    let peers = dweb::autonomi::access::network::get_peers(opt.peers);
-    services::serve(peers.await?, String::from("127.0.0.1"), 8080).await?;
-    // awe_subcommands::cli_commands(opt).await?;
+    subcommands::cli_commands(opt).await?;
 
     Ok(())
 }

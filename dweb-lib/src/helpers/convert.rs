@@ -40,9 +40,9 @@ pub fn str_to_xor_name(str: &str) -> Result<XorName> {
 
 ////// awe protocol versions of the above for use by dweb CLI
 
-pub const AWE_PROTOCOL_REGISTER: &str = "awv://";
+pub const AWE_PROTOCOL_HISTORY: &str = "awv://";
 #[allow(dead_code)]
-pub const AWE_PROTOCOL_METADATA: &str = "awm://";
+pub const AWE_PROTOCOL_DIRECTORY: &str = "awm://";
 #[allow(dead_code)]
 pub const AWE_PROTOCOL_FILE: &str = "awf://";
 
@@ -80,8 +80,8 @@ pub fn parse_host(hostname: &str) -> Result<String> {
 
 /// Parse a hex HistoryAddress with optional URL scheme
 pub fn awe_str_to_history_address(str: &str) -> Result<HistoryAddress> {
-    let str = if str.starts_with(AWE_PROTOCOL_REGISTER) {
-        &str[AWE_PROTOCOL_REGISTER.len()..]
+    let str = if str.starts_with(AWE_PROTOCOL_HISTORY) {
+        &str[AWE_PROTOCOL_HISTORY.len()..]
     } else {
         &str
     };
@@ -96,8 +96,8 @@ pub fn awe_str_to_history_address(str: &str) -> Result<HistoryAddress> {
 
 /// Parse a hex PointerAddress with optional URL scheme
 pub fn awe_str_to_pointer_address(str: &str) -> Result<HistoryAddress> {
-    let str = if str.starts_with(AWE_PROTOCOL_REGISTER) {
-        &str[AWE_PROTOCOL_REGISTER.len()..]
+    let str = if str.starts_with(AWE_PROTOCOL_HISTORY) {
+        &str[AWE_PROTOCOL_HISTORY.len()..]
     } else {
         &str
     };
@@ -109,8 +109,8 @@ pub fn awe_str_to_pointer_address(str: &str) -> Result<HistoryAddress> {
 }
 
 pub fn awe_str_to_xor_name(str: &str) -> Result<XorName> {
-    let str = if str.starts_with(AWE_PROTOCOL_METADATA) {
-        &str[AWE_PROTOCOL_METADATA.len()..]
+    let str = if str.starts_with(AWE_PROTOCOL_DIRECTORY) {
+        &str[AWE_PROTOCOL_DIRECTORY.len()..]
     } else if str.starts_with(AWE_PROTOCOL_FILE) {
         &str[AWE_PROTOCOL_FILE.len()..]
     } else {

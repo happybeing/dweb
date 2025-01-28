@@ -63,6 +63,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                 &files_root,
                 true,
                 true,
+                false,
             );
         }
         Some(Subcommands::Publish_update {
@@ -83,6 +84,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                 version,
                 &files_root,
                 true,
+                false,
                 false,
             );
         }

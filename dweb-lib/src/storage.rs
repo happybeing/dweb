@@ -108,6 +108,7 @@ pub fn report_content_published_or_updated(
     files_root: &PathBuf,
     is_website: bool,
     is_new: bool,
+    is_awe: bool,
 ) {
     let type_str = if is_website { "WEBSITE" } else { "FILES" };
     let action_str = if is_new { "PUBLISHED" } else { "UPDATED" };
@@ -123,14 +124,18 @@ pub fn report_content_published_or_updated(
     };
 
     println!(
-        "\n{type_str} {action_str} (version {version}). All versions available at XOR-URL:\nawv://{}\nDWEBNAME:\n{name}",
+        "\n{type_str} {action_str} (version {version}). All versions available at HISTORY-ADDRESS:\n{}\nDWEBNAME:\n{name}",
         &history_address.to_hex()
     );
-    println!("\nNOTE:\n- To update thiscontent, use 'awe publish-update' as follows:\n\n   awe publish-update --name \"{name}\" --files-root {files_root:?}\n");
-    println!(
-        "- To browse the content use 'awe awv://<HISTORY-ADDRESS>' as follows:\n\n   awe awv://{files_history}\n"
-    );
-    println!("- For help use 'awe --help'\n");
+    if is_awe {
+        println!("\nNOTE:\n- To update thiscontent, use:\n\n    awe publish-update --name \"{name}\" --files-root {files_root:?}\n");
+        println!("- To browse the content use:\n\n    awe awv://{files_history}\n");
+        println!("- For help use 'awe --help'\n");
+    } else {
+        println!("\nNOTE:\n- To update this content use:\n\n    dweb publish-update --name \"{name}\" --files-root {files_root:?}\n");
+        println!("- To browse the content use:\n\n    dweb --name {name}\n");
+        println!("- For help use 'dweb --help'\n");
+    }
 }
 
 /// Upload a directory of content and related metadata to Autonomi

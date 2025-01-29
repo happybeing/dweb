@@ -41,19 +41,6 @@ use dweb::helpers::convert::*;
     long_about = "a web publishing and browsing app for Autonomi peer-to-peer network"
 )]
 pub struct Opt {
-    /// Optional awe URL to browse.
-    ///
-    /// Use awv://<HISTORY-ADDRESS> to browse most recent version from the history. (Use --history-version to specify a version).
-    ///
-    /// Use awm://<DIRECTORY-ADDRESS> to browse files or website from DirectoryTree
-    ///
-    /// Use awf://<FILE-ADDRESS> to load or fetch to a file rather than a website.
-    pub url: Option<String>,
-
-    /// Browse the specified version from the history
-    #[clap(long, value_parser = greater_than_0)]
-    pub history_version: Option<u64>,
-
     #[command(flatten)]
     pub peers: PeersArgs,
 
@@ -127,23 +114,24 @@ pub enum Subcommands {
         files_root: PathBuf,
     },
 
-    /// Publish a new website
+    /// Publish a directory or website for the first time
     ///
-    /// Uploads a directory tree of content to Autonomi and pays using the default wallet
+    /// Uploads a directory tree to Autonomi and pays using the default wallet.
     ///
-    /// If successful, prints the xor address of the directory history, accessible
-    /// using Awe Browser using a URL like 'awv://<HISTORY-ADDRESS>'.
+    /// If successful, prints the address of the directory history which
+    /// can be viewed using a web browser when a dweb server is running.
     #[allow(non_camel_case_types)]
     Publish_new {
         /// The root directory of the content to be published
         #[clap(long = "files-root", value_name = "FILES-ROOT")]
         files_root: PathBuf,
-        /// Publish a website and associate it with this name
-        /// Defaults to the name of the website directory (FILES-ROOT)
+        /// Associate NAME with the directory history, for use with 'dweb publish-update'.
+        /// Defaults to the name of the website directory (FILES-ROOT).
         #[clap(long, short = 'n')]
         name: Option<String>,
-        /// Optional configuration when uploading content for a website, such as default index file(s), redirects etc.
+        /// Optional configuration when uploading content for a website. This can specify alternative default index file(s), redirects etc.
         /// TODO review implementation when dweb-lib implements config via a file in the website directory
+        /// TODO rename as dweb_config, and store at /.dweb/dweb.config.json
         #[clap(long = "website-config", short = 'c', value_name = "JSON-FILE")]
         website_config: Option<PathBuf>,
         //
@@ -152,21 +140,20 @@ pub enum Subcommands {
         is_new_network: bool,
     },
 
-    /// Update a previously uploaded directory while preserving old versions on Autonomi
+    /// Update a previously published directory or website and preserve older versions on Autonomi.
     ///
-    /// Uploads changes in the directory content and makes this the
-    /// default version. Pays using the default wallet.
+    /// Uploads changed files and makes this the default version. Pays using the default wallet.
     ///
-    /// If successful, prints the xor address of the content, accessible
-    /// using Awe Browser using a URL like 'awv://HISTORY-ADDRESS'.
+    /// If successful, prints the address of the directory history which
+    /// can be viewed using a web browser when a dweb server is running.
     #[allow(non_camel_case_types)]
     Publish_update {
         /// The root directory containing the new website content to be uploaded
         #[clap(long = "files-root", value_name = "FILES-ROOT")]
         files_root: PathBuf,
-        /// The name used when the website was first published
+        /// The NAME used when the website was first published.
         /// Defaults to use the name of the website directory (FILES-ROOT)
-        #[clap(long, short = 'n', conflicts_with = "history_address")]
+        #[clap(long, short = 'n')]
         name: Option<String>,
         /// Optional configuration when uploading content for a website, such as default index file(s), redirects etc.
         /// TODO review implementation when dweb-lib implements config via a file in the website directory
@@ -211,7 +198,7 @@ pub enum Subcommands {
         files_args: FilesArgs,
     },
 
-    /// Print information about data structures stored on Autonomi
+    /// Print information about a history of data stored on Autonomi
     #[allow(non_camel_case_types)]
     Inspect_history {
         /// The address of a history on Autonomi
@@ -270,9 +257,12 @@ pub enum Subcommands {
         dweb_name: String,
 
         /// The address of a history on Autonomi
-        #[clap(name = "HISTORY-ADDRESS", value_parser = str_to_pointer_address, conflicts_with("directory_address"))]
+        /// TODO this can be optional if it was published using our secret key and the given dweb_name
+        /// TODO consider UX as this could be confusing (maybe a separate option to enable this --use-my-secret)
+        #[clap(name = "HISTORY-ADDRESS", value_parser = str_to_pointer_address)]
         history_address: Option<HistoryAddress>,
         // /// The address of some a directory uploaded to Autonomi
+        // history_address: conflicts_with("directory_address")
         // #[clap(value_name = "DIRECTORY-ADDRESS", value_parser = str_to_xor_name)]
         // directory_address: Option<XorName>,  only if I support feature("fixed-dweb-hosts")
     },

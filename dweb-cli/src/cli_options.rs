@@ -14,7 +14,6 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-
 use std::path::PathBuf;
 use std::sync::LazyLock;
 
@@ -118,25 +117,8 @@ fn greater_than_0(s: &str) -> Result<u64, String> {
     }
 }
 
-// TODO add subcommands webname and fetch
 #[derive(Subcommand, Debug)]
 pub enum Subcommands {
-    /// Open the browser (this is the default if no command is given).
-    Browse {
-        /// Optional awe URL to browse.
-        ///
-        /// Use awv://<HISTORY-ADDRESS> to browse most recent version from the history. (Use --history-version to specify a version).
-        ///
-        /// Use awm://<METADATA-ADDRESS> to browse files or website from file tree metadata.
-        ///
-        /// Use awf://<DATAMAP-ADDRESS> to load or fetch to a file rather than a website.
-        url: Option<String>,
-
-        /// Browse a specified version from a history. Only valid with a HISTORY-ADDRESS.
-        #[clap(long, value_parser = greater_than_0)]
-        history_version: Option<u64>,
-    },
-
     // TODO add an example or two to each command section
     /// Estimate the cost of publishing or updating a website
     Estimate {
@@ -151,6 +133,7 @@ pub enum Subcommands {
     ///
     /// If successful, prints the xor address of the directory history, accessible
     /// using Awe Browser using a URL like 'awv://<HISTORY-ADDRESS>'.
+    #[allow(non_camel_case_types)]
     Publish_new {
         /// The root directory of the content to be published
         #[clap(long = "files-root", value_name = "FILES-ROOT")]
@@ -176,6 +159,7 @@ pub enum Subcommands {
     ///
     /// If successful, prints the xor address of the content, accessible
     /// using Awe Browser using a URL like 'awv://HISTORY-ADDRESS'.
+    #[allow(non_camel_case_types)]
     Publish_update {
         /// The root directory containing the new website content to be uploaded
         #[clap(long = "files-root", value_name = "FILES-ROOT")]
@@ -190,16 +174,15 @@ pub enum Subcommands {
         website_config: Option<PathBuf>,
     },
 
-    /// Download a file or directory
+    /// Download a file or directory. TODO: not yet implemented
     #[clap(hide = true)] // TODO hide until implemented
     Download {
-        /// An awe compatible URL. Must be an xor address prefixed with 'awf://', 'awm://' or 'awv://' respectively
-        /// to reference a file, some files metadata or a register with entries of files metadata.
+        /// This needs revising for dweb to access different address types using --history-address, --directory-address, --file-address
         ///
-        /// For a metadata address you may specify the path of a specific file or directory to be downloaded
-        /// by including this at the end of the AWE-URL. This defaults to the metadata root (or '/').
+        /// For a history, you must provide the RANGE of entries to be processed.
         ///
-        /// For a register, you must provide the RANGE of entries to be processed.
+        /// For a directory you may specify the path of a specific file or directory to be downloaded
+        /// by including this at the end of the DIRECTORY-ADDRESS. This defaults to the directory root ('/').
         ///
         /// If you do not specify a DOWNLOAD-PATH the content downloaded will be printed
         /// on the terminal (via stdout).
@@ -214,11 +197,11 @@ pub enum Subcommands {
         /// TODO: PathBuf?
         filesystem_path: Option<String>,
 
-        /// If AWE-URL is a register (i.e. starts with 'awv://') you must specify the entry or
+        /// When providing a HISTORY-ADDRESS you must specify the entry or
         /// entries you with to download with this option. The download will be applied for each
         /// entry in RANGE, which can be an integer (for a single entry), or an integer followed
         /// by ':' or two integers separated by ':'. The first entry is position 0 and the last is
-        /// register 'size minus 1'. When more than one entry is downloaded, each will be saved in
+        /// history 'size minus 1'. When more than one entry is downloaded, each will be saved in
         /// a separate subdirectory of the <DOWNLOAD-PATH>, named with a 'v' followed by the index
         /// of the entry, such as 'v3', 'v4' etc.
         #[clap(long = "entries", short = 'e', value_name = "RANGE", value_parser = str_to_entries_range)]
@@ -230,16 +213,16 @@ pub enum Subcommands {
 
     /// Print information about data structures stored on Autonomi
     #[allow(non_camel_case_types)]
-    Inspect_register {
-        /// The address of an Autonomi register. Can be prefixed with awv://
-        #[clap(name = "REGISTER-ADDRESS", value_parser = awe_str_to_history_address)]
-        register_address: HistoryAddress,
+    Inspect_history {
+        /// The address of a history on Autonomi
+        #[clap(name = "HISTORY-ADDRESS", value_parser = str_to_pointer_address)]
+        history_address: HistoryAddress,
 
-        /// Print a summary of the register including type (the value of entry 0) and number of entries
-        #[clap(long = "register-summary", short = 'r', default_value = "false")]
-        print_register_summary: bool,
+        /// Print a summary of the history including type (the value of entry 0) and number of entries
+        #[clap(long = "history-summary", short = 'r', default_value = "false")]
+        print_history_summary: bool,
 
-        /// Print the type of metadata recorded in the register (the value of entry 0)
+        /// Print the type of data recorded in the history (the value of entry 0)
         #[clap(long = "type", short = 't', default_value = "false")]
         print_type: bool,
 
@@ -247,18 +230,10 @@ pub enum Subcommands {
         #[clap(long = "size", short = 's', default_value = "false")]
         print_size: bool,
 
-        /// Print the merkle register structure
-        #[clap(long = "merkle-reg", short = 'k', default_value = "false")]
-        print_merkle_reg: bool,
-
-        /// Print an audit of register nodes/values
-        #[clap(long = "audit", short = 'a', default_value = "false")]
-        print_audit: bool,
-
         /// Print information about each entry in RANGE, which can be
         /// an integer (for a single entry), or an integer followed by ':' or
         /// two integers separated by ':'. The first entry is position 0
-        /// and the last is register 'size minus 1'
+        /// and the last is 'size minus 1'
         #[clap(long = "entries", short = 'e', value_name = "RANGE", value_parser = str_to_entries_range )]
         entries_range: Option<EntriesRange>,
 
@@ -276,18 +251,33 @@ pub enum Subcommands {
         files_args: FilesArgs,
     },
 
-    /// Print information about files from stored metadata
+    /// Print information about files in a directory on Autonomi
     #[allow(non_camel_case_types)]
     Inspect_files {
-        /// The Autonomi network address of some awe metadata. Can be prefixed with awm://
-        #[clap(value_name = "DIRECTORY-ADDRESS", value_parser = awe_str_to_xor_name)]
-        files_metadata_address: XorName,
+        /// The address of some a directory uploaded to Autonomi
+        #[clap(value_name = "DIRECTORY-ADDRESS", value_parser = str_to_xor_name)]
+        directory_address: XorName,
 
         #[command(flatten)]
         files_args: FilesArgs,
     },
 
-    /// Placeholder for testing early localhost server
+    /// Open a browser to view a website on Autonomi - not yet implemented
+    #[clap(hide = true)] // TODO hide until dweb::web::handle_open_browser() is implemented
+    Browse {
+        /// A name which will be registered for this session as part of the URL hostname for this site
+        #[clap(value_name = "DWEB-NAME", value_parser = dweb::web::name::validate_dweb_name)]
+        dweb_name: String,
+
+        /// The address of a history on Autonomi
+        #[clap(name = "HISTORY-ADDRESS", value_parser = str_to_pointer_address, conflicts_with("directory_address"))]
+        history_address: Option<HistoryAddress>,
+        // /// The address of some a directory uploaded to Autonomi
+        // #[clap(value_name = "DIRECTORY-ADDRESS", value_parser = str_to_xor_name)]
+        // directory_address: Option<XorName>,  only if I support feature("fixed-dweb-hosts")
+    },
+
+    /// Start a server to allow you to view Autonomi websites in any web browser
     Serve {
         /// Optional port number on which to listen for local requests
         #[clap(value_name = "PORT", default_value = DEFAULT_HTTP_PORT_STR, value_parser = parse_port_number)]

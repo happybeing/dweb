@@ -33,11 +33,9 @@ pub async fn handle_inspect_pointer(
     print_summary: bool,
     print_type: bool,
     print_size: bool,
-    print_audit: bool,
-    print_merkle_reg: bool,
-    entries_range: Option<EntriesRange>,
-    include_files: bool,
-    files_args: FilesArgs,
+    _entries_range: Option<EntriesRange>,
+    _include_files: bool,
+    _files_args: FilesArgs,
 ) -> Result<()> {
     let client = dweb::client::AutonomiClient::initialise_and_connect(peers)
         .await
@@ -52,7 +50,7 @@ pub async fn handle_inspect_pointer(
         }
     };
 
-    let count = pointer.counter();
+    let size = pointer.counter() as usize;
     if print_summary {
         do_print_summary(&pointer, &pointer_address)?;
     } else {
@@ -65,7 +63,7 @@ pub async fn handle_inspect_pointer(
         }
 
         if print_size {
-            // do_print_size(size)?;
+            do_print_size(size)?;
         }
     }
 
@@ -318,7 +316,7 @@ fn do_print_files(metadata: &DirectoryTree, files_args: &FilesArgs) -> Result<()
     {
         metadata_stats(metadata)?
     } else {
-        (0 as usize, 0 as u64)
+        (0, 0)
     };
 
     if files_args.print_metadata_summary {

@@ -89,32 +89,21 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             );
         }
 
-        Some(Subcommands::Browse {
-            url: _,
-            history_version: _,
-        }) => {
-            return Ok(false); // Command not yet complete, is the signal to start browser
-        }
-
-        Some(Subcommands::Inspect_register {
-            register_address,
-            print_register_summary,
+        Some(Subcommands::Inspect_history {
+            history_address,
+            print_history_summary,
             print_type,
             print_size,
-            print_audit,
-            print_merkle_reg,
             entries_range,
             include_files,
             files_args,
         }) => {
             match crate::commands::cmd_inspect::handle_inspect_pointer(
                 peers.await?,
-                register_address,
-                print_register_summary,
+                history_address,
+                print_history_summary,
                 print_type,
                 print_size,
-                print_audit,
-                print_merkle_reg,
                 entries_range,
                 include_files,
                 files_args,
@@ -130,12 +119,12 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
         }
 
         Some(Subcommands::Inspect_files {
-            files_metadata_address,
+            directory_address,
             files_args,
         }) => {
             match crate::commands::cmd_inspect::handle_inspect_files(
                 peers.await?,
-                files_metadata_address,
+                directory_address,
                 files_args,
             )
             .await
@@ -167,8 +156,21 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             }
         }
 
+        Some(Subcommands::Browse {
+            dweb_name,
+            history_address,
+            // directory_address, only if I support feature("fixed-dweb-hosts")
+        }) => {
+            dweb::web::browse::handle_open_browser(
+                dweb_name,
+                history_address,
+                // directory_address  // Only if I support feature("fixed-dweb-hosts")
+            );
+        }
+
         // Default is not to return, but open the browser by continuing
         None {} => {
+            println!("No command provided, try 'dweb --help'");
             return Ok(false); // Command not yet complete, is the signal to start browser
         }
     }

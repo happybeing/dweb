@@ -30,7 +30,7 @@ use tracing::Level;
 
 // #[cfg(feature = "metrics")]
 // use ant_logging::metrics::init_metrics;
-use ant_logging::{LogBuilder, LogFormat, ReloadHandle, WorkerGuard};
+use ant_logging::{LogBuilder, LogFormat};
 
 use crate::commands::subcommands;
 use cli_options::Opt;

@@ -22,7 +22,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 //! network.
 //!
 use bytes::Bytes;
-use color_eyre::{eyre::eyre, Result};
+use color_eyre::Result;
 use xor_name::XorName as FileAddress;
 
 use crate::autonomi::access::network::NetworkPeers;

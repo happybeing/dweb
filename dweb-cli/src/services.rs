@@ -25,9 +25,8 @@ use std::time::Duration;
 
 use crate::cli_options::Opt;
 use actix_web::{
-    body, dev::HttpServiceFactory, dev::Service, dev::ServiceResponse, get, guard,
-    http::StatusCode, middleware::Logger, post, web, web::Data, App, HttpRequest, HttpResponse,
-    HttpResponseBuilder, HttpServer, Responder,
+    dev::Service, get, http::StatusCode, middleware::Logger, post, web, web::Data, App,
+    HttpRequest, HttpResponse, HttpServer, Responder,
 };
 use clap::Parser;
 

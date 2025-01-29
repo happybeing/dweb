@@ -15,9 +15,9 @@
 *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-use color_eyre::Result;
+// use color_eyre::Result;
 
-use autonomi::client::Client;
+// use autonomi::client::Client;
 
 // pub async fn connect_to_autonomi() -> Result<Client> {
 //     println!("Autonomi client initialising...");

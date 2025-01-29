@@ -307,7 +307,7 @@ pub fn decode_dweb_host(dweb_host: &str) -> Result<DwebHost> {
     };
 
     match validate_dweb_name(&dweb_name) {
-        Ok(()) => (),
+        Ok(_) => (),
         Err(e) => return Err(e),
     };
 
@@ -344,33 +344,29 @@ pub fn decode_dweb_host(dweb_host: &str) -> Result<DwebHost> {
     })
 }
 
-pub fn validate_dweb_name(dweb_name: &str) -> Result<()> {
+pub fn validate_dweb_name(dweb_name: &str) -> Result<String> {
     if !dweb_name.as_bytes()[0].is_ascii_alphabetic() {
-        return Err(eyre!(
-            "DWEB-NAME part must start with an alphbetic character"
-        ));
+        return Err(eyre!("DWEB-NAME must start with an alphbetic character"));
     }
 
     if !dweb_name[dweb_name.len() - 1..]
         .chars()
         .all(|c| c.is_alphanumeric())
     {
-        return Err(eyre!(
-            "DWEB-NAME part must end with an alphanumeric character"
-        ));
+        return Err(eyre!("DWEB-NAME must end with an alphanumeric character"));
     }
 
     if !dweb_name.chars().all(|c| c.is_alphanumeric() || c == '-') {
         return Err(eyre!(
-            "DWEB-NAME part can only contain letters, numbers (and non-consecutive hyphens)"
+            "DWEB-NAME can only contain letters, numbers (and non-consecutive hyphens)"
         ));
     }
 
     if dweb_name.contains("--") {
-        return Err(eyre!("DWEB-NAME part cannot contain '--'"));
+        return Err(eyre!("DWEB-NAME cannot contain '--'"));
     }
 
-    Ok(())
+    Ok(String::from(dweb_name))
 }
 
 #[test]

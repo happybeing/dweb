@@ -15,6 +15,17 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-pub mod browse;
-pub mod fetch;
-pub mod name;
+use ant_protocol::storage::PointerAddress as HistoryAddress;
+
+// Cross platform open browser (assumes dweb serve is running)
+
+pub fn handle_open_browser(
+    _dweb_name: String,
+    _history_address: Option<HistoryAddress>,
+    // _directory_address: Option<XorName>, // Only if I support feature("fixed-dweb-hosts")
+) {
+    // For opening on different platforms:
+    //  programmatic?
+    //  command line - see https://stackoverflow.com/a/38147878
+    println!("TODO - construct URL for dweb and open in a browser on the current platform");
+}

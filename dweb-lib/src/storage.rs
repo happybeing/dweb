@@ -110,7 +110,8 @@ pub fn report_content_published_or_updated(
     is_new: bool,
     is_awe: bool,
 ) {
-    let type_str = if is_website { "WEBSITE" } else { "FILES" };
+    // Use same generic term "CONTENT" for website and directory (TODO remove is_website parameter)
+    let type_str = if is_website { "CONTENT" } else { "CONTENT" };
     let action_str = if is_new { "PUBLISHED" } else { "UPDATED" };
 
     let files_history = history_address.to_hex();
@@ -138,8 +139,8 @@ pub fn report_content_published_or_updated(
     }
 }
 
-/// Upload a directory of content and related metadata to Autonomi
-/// Returns address of the uploaded metadata, needed to access the content
+/// Upload a directory tree to Autonomi
+/// Returns the DirectoryAddress needed to access the content
 pub async fn publish_files(
     client: &AutonomiClient,
     files_root: &PathBuf,
@@ -159,6 +160,9 @@ pub async fn publish_files(
         None
     };
 
+    // TODO to allow use of Autonomi Archive, this will be a file added to the
+    // TODO uploaded Archive at /.dweb/dweb-config.json (by uploading separately
+    // TODO and then merging into the directory). May not provided this way, TBD.
     let mut website_settings = WebsiteSettings::new();
     if let Some(website_config) = website_config {
         website_settings.website_config = website_config;
@@ -166,10 +170,10 @@ pub async fn publish_files(
 
     match publish_content(client, files_root).await {
         Ok(archive) => {
-            match publish_metadata(client, files_root, &archive, website_settings).await {
-                Ok(files_metadata) => Ok(files_metadata),
+            match publish_directory(client, files_root, &archive, website_settings).await {
+                Ok(directory_address) => Ok(directory_address),
                 Err(e) => Err(eyre!(
-                    "Failed to store metadata for files: {}",
+                    "Failed to store directory tree (metadata) for uploaded files: {}",
                     e.root_cause()
                 )),
             }
@@ -206,7 +210,7 @@ pub async fn publish_content(
         Err(e) => return Err(eyre!("Failed to upload directory tree: {e}")),
     };
 
-    println!("web publish completed files: {:?}", archive.map().len());
+    println!("publish completed files: {:?}", archive.map().len());
 
     println!("CONTENT UPLOADED:");
     for (path, datamap_chunk, _metadata) in archive.iter() {
@@ -216,26 +220,23 @@ pub async fn publish_content(
     Ok(archive)
 }
 
-// TODO review handling of errors that might occur here
-// TODO consider extracting FilesApi::get_local_payment_and_upload_chunk() to StorageApi module
-/// Create metadata for a files using the files_uploaded and website_settings
-/// and store it on Autonomi
+/// Publish a DirectoryTree for uploaded files
 /// Assumes paths are canonical
-/// Returns the xor address of the metadata stored
-pub async fn publish_metadata(
+/// Returns the DirectoryAddress for the stored directory
+pub async fn publish_directory(
     client: &AutonomiClient,
     files_root: &PathBuf,
     files_uploaded: &PublicArchive,
     website_settings: WebsiteSettings,
 ) -> Result<XorName> {
-    let mut metadata = DirectoryTree::new(Some(website_settings));
+    let mut directory_tree = DirectoryTree::new(Some(website_settings));
 
     if let Some(mut files_root_string) = osstr_to_string(files_root.as_os_str()) {
         // Ensure the full_root_string ends with OS path separator
         if !files_root_string.ends_with(std::path::MAIN_SEPARATOR) {
             files_root_string += &String::from(std::path::MAIN_SEPARATOR);
         }
-        println!("DEBUG publish_metadata() files_root '{files_root_string}'");
+        println!("DEBUG publish_directory() files_root '{files_root_string}'");
 
         for (relative_path, datamap_address, _file_metadata) in files_uploaded.iter() {
             // Archive paths include the parent directory of the upload so remove it
@@ -248,14 +249,14 @@ pub async fn publish_metadata(
                 let resource_based_path = String::from("/") + &resource_relative_path;
                 println!("Adding '{resource_full_path}' as '{resource_based_path}'");
                 match std::fs::metadata(resource_full_path) {
-                    Ok(file_metadata) => metadata.add_content_to_metadata(
+                    Ok(file_metadata) => directory_tree.add_content_to_metadata(
                         &resource_based_path,
                         datamap_address.clone(),
                         Some(&file_metadata),
                     )?,
                     Err(e) => {
                         println!("Failed to obtain metadata for file due to: {e:}");
-                        metadata.add_content_to_metadata(
+                        directory_tree.add_content_to_metadata(
                             &resource_based_path,
                             datamap_address.clone(),
                             None,
@@ -265,10 +266,10 @@ pub async fn publish_metadata(
             }
         }
 
-        let xor_name = metadata
+        let xor_name = directory_tree
             .put_files_metadata_to_network(client.clone())
             .await?;
-        println!("FILES METADATA UPLOADED:\nawm://{xor_name:64x}");
+        println!("DIRECTORY ADDRESS:\n{xor_name:64x}");
 
         return Ok(xor_name);
     }
@@ -278,7 +279,7 @@ pub async fn publish_metadata(
 
 /// Check that the path is a directory tree containing at least one file
 fn check_path_for_upload(files_root: &PathBuf) -> Result<()> {
-    if !does_path_contains_files(&files_root) {
+    if !does_path_contain_files(&files_root) {
         if files_root.is_dir() {
             return Err(eyre!(
                 "The directory specified for upload is empty. \
@@ -307,7 +308,7 @@ fn count_files_in_path_recursively(directory_path: &PathBuf) -> u32 {
 }
 
 /// Check the directory tree containing at least one file
-fn does_path_contains_files(directory_path: &PathBuf) -> bool {
+fn does_path_contain_files(directory_path: &PathBuf) -> bool {
     let entries_iterator = WalkDir::new(directory_path).into_iter().flatten();
     for entry in entries_iterator {
         if entry.file_type().is_file() {

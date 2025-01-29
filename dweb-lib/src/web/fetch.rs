@@ -26,7 +26,7 @@ use xor_name::XorName as DirectoryAddress;
 
 use ant_protocol::storage::PointerAddress as HistoryAddress;
 
-use crate::cache::directory_version::{self, DirectoryVersion, DIRECTORY_VERSIONS, HISTORY_NAMES};
+use crate::cache::directory_version::{DirectoryVersion, DIRECTORY_VERSIONS, HISTORY_NAMES};
 use crate::client::AutonomiClient;
 use crate::trove::directory_tree::DirectoryTree;
 use crate::trove::History;
@@ -59,7 +59,7 @@ pub async fn fetch(client: &AutonomiClient, url: Url) -> HttpResponse {
     let mut reason: &'static str = "";
     let response = match fetch_website_version(client, &dweb_host).await {
         // TODO cache function that wraps fetching the History/DirectoryTree
-        Ok((version, cache_version_entry)) => {
+        Ok((_version, cache_version_entry)) => {
             match cache_version_entry
                 .directory_tree
                 .unwrap() // Guaranteed to be Some() by fetch_website_version()

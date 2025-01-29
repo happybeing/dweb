@@ -16,8 +16,7 @@
 */
 // use actix_web::{body, get, post, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use actix_web::{
-    body, dev::HttpServiceFactory, get, guard, post, web, web::Data, App, HttpRequest,
-    HttpResponse, HttpServer, Responder,
+    dev::HttpServiceFactory, get, guard, web, web::Data, HttpRequest, HttpResponse, Responder,
 };
 use qstring::QString;
 
@@ -54,7 +53,7 @@ pub async fn api_dwebname_register(
     };
 
     match dweb::web::name::validate_dweb_name(&dweb_name) {
-        Ok(()) => (),
+        Ok(_) => (),
         Err(e) => {
             return HttpResponse::BadRequest()
                 .body(format!("Invalid DWEB-NAME '{dweb_name}' - {e}"));

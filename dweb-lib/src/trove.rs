@@ -98,7 +98,7 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
         let pointer = Self::create_pointer_for_update(0, Self::trove_type(), &child_secret_key);
         match client
             .client
-            .pointer_put(pointer.clone(), &client.wallet)
+            .pointer_put(pointer.clone(), client.wallet.clone().into())
             .await
         {
             Ok((_cost, pointer_address)) => {
@@ -375,7 +375,7 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
                 match self
                     .client
                     .client
-                    .pointer_put(new_pointer.clone(), &self.client.wallet)
+                    .pointer_put(new_pointer.clone(), self.client.wallet.clone().into())
                     .await
                 {
                     Ok(_) => {

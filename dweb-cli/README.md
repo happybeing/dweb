@@ -1,14 +1,25 @@
 # dweb CLI
-**dweb** is a command line program which enables you to publish and view websites on the decentralised web aboard the [Autonomi](https://autonomi.com) peer-to-peer network.
+**dweb** is a command line program which enables you to **publish and view websites on the decentralised web** using the [Autonomi](https://autonomi.com) peer-to-peer network. Autonomi is like a permanent cloud service, but secure, private and truly decentralised, with no gatekeepers.
 
-**WIP NOT YET FUNCTIONAL:** This is a work-in-progress but is preceded by a working demo called [awe](https://github.com/happybeing/awe) which already allows websites to be published and viewed on Autonomi.
+## A Permanent Web
+Autonomi is designed to secure public and private data for the lifetime of the network for a one-off storage fee.
 
-Unlike `awe`, **dweb** will work with standard browsers to view decentralised websites directly from the Autonomi peer-to-peer network. Whereas the `awe` demo includes a primitive web viewer instead.
+So using `dweb` for publishing on Autonomi ensures that every version of a website can be accessed even after new versions are published. This is like having the Internet Archive built into the web, and can be used to eliminate the problem known as 'link rot' where links stop working when websites are taken down or domains expire.
+
+## Future Plans
+
+The design of `dweb` creates a lot of possibilities. One is to to expand the **RESTful access to Autonomi APIs** to make it easy to create powerful web apps served and storing their data on its secure, decentralised replacement for cloud services.
+
+Another ambition is to provide backup applications via an **rclone** compatible backend, as an API in the dweb server.
+
+Others include adding support for services like ActicityPub, and Solid Pods.
+
+For more about future possibilities, see  [Roadmap](https://github.com/happybeing/dweb/tree/main/dweb-cli/README.md#Roadmap)
 
 ## Features
-**dweb** will support a superset of features demonstrated in `awe`, itemised in the following roadmap or 'to-do' list.
+Current and future **dweb** features and their status are itemised in the following roadmap.
 
-### Roadmap Status
+### Roadmap
 - [x] **dweb publish-new | publish-update** - commands to publish and update permanent websites on a decentralised web, which means no 'link rot' (links that stop working because a domain expires etc). Permanence is a unique feature of data stored on Autonomi. By default websites are accessible by anyone (public data).
 
 - [x] **dweb serve** - run a local server for viewing dweb websites in a standard web browser. Since websites are versioned, you can view every version of every website published using **dweb**.
@@ -28,6 +39,9 @@ Unlike `awe`, **dweb** will work with standard browsers to view decentralised we
 That's a long list for a one-person project so each area is available for others to contribute to, so if a feature is not implemented yet and you want it faster you might be able to make that happen! See 'Contributing' below.
 
 Features already available in `awe` will arrive quickly once the infrastructure is in place and the relevant functionality has been incorporated in **dweb-lib**. That includes website publishing/viewing and file upload/download which are nearly or fully complete already (in `awe`)
+
+## Origins
+The dweb command line app and library are the next stage of an earlier demo project called [awe](https://github.com/happybeing/awe) which also publishes websites on Autonomi, but includes a crude browser in the app. `dweb` and `awe` both use the dweb Rust library, so can view websites and data published by each other. Both support versioning, which means that every version of your data or website will be accessible as you publish updates.
 
 ## Contributing
 Contributions under the AGPL3.0 license are welcome and any contributions or PRs submitted will be assumed to be offered under that license unless clearly and prominently specified otherwise.

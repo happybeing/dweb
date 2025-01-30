@@ -15,7 +15,6 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-// First register entry (version 0) to identify as DirectoryVersions register
-//
 // DO NOT CHANGE THIS COMMENT OR THE AUTOMATICALLY GENERATED LINES WHICH FOLLOW.
-pub const AWV_REG_TYPE_LOCAL: &str = "";
+pub const AWV_REG_TYPE_LOCAL: &str = "35802e8fac55c207899e393705a6549ffbf79ad2648a53aeb83d435370f7bd7c";
+pub const AWESOME_SITE_HISTORY_LOCAL: &str = "1f7b81a86e83cfa2cb8ea5c78e87386e7cb623c054134d933e3cc0af6f72deeb";

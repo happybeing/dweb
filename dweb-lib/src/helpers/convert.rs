@@ -78,6 +78,14 @@ pub fn parse_host(hostname: &str) -> Result<String> {
     }
 }
 
+/// Parse a URL
+pub fn parse_url(url: &str) -> Result<String> {
+    match url::Url::parse(url) {
+        Ok(_url) => Ok(String::from(url)),
+        Err(e) => Err(eyre!(e)),
+    }
+}
+
 /// Parse a hex HistoryAddress with optional URL scheme
 pub fn awe_str_to_history_address(str: &str) -> Result<HistoryAddress> {
     let str = if str.starts_with(AWE_PROTOCOL_HISTORY) {

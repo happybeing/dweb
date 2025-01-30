@@ -106,6 +106,20 @@ fn greater_than_0(s: &str) -> Result<u64, String> {
 
 #[derive(Subcommand, Debug)]
 pub enum Subcommands {
+    /// Start a server to allow you to view Autonomi websites in a web browser
+    Serve {
+        /// Optional port number on which to listen for local requests
+        #[clap(value_name = "PORT", default_value = DEFAULT_HTTP_PORT_STR, value_parser = parse_port_number)]
+        port: u16,
+
+        /// Optional host on which to listen for local requests
+        #[clap(value_name = "HOST", default_value = LOCALHOST, value_parser = parse_host)]
+        host: String,
+    },
+
+    /// Open a browser with the awesome website of awesome Autonomi websites
+    Awesome {},
+
     // TODO add an example or two to each command section
     /// Estimate the cost of publishing or updating a website
     Estimate {
@@ -265,17 +279,6 @@ pub enum Subcommands {
         // history_address: conflicts_with("directory_address")
         // #[clap(value_name = "DIRECTORY-ADDRESS", value_parser = str_to_xor_name)]
         // directory_address: Option<XorName>,  only if I support feature("fixed-dweb-hosts")
-    },
-
-    /// Start a server to allow you to view Autonomi websites in any web browser
-    Serve {
-        /// Optional port number on which to listen for local requests
-        #[clap(value_name = "PORT", default_value = DEFAULT_HTTP_PORT_STR, value_parser = parse_port_number)]
-        port: u16,
-
-        /// Optional host on which to listen for local requests
-        #[clap(value_name = "HOST", default_value = LOCALHOST, value_parser = parse_host)]
-        host: String,
     },
 }
 

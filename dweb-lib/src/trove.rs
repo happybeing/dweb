@@ -354,7 +354,7 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
             .await
         {
             Ok(old_pointer) => {
-                if !old_pointer.verify() {
+                if !old_pointer.verify_signature() {
                     let message =
                         format!("Error - pointer retrieved from network has INVALID SIGNATURE");
                     println!("{message}");

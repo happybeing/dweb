@@ -44,6 +44,7 @@ const DWEB_SERVICE_APP: &str = "app-dweb.au";
 const DWEB_SERVICE_DEBUG: &str = "debug-dweb.au";
 
 pub async fn serve(peers: NetworkPeers, host: String, port: u16) -> io::Result<()> {
+    register_builtins(peers.is_local()).await;
     let client = dweb::client::AutonomiClient::initialise_and_connect(peers)
         .await
         .expect("Failed to connect to Autonomi Network");
@@ -220,5 +221,33 @@ async fn manual_test_connect() -> impl Responder {
             "Testing connect to Autonomi..\
            ERROR: failed to get peers",
         );
+    };
+}
+
+// Registers builtin history addresses so they can be used immediately in the browser
+async fn register_builtins(is_local: bool) {
+    use crate::generated_rs::{builtins_local, builtins_public};
+
+    if is_local {
+        register_name("awesome", builtins_local::AWESOME_SITE_HISTORY_LOCAL).await;
+    } else {
+        register_name("awesome", builtins_public::AWESOME_SITE_HISTORY_PUBLIC).await;
+    }
+}
+
+async fn register_name(dweb_name: &str, history_address_str: &str) {
+    if history_address_str != "" {
+        if let Ok(history_address) =
+            dweb::helpers::convert::str_to_pointer_address(history_address_str)
+        {
+            match dweb::web::name::dwebname_register(dweb_name, history_address).await {
+                Ok(_) => {
+                    println!("Registered built-in DWEB-NAME: {dweb_name} -> {history_address_str}")
+                }
+                Err(e) => {
+                    println!("DEBUG: failed to register built-in DWEB-NAME '{dweb_name}' - {e}")
+                }
+            }
+        };
     };
 }

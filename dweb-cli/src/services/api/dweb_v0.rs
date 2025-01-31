@@ -14,7 +14,7 @@
  You should have received a copy of the GNU Affero General Public License
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-// use actix_web::{body, get, post, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
+
 use actix_web::{
     dev::HttpServiceFactory, get, guard, web, web::Data, HttpRequest, HttpResponse, Responder,
 };
@@ -33,7 +33,7 @@ pub fn init_service(host: &str) -> impl HttpServiceFactory {
         .guard(guard::Host(host))
 }
 
-/// Register a DwebName and optionally redirect to the Dweb URL for the most recent version
+/// Register a DWEB-NAME and optionally redirect to the Dweb URL for the most recent version
 /// Optional query parameters control the redirection:
 ///   ?redirect=false
 // Test url: http://api-dweb.au:8080/dweb/v0/dwebname/register/smartypants/91ab27dd1dc342f36c9f16fbe4ea725372d46a857677299d0336bb5eff24392da5d4412c36b6925a4b1857cc558f31e4ef4aae8c3170a4e3d6251bbb637a313d31b5b887aa20a3c81fc358981ccf9d19

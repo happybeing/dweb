@@ -63,6 +63,8 @@ use color_eyre::eyre::{eyre, Result};
 
 use ant_protocol::storage::PointerAddress as HistoryAddress;
 
+use crate::cache::directory_version::HISTORY_NAMES;
+
 // Domain name and subdomain constraints based on IETF RFC1035 with links to relevant sections:
 pub const MAX_SUBDOMAIN_LEN: usize = 63; //  S2.3.4 Size limits (https://datatracker.ietf.org/doc/html/rfc1035#section-2.3.4)
                                          // A subdomain must start with a letter (a-z) and is followed by one or more letters or numbers
@@ -367,6 +369,42 @@ pub fn validate_dweb_name(dweb_name: &str) -> Result<String> {
     }
 
     Ok(String::from(dweb_name))
+}
+
+/// Register a DWEB-NAME programmatically so it can be used in the browser address bar
+pub async fn dwebname_register(dweb_name: &str, history_address: HistoryAddress) -> Result<()> {
+    match validate_dweb_name(&dweb_name) {
+        Ok(_) => (),
+        Err(e) => {
+            return Err(eyre!("Invalid DWEB-NAME '{dweb_name}' - {e}"));
+        }
+    };
+
+    match &mut HISTORY_NAMES.lock() {
+        Ok(lock) => {
+            let cached_history_address = lock.get(dweb_name);
+            if cached_history_address.is_some() {
+                let cached_history_address = cached_history_address.unwrap();
+                if history_address != *cached_history_address {
+                    return Err(eyre!(
+                        "DWEB-NAME '{dweb_name}' already in use for HISTORY-ADDRESS '{}'",
+                        cached_history_address.to_hex()
+                    ));
+                }
+                // println!("DWEB-NAME '{dweb_name}' already registered for {history_address_string}");
+            } else {
+                lock.insert(String::from(dweb_name), history_address);
+                // println!(
+                //     "DWEB-NAME '{dweb_name}' successfully registered for {history_address_string}"
+                // );
+            }
+        }
+        Err(e) => {
+            return Err(eyre!("Failed to access dweb name cache - {e}"));
+        }
+    };
+
+    Ok(())
 }
 
 #[test]

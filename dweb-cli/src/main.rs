@@ -26,6 +26,7 @@ mod services;
 
 use clap::Parser;
 use color_eyre::Result;
+use dweb::{helpers::convert::str_to_pointer_address, web::name::dwebname_register};
 use tracing::Level;
 
 // #[cfg(feature = "metrics")]
@@ -76,4 +77,25 @@ async fn main() -> Result<()> {
     subcommands::cli_commands(opt).await?;
 
     Ok(())
+}
+
+// Registers builtin history addresses so they can be used immediately in the browser
+async fn register_builtins(is_local: bool) {
+    use crate::generated_rs::{builtins_local, builtins_public};
+
+    if is_local {
+        register_name("awesome", builtins_local::AWESOME_SITE_HISTORY_LOCAL).await;
+    } else {
+        register_name("awesome", builtins_public::AWESOME_SITE_HISTORY_PUBLIC).await;
+    }
+}
+
+async fn register_name(dweb_name: &str, history_address: &str) {
+    if history_address != "" {
+        if let Ok(history_address) = str_to_pointer_address(history_address) {
+            let _ = dwebname_register(dweb_name, history_address)
+                .await
+                .inspect_err(|e| println!("DEBUG: failed to register "));
+        };
+    };
 }

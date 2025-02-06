@@ -78,7 +78,7 @@ pub struct DirectoryVersion {
     /// Address of a History<trove::DirectoryTree> on Autonomi (saves lookup based on DWEB-NAME.www-dweb.au)
     pub history_address: HistoryAddress,
     /// A version of 0 implies use most recent version (highest available)
-    version: Option<u64>,
+    version: Option<u32>,
     /// Directory / website metadata
     pub directory_address: DirectoryAddress,
     /// Directory / website metadata

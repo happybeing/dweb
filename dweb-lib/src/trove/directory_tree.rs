@@ -159,14 +159,14 @@ impl DirectoryTree {
     pub async fn history_lookup_web_resource(
         history: &mut History<DirectoryTree>,
         resource_path: &String,
-        version: Option<u64>,
+        version: Option<u32>,
     ) -> Result<(FileAddress, Option<String>), StatusCode> {
-        if !history.fetch_version_metadata(version).await.is_none() {
+        if !history.fetch_version_trove(version).await.is_none() {
             if history.cached_version.is_some()
-                && history.cached_version.as_ref().unwrap().metadata.is_some()
+                && history.cached_version.as_ref().unwrap().trove.is_some()
             {
                 let cached_version = history.cached_version.as_ref().unwrap();
-                let metadata = cached_version.metadata.as_ref().unwrap();
+                let metadata = cached_version.trove.as_ref().unwrap();
                 return metadata.lookup_web_resource(resource_path);
             } else {
                 println!("Failed to fetch metadata.");
@@ -406,21 +406,19 @@ pub fn osstr_to_string(file_name: &std::ffi::OsStr) -> Option<String> {
     None
 }
 
-/// Helper which gets a website version and looks up a web resource.
+/// Helper which gets a directory version and looks up a web resource.
 /// Returns a tuple of the the resource address and content type string if known
 pub async fn lookup_resource_for_website_version(
     client: &AutonomiClient,
     resource_path: &String,
     history_address: HistoryAddress,
-    version: Option<u64>,
+    version: Option<u32>,
 ) -> Result<(FileAddress, Option<String>), StatusCode> {
     println!("DEBUG lookup_resource_for_website_version() version {version:?}");
     println!("DEBUG history_address: {}", history_address.to_hex());
     println!("DEBUG resource_path    : {resource_path}");
 
-    match History::<DirectoryTree>::from_history_address(client.clone(), history_address, None)
-        .await
-    {
+    match History::<DirectoryTree>::from_history_address(client.clone(), history_address).await {
         Ok(mut history) => {
             return DirectoryTree::history_lookup_web_resource(
                 &mut history,

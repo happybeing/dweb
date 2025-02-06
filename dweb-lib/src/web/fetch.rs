@@ -120,7 +120,7 @@ pub async fn fetch(client: &AutonomiClient, url: Url) -> HttpResponse {
 pub async fn fetch_website_version(
     client: &AutonomiClient,
     dweb_host: &DwebHost,
-) -> Result<(u64, DirectoryVersion)> {
+) -> Result<(u32, DirectoryVersion)> {
     println!(
         "DEBUG fetch([ {}, {}, {:?} ])...",
         dweb_host.dweb_host_string, dweb_host.dweb_name, dweb_host.version
@@ -177,27 +177,24 @@ pub async fn fetch_website_version(
             Some(directory_tree),
         );
     } else {
-        let mut history = match History::<DirectoryTree>::from_history_address(
-            client.clone(),
-            history_address,
-            None,
-        )
-        .await
-        {
-            Ok(history) => history,
-            Err(e) => {
-                return Err(eyre!(
-                    "failed to get History for DWEB-NAME '{}': {e}",
-                    dweb_host.dweb_name,
-                ));
-            }
-        };
+        let mut history =
+            match History::<DirectoryTree>::from_history_address(client.clone(), history_address)
+                .await
+            {
+                Ok(history) => history,
+                Err(e) => {
+                    return Err(eyre!(
+                        "failed to get History for DWEB-NAME '{}': {e}",
+                        dweb_host.dweb_name,
+                    ));
+                }
+            };
 
         let (directory_address, directory_tree, version) =
-            match history.fetch_version_metadata(dweb_host.version).await {
+            match history.fetch_version_trove(dweb_host.version).await {
                 Some(directory_tree) => match history.get_cached_version() {
                     Some(cached_version) => (
-                        cached_version.metadata_address(),
+                        cached_version.trove_address(),
                         directory_tree,
                         cached_version.version,
                     ),
@@ -244,7 +241,7 @@ pub fn update_cached_directory_version(
     history_address: HistoryAddress,
     directory_address: DirectoryAddress,
     directory_tree: Option<DirectoryTree>,
-) -> Result<(u64, DirectoryVersion)> {
+) -> Result<(u32, DirectoryVersion)> {
     // TODO may need both version_retrieved and version_requested in DirectoryVersion
     let new_directory_version = DirectoryVersion::new(
         &dweb_host,

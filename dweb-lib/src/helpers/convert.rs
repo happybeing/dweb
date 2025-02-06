@@ -1,10 +1,19 @@
-// Copyright 2024 MaidSafe.net limited.
-//
-// This SAFE Network Software is licensed to you under The General Public License (GPL), version 3.
-// Unless required by applicable law or agreed to in writing, the SAFE Network Software distributed
-// under the GPL Licence is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied. Please review the Licences for the specific language governing
-// permissions and limitations relating to use of the SAFE Network Software.
+/*
+Copyright (c) 2024-2025 Mark Hughes
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
 
 use ant_protocol::storage::PointerAddress as HistoryAddress;
 use color_eyre::eyre::{eyre, Result};

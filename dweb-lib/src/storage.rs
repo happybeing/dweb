@@ -14,11 +14,13 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+use blsttc::SecretKey;
 use color_eyre::eyre::{eyre, Result};
 use std::path::PathBuf;
 use walkdir::WalkDir;
 use xor_name::XorName;
 
+use ant_evm::AttoTokens;
 use ant_protocol::storage::PointerAddress as HistoryAddress;
 use autonomi::client::files::archive_public::PublicArchive;
 
@@ -26,18 +28,21 @@ use crate::client::AutonomiClient;
 use crate::trove::directory_tree::{osstr_to_string, DirectoryTree, JsonSettings, WebsiteSettings};
 use crate::trove::History;
 
-/// If the tree contains a website, 'server style' configuration can be provided
+/// Publish a history entry, creating the history if no name is provided
+///
 /// files_root is the path to a the directory tree to upload
-/// history_address optional address if an update
+/// name is required for update but not publishing the first version
 /// website_config is an optional configuration if publishing a website (TODO)
-/// Returns the address of the history for updates (newly created if not supplied)
+///
+/// Returns the amount paid (cost), history name for updates, and the history address
 pub async fn publish_or_update_files(
     client: &AutonomiClient,
     files_root: &PathBuf,
+    app_secret_key: SecretKey,
     name: Option<String>,
     website_config: Option<PathBuf>,
     is_publish: bool,
-) -> Result<(String, HistoryAddress, u64)> {
+) -> Result<(AttoTokens, String, HistoryAddress, u32)> {
     println!("DEBUG publish_or_update_files()...");
     check_path_for_upload(&files_root)?;
 
@@ -76,14 +81,19 @@ pub async fn publish_or_update_files(
 
     let result = if is_publish {
         println!("Creating History on network...");
-        History::<DirectoryTree>::create_online(client.clone(), name.clone(), None).await
+        History::<DirectoryTree>::create_online(
+            client.clone(),
+            name.clone(),
+            app_secret_key.clone(),
+        )
+        .await
     } else {
         println!("Getting History from network...");
-        History::<DirectoryTree>::from_name(client.clone(), name.clone(), None).await
+        History::<DirectoryTree>::from_name(client.clone(), app_secret_key, name.clone()).await
     };
 
-    let mut files_history = match result {
-        Ok(history) => history,
+    let (history_cost, mut files_history) = match result {
+        Ok((history_cost, history)) => (history_cost, history),
         Err(e) => {
             println!("DEBUG failed - {e}");
             return Err(e);
@@ -92,7 +102,15 @@ pub async fn publish_or_update_files(
 
     println!("Updating History...");
     match files_history.publish_new_version(&files_address).await {
-        Ok(version) => Ok((name, files_history.history_address(), version)),
+        Ok((update_cost, version)) => {
+            let total_cost = history_cost.checked_add(update_cost).or(Some(update_cost));
+            Ok((
+                total_cost.unwrap(),
+                name,
+                files_history.history_address(),
+                version,
+            ))
+        }
         Err(e) => {
             let message = format!("Failed to update History: {e:?}");
             println!("{message}");
@@ -104,7 +122,7 @@ pub async fn publish_or_update_files(
 pub fn report_content_published_or_updated(
     history_address: &HistoryAddress,
     name: &String,
-    version: u64,
+    version: u32,
     files_root: &PathBuf,
     is_website: bool,
     is_new: bool,

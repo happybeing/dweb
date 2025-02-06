@@ -26,7 +26,6 @@ mod services;
 
 use clap::Parser;
 use color_eyre::Result;
-use dweb::{helpers::convert::str_to_pointer_address, web::name::dwebname_register};
 use tracing::Level;
 
 // #[cfg(feature = "metrics")]
@@ -51,13 +50,14 @@ async fn main() -> Result<()> {
     // TODO Keep up-to-date with autonomi/ant-cli/src/main.rs init_logging_and_metrics()
     let _gaurds;
     if opt.client_logs {
+        println!("DEBUG default logging targets enabled");
         let logging_targets = vec![
             ("ant_bootstrap".to_string(), Level::DEBUG),
             ("ant_build_info".to_string(), Level::TRACE),
             ("ant_evm".to_string(), Level::TRACE),
             ("ant_logging".to_string(), Level::TRACE),
             ("ant_networking".to_string(), Level::INFO),
-            ("((ant_protocol".to_string(), Level::TRACE),
+            ("ant_protocol".to_string(), Level::TRACE),
             ("ant_registers".to_string(), Level::TRACE),
             ("evmlib".to_string(), Level::TRACE),
             ("autonomi_cli".to_string(), Level::TRACE),
@@ -77,25 +77,4 @@ async fn main() -> Result<()> {
     subcommands::cli_commands(opt).await?;
 
     Ok(())
-}
-
-// Registers builtin history addresses so they can be used immediately in the browser
-async fn register_builtins(is_local: bool) {
-    use crate::generated_rs::{builtins_local, builtins_public};
-
-    if is_local {
-        register_name("awesome", builtins_local::AWESOME_SITE_HISTORY_LOCAL).await;
-    } else {
-        register_name("awesome", builtins_public::AWESOME_SITE_HISTORY_PUBLIC).await;
-    }
-}
-
-async fn register_name(dweb_name: &str, history_address: &str) {
-    if history_address != "" {
-        if let Ok(history_address) = str_to_pointer_address(history_address) {
-            let _ = dwebname_register(dweb_name, history_address)
-                .await
-                .inspect_err(|e| println!("DEBUG: failed to register "));
-        };
-    };
 }

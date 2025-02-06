@@ -88,7 +88,7 @@ pub struct DwebHost {
     pub dweb_host_string: String,
     pub dweb_name: String,
     /// None implies most recent version (highest number)
-    pub version: Option<u64>,
+    pub version: Option<u32>,
 
     #[cfg(feature = "fixed-dweb-hosts")]
     // Development build feature for non-versioned DirectoryTree references
@@ -149,7 +149,7 @@ pub fn make_dweb_name(memorable_part: &String, history_address: HistoryAddress) 
 }
 
 /// Create a version part ("v[VERSION]") for a www-dweb URL
-pub fn make_version_part(version: u64) -> String {
+pub fn make_version_part(version: u32) -> String {
     if version > 0 {
         format!("v{version}")
     } else {
@@ -268,7 +268,7 @@ pub fn decode_dweb_host(dweb_host: &str) -> Result<DwebHost> {
                         "Dweb host contains four segments (separated by '.') so first must start with 'v'"
                     ));
                 }
-                match str[1..].parse::<u64>() {
+                match str[1..].parse::<u32>() {
                     Ok(version) => {
                         if version > 0 {
                             found_version_segment = true;

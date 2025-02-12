@@ -252,7 +252,7 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
         let history_address = HistoryAddress::new(history_secret_key.public_key());
 
         let pointer_address = Self::pointer_address_from_history_address(history_address.clone())?;
-        match client.client.pointer_get(pointer_address).await {
+        match client.client.pointer_get(&pointer_address).await {
             Ok(pointer) => {
                 println!(
                     "DEBUG History::from_name() obtained pointer from {:x}",
@@ -301,7 +301,7 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
 
         // Check it exists to avoid accidental creation (and payment)
         let pointer_address = Self::pointer_address_from_history_address(history_address.clone())?;
-        let pointer = match client.client.pointer_get(pointer_address).await {
+        let pointer = match client.client.pointer_get(&pointer_address).await {
             Ok(pointer) => pointer,
             Err(e) => {
                 let msg = format!(

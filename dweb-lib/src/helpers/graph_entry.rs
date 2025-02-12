@@ -88,7 +88,7 @@ pub async fn graph_entry_get(
 ) -> Result<GraphEntry> {
     println!("DEBUG graph_entry_get() {}", graph_entry_address.to_hex());
 
-    match client.graph_entry_get(*graph_entry_address).await {
+    match client.graph_entry_get(graph_entry_address).await {
         Ok(entry) => {
             debug_print_graph_entry("returning", &entry, None);
             Ok(entry)
@@ -193,7 +193,7 @@ pub async fn get_graph_entry_and_next_derivation_index(
     client: &Client,
     graph_entry_addr: &GraphEntryAddress,
 ) -> Result<(GraphEntry, DerivationIndex)> {
-    let entry = match client.graph_entry_get(*graph_entry_addr).await {
+    let entry = match client.graph_entry_get(graph_entry_addr).await {
         Ok(e) => e,
         Err(GraphError::Fork(entries)) => {
             println!("DEBUG Forked register, multiple entries found: {entries:?}, choosing the one with the smallest derivation index for the next entry");

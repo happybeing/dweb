@@ -107,7 +107,7 @@ pub async fn handle_inspect_pointer(
         .await
         .expect("Failed to connect to Autonomi Network");
 
-    let pointer = match client.client.pointer_get(pointer_address).await {
+    let pointer = match client.client.pointer_get(&pointer_address).await {
         Ok(pointer) => pointer,
         Err(e) => {
             let message = format!("Failed to get pointer from network - {e}");

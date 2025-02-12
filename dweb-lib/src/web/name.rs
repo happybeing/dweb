@@ -61,9 +61,8 @@
 
 use color_eyre::eyre::{eyre, Result};
 
-use ant_protocol::storage::PointerAddress as HistoryAddress;
-
 use crate::cache::directory_version::HISTORY_NAMES;
+use crate::trove::HistoryAddress;
 
 // Domain name and subdomain constraints based on IETF RFC1035 with links to relevant sections:
 pub const MAX_SUBDOMAIN_LEN: usize = 63; //  S2.3.4 Size limits (https://datatracker.ietf.org/doc/html/rfc1035#section-2.3.4)
@@ -204,7 +203,7 @@ pub fn make_fixed_dweb_name(
         ));
     }
 
-    let directory_part = format!("{directory_address:64x}");
+    let directory_part = format!("{directory_address:x}");
     let web_name = memorable_part[..MEMORABLE_PART_LEN].to_string()
         + FIXED_WEBNAME_SEPARATOR
         + "-"

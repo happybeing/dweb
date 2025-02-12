@@ -26,16 +26,16 @@ struct PrivateFileArchive {
     secret_access: String,
 }
 
-pub fn get_local_user_data() -> Result<UserData> {
-    let file_archives = get_local_public_file_archives()?;
-    let private_file_archives = get_local_private_file_archives()?;
+// pub fn get_local_user_data() -> Result<UserData> {
+//     let file_archives = get_local_public_file_archives()?;
+//     let private_file_archives = get_local_private_file_archives()?;
 
-    let user_data = UserData {
-        file_archives,
-        private_file_archives,
-    };
-    Ok(user_data)
-}
+//     let user_data = UserData {
+//         file_archives,
+//         private_file_archives,
+//     };
+//     Ok(user_data)
+// }
 
 pub fn get_local_private_file_archives() -> Result<HashMap<PrivateArchiveAccess, String>> {
     let data_dir = get_client_data_dir_path()?;

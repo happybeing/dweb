@@ -17,19 +17,21 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 use chrono::offset::Utc;
 use chrono::DateTime;
 use color_eyre::{eyre::eyre, Result};
+use dweb::trove::History;
 use xor_name::XorName;
 
-use ant_protocol::storage::{Pointer, PointerAddress};
+use ant_protocol::storage::{GraphEntry, GraphEntryAddress, Pointer, PointerAddress};
 
 use dweb::autonomi::access::network::NetworkPeers;
-use dweb::trove::directory_tree::DirectoryTree;
+use dweb::helpers::graph_entry::graph_entry_get;
+use dweb::trove::{directory_tree::DirectoryTree, HistoryAddress};
 
 use crate::cli_options::{EntriesRange, FilesArgs};
 
 /// Implement 'inspect-history' subcommand
-pub async fn handle_inspect_pointer(
+pub async fn handle_inspect_history(
     peers: NetworkPeers,
-    pointer_address: PointerAddress,
+    history_address: HistoryAddress,
     print_summary: bool,
     print_type: bool,
     print_size: bool,
@@ -41,29 +43,22 @@ pub async fn handle_inspect_pointer(
         .await
         .expect("Failed to connect to Autonomi Network");
 
-    let pointer = match client.client.pointer_get(pointer_address).await {
-        Ok(pointer) => pointer,
-        Err(e) => {
-            let message = format!("Failed to get pointer from network - {e}");
-            println!("{message}");
-            return Err(eyre!(message));
-        }
-    };
+    let history =
+        match History::<DirectoryTree>::from_history_address(client, history_address).await {
+            Ok(pointer) => pointer,
+            Err(e) => {
+                let message = format!("Failed to get pointer from network - {e}");
+                println!("{message}");
+                return Err(eyre!(message));
+            }
+        };
 
-    let size = pointer.counter() as usize;
+    let pointer = history.pointer();
     if print_summary {
-        do_print_summary(&pointer, &pointer_address)?;
+        print_pointer(&pointer, &pointer.address());
     } else {
-        if print_type {
-            // if size > 0 {
-            //     do_print_type(Some(&entries_vec[0]))?;
-            // } else {
-            //     do_print_type(None)?;
-            // }
-        }
-
         if print_size {
-            do_print_size(size)?;
+            do_print_size(pointer.counter() as usize - 1)?;
         }
     }
 
@@ -89,25 +84,9 @@ pub async fn handle_inspect_pointer(
     Ok(())
 }
 
-fn do_print_summary(pointer: &Pointer, pointer_address: &PointerAddress) -> Result<()> {
-    println!("pointer     : {}", pointer_address.to_hex());
-    // println!("owner       : {:?}", pointer.owner());
-    // println!("permissions : {:?}", pointer.permissions());
-    println!("count       : {:?}", pointer.counter());
-
-    // if entries_vec.len() > 0 {
-    //     do_print_type(Some(&entries_vec[0]))?;
-    // } else {
-    //     do_print_type(None)?;
-    // }
-    // do_print_size(size)?;
-    // do_print_audit_summary(&register)?;
-    Ok(())
-}
-
 fn do_print_type(history_type: Option<XorName>) -> Result<()> {
     if history_type.is_some() {
-        println!("history type: {:64x}", history_type.unwrap());
+        println!("history type: {:x}", history_type.unwrap());
     } else {
         println!("history type: not set");
     }
@@ -117,6 +96,127 @@ fn do_print_type(history_type: Option<XorName>) -> Result<()> {
 fn do_print_size(size: usize) -> Result<()> {
     println!("size        : {size}");
     Ok(())
+}
+
+/// Implement 'inspect-pointer' subcommand
+pub async fn handle_inspect_pointer(
+    peers: NetworkPeers,
+    pointer_address: PointerAddress,
+) -> Result<()> {
+    let client = dweb::client::AutonomiClient::initialise_and_connect(peers)
+        .await
+        .expect("Failed to connect to Autonomi Network");
+
+    let pointer = match client.client.pointer_get(pointer_address).await {
+        Ok(pointer) => pointer,
+        Err(e) => {
+            let message = format!("Failed to get pointer from network - {e}");
+            println!("{message}");
+            return Err(eyre!(message));
+        }
+    };
+
+    print_pointer(&pointer, &pointer_address);
+
+    Ok(())
+}
+
+fn print_pointer(pointer: &Pointer, pointer_address: &PointerAddress) {
+    println!("pointer     : {}", pointer_address.to_hex());
+    println!("  target    : {:x}", pointer.target().xorname());
+    println!("  counter   : {}", pointer.counter());
+}
+
+/// Implement 'inspect-graphentry' subcommand
+pub async fn handle_inspect_graphentry(
+    peers: NetworkPeers,
+    graph_entry_address: GraphEntryAddress,
+    print_full: bool,
+    shorten_hex_strings: bool,
+) -> Result<()> {
+    let client = dweb::client::AutonomiClient::initialise_and_connect(peers)
+        .await
+        .expect("Failed to connect to Autonomi Network");
+
+    println!(
+        "DEBUG handle_inspect_graphentry() at {}",
+        graph_entry_address.to_hex()
+    );
+
+    let graph_entry = graph_entry_get(&client.client, &graph_entry_address).await?;
+
+    if print_full {
+        graph_entry_print_address(&graph_entry_address);
+        graph_entry_print_owner(&graph_entry, shorten_hex_strings);
+        graph_entry_print_parents(&graph_entry, shorten_hex_strings);
+        graph_entry_print_descendents(&graph_entry, shorten_hex_strings);
+        graph_entry_print_content(&graph_entry, shorten_hex_strings);
+        graph_entry_print_signature(&graph_entry, shorten_hex_strings);
+    } else {
+        graph_entry_print_address(&graph_entry_address);
+        graph_entry_print_content(&graph_entry, shorten_hex_strings);
+    }
+
+    Ok(())
+}
+
+fn graph_entry_print_address(graph_entry_address: &GraphEntryAddress) {
+    println!("graph_entry  : {}", graph_entry_address.to_hex());
+}
+
+fn graph_entry_print_owner(graph_entry: &GraphEntry, shorten_hex_strings: bool) {
+    let mut hex_string = graph_entry.owner.to_hex();
+    if shorten_hex_strings {
+        hex_string = String::from(&format!("{hex_string:.6}.."));
+    };
+
+    println!("  owner      : {hex_string}");
+}
+
+fn graph_entry_print_parents(graph_entry: &GraphEntry, shorten_hex_strings: bool) {
+    print!("  parents    : ");
+    let mut parents = graph_entry.parents.iter();
+    while let Some(public_key) = parents.next() {
+        let mut xor_string = public_key.to_hex();
+
+        if shorten_hex_strings {
+            xor_string = String::from(&format!("{xor_string:.6}.."));
+        };
+        print!("[{xor_string}] ");
+    }
+    println!("");
+}
+
+fn graph_entry_print_descendents(graph_entry: &GraphEntry, shorten_hex_strings: bool) {
+    print!("  descendents: ");
+    let mut descendents = graph_entry.descendants.iter();
+    while let Some((public_key, _)) = descendents.next() {
+        let mut xor_string = public_key.to_hex();
+
+        if shorten_hex_strings {
+            xor_string = String::from(&format!("{xor_string:.6}.."));
+        };
+        print!("[{xor_string}] ");
+    }
+    println!("");
+}
+
+fn graph_entry_print_content(graph_entry: &GraphEntry, shorten_hex_strings: bool) {
+    let mut hex_string: String = hex::encode(&graph_entry.content);
+    if shorten_hex_strings {
+        hex_string = String::from(&format!("{hex_string:.6}.."));
+    };
+
+    println!("  content    : {hex_string}",);
+}
+
+fn graph_entry_print_signature(graph_entry: &GraphEntry, shorten_hex_strings: bool) {
+    let mut hex_string: String = hex::encode(&graph_entry.signature.to_bytes());
+    if shorten_hex_strings {
+        hex_string = String::from(&format!("{hex_string:.6}.."));
+    };
+
+    println!("  signature  : {hex_string}");
 }
 
 // TODO refactor all Register refs to use Transactions when available
@@ -143,7 +243,7 @@ fn do_print_size(size: usize) -> Result<()> {
 //         }
 //         for value in content.values().into_iter() {
 //             let xor_name = xorname_from_entry(value);
-//             println!("   {xor_name:64x}");
+//             println!("   {xor_name:x}");
 //         }
 //     } else {
 //         println!("audit       : empty (no values)");
@@ -249,7 +349,7 @@ fn do_print_size(size: usize) -> Result<()> {
 //     let indentation = "  ".repeat(indents);
 //     let node_entry = xorname_from_entry(&node.value);
 //     println!(
-//         "{indentation}[{order:>2}] Node({:?}..) Entry({node_entry:64x})",
+//         "{indentation}[{order:>2}] Node({:?}..) Entry({node_entry:x})",
 //         order
 //     );
 //     Ok(())
@@ -291,7 +391,7 @@ fn do_print_size(size: usize) -> Result<()> {
 //     for index in first..=last {
 //         let xor_name = xorname_from_entry(&entries_vec[index]);
 //         if include_files {
-//             println!("entry {index} - fetching metadata at {xor_name:64x}");
+//             println!("entry {index} - fetching metadata at {xor_name:x}");
 //             match DirectoryTree::directory_tree_download(client, xor_name).await {
 //                 Ok(metadata) => {
 //                     let _ = do_print_files(&metadata, &files_args);
@@ -302,7 +402,7 @@ fn do_print_size(size: usize) -> Result<()> {
 //                 }
 //             };
 //         } else {
-//             println!("{xor_name:64x}");
+//             println!("{xor_name:x}");
 //         }
 //     }
 
@@ -338,10 +438,10 @@ fn do_print_files(metadata: &DirectoryTree, files_args: &FilesArgs) -> Result<()
                     let date_time = DateTime::<Utc>::from(*modified);
                     let modified_str = date_time.format("%Y-%m-%d %H:%M:%S").to_string();
                     println!(
-                        "{xor_name:64x} {modified_str} \"{path_string}{file_name}\" {size} bytes and JSON: \"{json_metadata}\"",
+                        "{xor_name:x} {modified_str} \"{path_string}{file_name}\" {size} bytes and JSON: \"{json_metadata}\"",
                     );
                 } else {
-                    println!("{xor_name:64x} \"{path_string}{file_name}\"");
+                    println!("{xor_name:x} \"{path_string}{file_name}\"");
                 }
             }
         }
@@ -400,7 +500,7 @@ pub async fn handle_inspect_files(
         .await
         .expect("Failed to connect to Autonomi Network");
 
-    println!("fetching metadata at {metadata_address:64x}");
+    println!("fetching metadata at {metadata_address:x}");
     match DirectoryTree::directory_tree_download(&client, metadata_address).await {
         Ok(metadata) => {
             let _ = do_print_files(&metadata, &files_args);

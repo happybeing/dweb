@@ -21,7 +21,7 @@ use actix_web::{
 use qstring::QString;
 
 use dweb::cache::directory_version::HISTORY_NAMES;
-use dweb::helpers::convert::awe_str_to_history_address;
+use dweb::helpers::convert::str_to_history_address;
 use dweb::web::fetch::response_redirect;
 
 use crate::services::DWEB_SERVICE_WWW;
@@ -60,7 +60,7 @@ pub async fn api_dwebname_register(
         }
     };
 
-    let history_address = match awe_str_to_history_address(&history_address_string) {
+    let history_address = match str_to_history_address(&history_address_string) {
         Ok(history_address) => history_address,
         Err(e) => {
             return HttpResponse::BadRequest()
@@ -79,12 +79,12 @@ pub async fn api_dwebname_register(
                         cached_history_address.to_hex()
                     ));
                 }
-                // println!("DWEB-NAME '{dweb_name}' already registered for {history_address_string}");
+                println!("DWEB-NAME '{dweb_name}' already registered for {history_address_string}");
             } else {
                 lock.insert(dweb_name.clone(), history_address);
-                // println!(
-                //     "DWEB-NAME '{dweb_name}' successfully registered for {history_address_string}"
-                // );
+                println!(
+                    "DWEB-NAME '{dweb_name}' successfully registered for {history_address_string}"
+                );
             }
             if redirect {
                 println!("DEBUG redirecting...");

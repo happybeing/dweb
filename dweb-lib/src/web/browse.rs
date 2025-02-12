@@ -15,10 +15,9 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-use ant_protocol::storage::PointerAddress as HistoryAddress;
+use crate::trove::HistoryAddress;
 
-// Cross platform open browser (assumes dweb serve is running)
-
+/// Cross platform open browser (assumes dweb serve is running)
 pub fn handle_open_browser(
     _dweb_name: String,
     _history_address: Option<HistoryAddress>,

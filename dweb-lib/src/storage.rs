@@ -21,12 +21,11 @@ use walkdir::WalkDir;
 use xor_name::XorName;
 
 use ant_evm::AttoTokens;
-use ant_protocol::storage::PointerAddress as HistoryAddress;
 use autonomi::client::files::archive_public::PublicArchive;
 
 use crate::client::AutonomiClient;
 use crate::trove::directory_tree::{osstr_to_string, DirectoryTree, JsonSettings, WebsiteSettings};
-use crate::trove::History;
+use crate::trove::{History, HistoryAddress};
 
 /// Publish a history entry, creating the history if no name is provided
 ///
@@ -89,7 +88,8 @@ pub async fn publish_or_update_files(
         .await
     } else {
         println!("Getting History from network...");
-        History::<DirectoryTree>::from_name(client.clone(), app_secret_key, name.clone()).await
+        History::<DirectoryTree>::from_name(client.clone(), app_secret_key.clone(), name.clone())
+            .await
     };
 
     let (history_cost, mut files_history) = match result {
@@ -101,7 +101,10 @@ pub async fn publish_or_update_files(
     };
 
     println!("Updating History...");
-    match files_history.publish_new_version(&files_address).await {
+    match files_history
+        .publish_new_version(app_secret_key, &files_address)
+        .await
+    {
         Ok((update_cost, version)) => {
             let total_cost = history_cost.checked_add(update_cost).or(Some(update_cost));
             Ok((
@@ -123,6 +126,7 @@ pub fn report_content_published_or_updated(
     history_address: &HistoryAddress,
     name: &String,
     version: u32,
+    cost: AttoTokens,
     files_root: &PathBuf,
     is_website: bool,
     is_new: bool,
@@ -143,7 +147,7 @@ pub fn report_content_published_or_updated(
     };
 
     println!(
-        "\n{type_str} {action_str} (version {version}). All versions available at HISTORY-ADDRESS:\n{}\nDWEBNAME:\n{name}",
+        "\n{type_str} {action_str} (version {version}). Cost {cost} ANT.\nAll versions available at HISTORY-ADDRESS:\n{}\nDWEBNAME:\n{name}",
         &history_address.to_hex()
     );
     if is_awe {
@@ -232,7 +236,7 @@ pub async fn publish_content(
 
     println!("CONTENT UPLOADED:");
     for (path, datamap_chunk, _metadata) in archive.iter() {
-        println!("{:64x} {path:?}", datamap_chunk);
+        println!("{:x} {path:?}", datamap_chunk);
     }
 
     Ok(archive)
@@ -287,7 +291,7 @@ pub async fn publish_directory(
         let xor_name = directory_tree
             .put_files_metadata_to_network(client.clone())
             .await?;
-        println!("DIRECTORY ADDRESS:\n{xor_name:64x}");
+        println!("DIRECTORY ADDRESS:\n{xor_name:x}");
 
         return Ok(xor_name);
     }

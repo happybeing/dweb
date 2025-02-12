@@ -23,23 +23,23 @@ fixed-dweb-hosts = []
 
 [dependencies]
 # Generated using: awe-dependencies --branch rc-2025.1.1 --ant-path ../../autonomi
-autonomi = { version = "0.3.6-rc.1", path = "../../autonomi/autonomi" }
-ant-bootstrap = { version = "0.1.5-rc.1", path = "../../autonomi/ant-bootstrap" }
-ant-build-info = { version = "0.1.24-rc.1", path = "../../autonomi/ant-build-info" }
-ant-evm = { version = "0.1.9-rc.1", path = "../../autonomi/ant-evm" }
-ant-logging = { version = "0.2.46-rc.1", path = "../../autonomi/ant-logging" }
-ant-networking = { version = "0.3.5-rc.1", path = "../../autonomi/ant-networking" }
-ant-protocol = { version = "0.3.4-rc.1", path = "../../autonomi/ant-protocol" }
+# autonomi = { version = "0.3.6-rc.1", path = "../../autonomi/autonomi" }
+# ant-bootstrap = { version = "0.1.5-rc.1", path = "../../autonomi/ant-bootstrap" }
+# ant-build-info = { version = "0.1.24-rc.1", path = "../../autonomi/ant-build-info" }
+# ant-evm = { version = "0.1.9-rc.1", path = "../../autonomi/ant-evm" }
+# ant-logging = { version = "0.2.46-rc.1", path = "../../autonomi/ant-logging" }
+# ant-networking = { version = "0.3.5-rc.1", path = "../../autonomi/ant-networking" }
+# ant-protocol = { version = "0.3.4-rc.1", path = "../../autonomi/ant-protocol" }
 
 # Generated using: awe-dependencies --branch main --ant-path ../../autonomi
 # where main is at 8c16ea4d3
-# autonomi = { version = "0.3.5", path = "../../autonomi/autonomi" }
-# ant-bootstrap = { version = "0.1.4", path = "../../autonomi/ant-bootstrap" }
-# ant-build-info = { version = "0.1.23", path = "../../autonomi/ant-build-info" }
-# ant-evm = { version = "0.1.8", path = "../../autonomi/ant-evm" }
-# ant-logging = { version = "0.2.45", path = "../../autonomi/ant-logging" }
-# ant-networking = { version = "0.3.4", path = "../../autonomi/ant-networking" }
-# ant-protocol = { version = "0.3.3", path = "../../autonomi/ant-protocol" }
+autonomi = { version = "0.3.5", path = "../../autonomi/autonomi" }
+ant-bootstrap = { version = "0.1.4", path = "../../autonomi/ant-bootstrap" }
+ant-build-info = { version = "0.1.23", path = "../../autonomi/ant-build-info" }
+ant-evm = { version = "0.1.8", path = "../../autonomi/ant-evm" }
+ant-logging = { version = "0.2.45", path = "../../autonomi/ant-logging" }
+ant-networking = { version = "0.3.4", path = "../../autonomi/ant-networking" }
+ant-protocol = { version = "0.3.3", path = "../../autonomi/ant-protocol" }
 
 # Generated using: awe-dependencies --branch main --ant-path ../../autonomi
 # where main is at 8ba9e28d1

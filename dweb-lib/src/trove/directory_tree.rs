@@ -17,7 +17,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use ant_protocol::storage::PointerAddress as HistoryAddress;
 use bytes::{BufMut, BytesMut};
 use chrono::{DateTime, Utc};
 use color_eyre::eyre::{eyre, Result};
@@ -31,7 +30,7 @@ use self_encryption::MAX_CHUNK_SIZE;
 
 use crate::client::AutonomiClient;
 use crate::data::autonomi_get_file_public;
-use crate::trove::{History, Trove};
+use crate::trove::{History, HistoryAddress, Trove};
 
 // The Trove type for a DirectoryTree
 const FILE_TREE_TYPE: &str = "ee383f084cffaab845617b1c43ffaee8b5c17e8fbbb3ad3d379c96b5b844f24e";
@@ -137,7 +136,7 @@ impl DirectoryTree {
         client: &AutonomiClient,
         data_address: FileAddress,
     ) -> Result<DirectoryTree> {
-        println!("DEBUG directory_tree_download() at {data_address:64x}");
+        println!("DEBUG directory_tree_download() at {data_address:x}");
         match autonomi_get_file_public(client, &data_address).await {
             Ok(content) => {
                 println!("Retrieved {} bytes", content.len());

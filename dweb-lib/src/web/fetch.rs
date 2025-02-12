@@ -24,12 +24,10 @@ use mime;
 use url::Url;
 use xor_name::XorName as DirectoryAddress;
 
-use ant_protocol::storage::PointerAddress as HistoryAddress;
-
 use crate::cache::directory_version::{DirectoryVersion, DIRECTORY_VERSIONS, HISTORY_NAMES};
 use crate::client::AutonomiClient;
-use crate::trove::directory_tree::DirectoryTree;
 use crate::trove::History;
+use crate::trove::{directory_tree::DirectoryTree, HistoryAddress};
 use crate::web::name::decode_dweb_host;
 use crate::web::name::DwebHost;
 
@@ -122,7 +120,7 @@ pub async fn fetch_website_version(
     dweb_host: &DwebHost,
 ) -> Result<(u32, DirectoryVersion)> {
     println!(
-        "DEBUG fetch([ {}, {}, {:?} ])...",
+        "DEBUG pub async fn fetch_website_version([ {}, {}, {:?} ])...",
         dweb_host.dweb_host_string, dweb_host.dweb_name, dweb_host.version
     );
     // If the cache has all the info we return, or if it has an entry but no DirectoryTree we can use the addresses
@@ -189,6 +187,18 @@ pub async fn fetch_website_version(
                     ));
                 }
             };
+
+        if let Some(version) = dweb_host.version {
+            if let Ok(history_versions) = history.num_versions() {
+                if version > history_versions {
+                    return Err(eyre!(
+                        "Invalid version {version}, highest version is {history_versions}"
+                    ));
+                } else {
+                    return Err(eyre!("History is empty - no website to display"));
+                }
+            }
+        }
 
         let (directory_address, directory_tree, version) =
             match history.fetch_version_trove(dweb_host.version).await {

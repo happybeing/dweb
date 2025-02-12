@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 use std::path::PathBuf;
 use std::sync::LazyLock;
 
-use ant_protocol::storage::PointerAddress as HistoryAddress;
+use autonomi::GraphEntryAddress;
 use clap::Args;
 use clap::Parser;
 use clap::Subcommand;
@@ -27,8 +27,10 @@ use xor_name::XorName;
 
 use ant_bootstrap::PeersArgs;
 use ant_logging::{LogFormat, LogOutputDest};
+use ant_protocol::storage::PointerAddress;
 
 use dweb::helpers::convert::*;
+use dweb::trove::HistoryAddress;
 
 // TODO add example to each CLI subcommand
 
@@ -216,11 +218,11 @@ pub enum Subcommands {
     #[allow(non_camel_case_types)]
     Inspect_history {
         /// The address of a history on Autonomi
-        #[clap(name = "HISTORY-ADDRESS", value_parser = str_to_pointer_address)]
+        #[clap(name = "HISTORY-ADDRESS", value_parser = str_to_history_address)]
         history_address: HistoryAddress,
 
         /// Print a summary of the history including type (the value of entry 0) and number of entries
-        #[clap(long = "history-summary", short = 'r', default_value = "false")]
+        #[clap(long = "history-summary", short = 'a', default_value = "false")]
         print_history_summary: bool,
 
         /// Print the type of data recorded in the history (the value of entry 0)
@@ -250,6 +252,38 @@ pub enum Subcommands {
 
         #[command(flatten)]
         files_args: FilesArgs,
+    },
+
+    /// Print information about a graph entry stored on Autonomi.
+    ///
+    /// Note: descendents are shown as public keys rather than addresses. This is for
+    /// two reasons. Firstly this is what is stored in the graph entry, and secondly
+    /// they cannot be converted to addresses without the main public key of the History
+    /// or Register which created them. I assume this is to prevent someone finding a
+    /// graph entry and then following the graph without having the public key of
+    /// the History or Register. If you wish to follow the graph, see the inspect-history
+    /// command.
+    #[allow(non_camel_case_types)]
+    Inspect_graphentry {
+        /// The address of a graph entry on Autonomi
+        #[clap(name = "GRAPHENTRY-ADDRESS", value_parser = str_to_graph_entry_address)]
+        graph_entry_address: GraphEntryAddress,
+
+        /// Print full details of graph entry
+        #[clap(long = "full", short = 'f', default_value = "false")]
+        print_full: bool,
+
+        /// Shorten long hex strings to the first six characters plus '..'
+        #[clap(long = "brief", short = 'b', default_value = "false")]
+        shorten_hex_strings: bool,
+    },
+
+    /// Print information about a pointer stored on Autonomi
+    #[allow(non_camel_case_types)]
+    Inspect_pointer {
+        /// The address of a pointer on Autonomi
+        #[clap(name = "POINTER-ADDRESS", value_parser = str_to_pointer_address)]
+        pointer_address: PointerAddress,
     },
 
     /// Print information about files in a directory on Autonomi
@@ -289,7 +323,7 @@ pub struct FilesArgs {
     pub print_metadata_summary: bool,
 
     /// Print the number of directories and files
-    #[clap(long = "count", short = 'c', default_value = "false")]
+    #[clap(long = "numbers", short = 'n', default_value = "false")]
     pub print_counts: bool,
 
     /// Print the total number of bytes for all files

@@ -15,6 +15,7 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+use autonomi::graph;
 use color_eyre::{eyre::eyre, Result};
 
 use dweb::{
@@ -116,7 +117,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             include_files,
             files_args,
         }) => {
-            match crate::commands::cmd_inspect::handle_inspect_pointer(
+            match crate::commands::cmd_inspect::handle_inspect_history(
                 peers.await?,
                 history_address,
                 print_history_summary,
@@ -125,6 +126,42 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                 entries_range,
                 include_files,
                 files_args,
+            )
+            .await
+            {
+                Ok(()) => return Ok(true),
+                Err(e) => {
+                    println!("{e:?}");
+                    return Err(e);
+                }
+            }
+        }
+
+        Some(Subcommands::Inspect_graphentry {
+            graph_entry_address,
+            print_full,
+            shorten_hex_strings,
+        }) => {
+            match crate::commands::cmd_inspect::handle_inspect_graphentry(
+                peers.await?,
+                graph_entry_address,
+                print_full,
+                shorten_hex_strings,
+            )
+            .await
+            {
+                Ok(()) => return Ok(true),
+                Err(e) => {
+                    println!("{e:?}");
+                    return Err(e);
+                }
+            }
+        }
+
+        Some(Subcommands::Inspect_pointer { pointer_address }) => {
+            match crate::commands::cmd_inspect::handle_inspect_pointer(
+                peers.await?,
+                pointer_address,
             )
             .await
             {

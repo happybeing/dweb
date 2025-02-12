@@ -238,7 +238,7 @@ async fn register_builtins(is_local: bool) {
 async fn register_name(dweb_name: &str, history_address_str: &str) {
     if history_address_str != "" {
         if let Ok(history_address) =
-            dweb::helpers::convert::str_to_pointer_address(history_address_str)
+            dweb::helpers::convert::str_to_history_address(history_address_str)
         {
             match dweb::web::name::dwebname_register(dweb_name, history_address).await {
                 Ok(_) => {

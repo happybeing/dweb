@@ -15,19 +15,36 @@ You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-use ant_protocol::storage::PointerAddress as HistoryAddress;
+use ant_protocol::storage::PointerAddress;
+use autonomi::GraphEntryAddress;
 use color_eyre::eyre::{eyre, Result};
 use xor_name::XorName;
 
+use crate::trove::HistoryAddress;
+
 // The following functions copied from sn_cli with minor changes (eg to message text)
 
-/// Parse a hex HistoryAddress  with optional URL scheme
-pub fn str_to_pointer_address(str: &str) -> Result<HistoryAddress> {
+/// Parse a hex HistoryAddress
+pub fn str_to_history_address(str: &str) -> Result<HistoryAddress> {
+    match HistoryAddress::from_hex(str) {
+        Ok(history_address) => Ok(history_address),
+        Err(e) => Err(eyre!("Invalid History address string '{str}':\n{e:?}")),
+    }
+}
+
+/// Parse a hex HistoryAddress
+pub fn str_to_graph_entry_address(str: &str) -> Result<GraphEntryAddress> {
     match str_to_xor_name(str) {
-        Ok(xor_name) => Ok(HistoryAddress::new(xor_name)),
-        Err(e) => Err(eyre!(
-            "Invalid History (pointer) address string '{str}':\n{e:?}"
-        )),
+        Ok(xor_name) => Ok(GraphEntryAddress::new(xor_name)),
+        Err(e) => Err(eyre!("Invalid graph entry address string '{str}':\n{e:?}")),
+    }
+}
+
+/// Parse a hex PointerAddress
+pub fn str_to_pointer_address(str: &str) -> Result<PointerAddress> {
+    match str_to_xor_name(str) {
+        Ok(xor_name) => Ok(PointerAddress::new(xor_name)),
+        Err(e) => Err(eyre!("Invalid pointer address string '{str}':\n{e:?}")),
     }
 }
 
@@ -103,7 +120,7 @@ pub fn awe_str_to_history_address(str: &str) -> Result<HistoryAddress> {
         &str
     };
 
-    match str_to_pointer_address(str) {
+    match str_to_history_address(str) {
         Ok(history_address) => Ok(history_address),
         Err(e) => Err(eyre!(
             "Invalid History (pointer) address string '{str}':\n{e:?}"
@@ -112,7 +129,7 @@ pub fn awe_str_to_history_address(str: &str) -> Result<HistoryAddress> {
 }
 
 /// Parse a hex PointerAddress with optional URL scheme
-pub fn awe_str_to_pointer_address(str: &str) -> Result<HistoryAddress> {
+pub fn awe_str_to_pointer_address(str: &str) -> Result<PointerAddress> {
     let str = if str.starts_with(AWE_PROTOCOL_HISTORY) {
         &str[AWE_PROTOCOL_HISTORY.len()..]
     } else {

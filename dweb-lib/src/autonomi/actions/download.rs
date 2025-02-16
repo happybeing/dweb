@@ -20,7 +20,7 @@ use color_eyre::{
 };
 use std::path::PathBuf;
 
-pub async fn download(addr: &str, dest_path: &str, client: &mut Client) -> Result<()> {
+pub async fn download(addr: &str, dest_path: &str, client: &Client) -> Result<()> {
     let public_address = str_to_addr(addr).ok();
     let private_address =
         crate::autonomi::access::user_data::get_local_private_archive_access(addr)
@@ -41,10 +41,10 @@ async fn download_private(
     addr: &str,
     private_address: PrivateArchiveAccess,
     dest_path: &str,
-    client: &mut Client,
+    client: &Client,
 ) -> Result<()> {
     let archive = client
-        .archive_get(private_address)
+        .archive_get(&private_address)
         .await
         .wrap_err("Failed to fetch data from address")?;
 
@@ -52,7 +52,7 @@ async fn download_private(
     let mut all_errs = vec![];
     for (path, access, _meta) in archive.iter() {
         progress_bar.println(format!("Fetching file: {path:?}..."));
-        let bytes = match client.data_get(access.clone()).await {
+        let bytes = match client.data_get(access).await {
             Ok(bytes) => bytes,
             Err(e) => {
                 let err = format!("Failed to fetch file {path:?}: {e}");
@@ -72,13 +72,11 @@ async fn download_private(
 
     if all_errs.is_empty() {
         println!("Successfully downloaded private data with local address: {addr}");
-        println!("Successfully downloaded private data with local address: {addr}");
         Ok(())
     } else {
         let err_no = all_errs.len();
         eprintln!("{err_no} errors while downloading private data with local address: {addr}");
         eprintln!("{all_errs:#?}");
-        println!("Errors while downloading private data with local address {addr}: {all_errs:#?}");
         Err(eyre!("Errors while downloading private data"))
     }
 }
@@ -87,10 +85,10 @@ async fn download_public(
     addr: &str,
     address: ArchiveAddr,
     dest_path: &str,
-    client: &mut Client,
+    client: &Client,
 ) -> Result<()> {
     let archive = client
-        .archive_get_public(address)
+        .archive_get_public(&address)
         .await
         .wrap_err("Failed to fetch data from address")?;
 
@@ -98,7 +96,7 @@ async fn download_public(
     let mut all_errs = vec![];
     for (path, addr, _meta) in archive.iter() {
         progress_bar.println(format!("Fetching file: {path:?}..."));
-        let bytes = match client.data_get_public(*addr).await {
+        let bytes = match client.data_get_public(addr).await {
             Ok(bytes) => bytes,
             Err(e) => {
                 let err = format!("Failed to fetch file {path:?}: {e}");
@@ -117,7 +115,6 @@ async fn download_public(
     progress_bar.finish_and_clear();
 
     if all_errs.is_empty() {
-        println!("Successfully downloaded data at: {addr}");
         println!("Successfully downloaded data at: {addr}");
         Ok(())
     } else {

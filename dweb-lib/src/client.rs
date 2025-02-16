@@ -60,19 +60,19 @@ impl AutonomiClient {
         println!("Dweb Autonomi client initialising...");
         let client = crate::autonomi::actions::connect_to_network(peers).await?;
 
-        let wallet = match load_evm_wallet_from_env(&client.evm_network) {
+        let wallet = match load_evm_wallet_from_env(&client.evm_network()) {
             Ok(wallet) => wallet,
             Err(_e) => {
                 let client = client.clone();
                 println!("Failed to load wallet for payments - client will only have read accesss to Autonomi");
-                Wallet::new_with_random_wallet(client.evm_network.clone())
+                Wallet::new_with_random_wallet(client.evm_network().clone())
             }
         };
 
         let client = client.clone();
         Ok(AutonomiClient {
             client: client.clone(),
-            network: client.evm_network.clone(),
+            network: client.evm_network().clone(),
             wallet,
         })
     }
@@ -82,6 +82,6 @@ impl AutonomiClient {
     }
 
     pub async fn data_get_public(&self, address: FileAddress) -> Result<Bytes, GetError> {
-        self.client.data_get_public(address).await
+        self.client.data_get_public(&address).await
     }
 }

@@ -21,8 +21,12 @@ use dweb::trove::History;
 use xor_name::XorName;
 
 use ant_protocol::storage::{GraphEntry, GraphEntryAddress, Pointer, PointerAddress};
+use autonomi::client::key_derivation::{DerivationIndex, MainPubkey};
+use blsttc::PublicKey;
 
 use dweb::autonomi::access::network::NetworkPeers;
+use dweb::client::AutonomiClient;
+use dweb::helpers::convert::str_to_xor_name;
 use dweb::helpers::graph_entry::graph_entry_get;
 use dweb::trove::{directory_tree::DirectoryTree, HistoryAddress};
 
@@ -32,70 +36,129 @@ use crate::cli_options::{EntriesRange, FilesArgs};
 pub async fn handle_inspect_history(
     peers: NetworkPeers,
     history_address: HistoryAddress,
-    print_summary: bool,
-    print_type: bool,
-    print_size: bool,
-    _entries_range: Option<EntriesRange>,
-    _include_files: bool,
-    _files_args: FilesArgs,
+    print_history_full: bool,
+    entries_range: Option<EntriesRange>,
+    include_files: bool,
+    graph_keys: bool,
+    shorten_hex_strings: bool,
+    files_args: FilesArgs,
 ) -> Result<()> {
     let client = dweb::client::AutonomiClient::initialise_and_connect(peers)
         .await
         .expect("Failed to connect to Autonomi Network");
 
-    let history =
-        match History::<DirectoryTree>::from_history_address(client, history_address).await {
+    let mut history =
+        match History::<DirectoryTree>::from_history_address(client.clone(), history_address).await
+        {
             Ok(pointer) => pointer,
             Err(e) => {
-                let message = format!("Failed to get pointer from network - {e}");
+                let message = format!("Failed to get History pointer from network - {e}");
                 println!("{message}");
                 return Err(eyre!(message));
             }
         };
 
-    let pointer = history.pointer();
-    if print_summary {
-        print_pointer(&pointer, &pointer.address());
-    } else {
-        if print_size {
-            do_print_size(pointer.counter() as usize - 1)?;
+    print_history(&client, &history, print_history_full, shorten_hex_strings);
+    if let Some(entries_range) = entries_range {
+        let size = history.num_entries();
+        let first = if entries_range.start.is_some() {
+            entries_range.start.unwrap()
+        } else {
+            0
+        };
+
+        let last = if entries_range.end.is_some() {
+            entries_range.end.unwrap()
+        } else {
+            size - 1
+        };
+
+        if last > size - 1 {
+            return Err(eyre!(
+                "range exceeds maximum register entry which is {}",
+                size - 1
+            ));
+        }
+
+        // As entries_vec[] is in reverse order we adjust the start and end and count backwards
+        println!("  entries {first} to {last:2}:");
+        let mut index = first;
+        let mut entry_iter = history.get_graph_entry(index).await?;
+
+        while index <= last {
+            println!("    entry {index:4.}:");
+            print_graphentry(
+                &client,
+                "    ",
+                &entry_iter,
+                graph_keys,
+                print_history_full,
+                shorten_hex_strings,
+                Some(&history),
+            )
+            .await?;
+            let directory_address = str_to_xor_name(&hex::encode(entry_iter.content))?;
+            if include_files {
+                println!("    entry {index} - fetching content at {directory_address:x}");
+                match DirectoryTree::directory_tree_download(&client, directory_address).await {
+                    Ok(directory) => {
+                        let _ = print_files("      ", &directory, &files_args);
+                    }
+                    Err(e) => {
+                        println!("Failed to get website directory from network");
+                        return Err(eyre!(e));
+                    }
+                };
+            }
+            if index <= last {
+                entry_iter = match history.get_child_entry_of(&entry_iter).await? {
+                    Some(entry) => entry,
+                    None => return Err(eyre!("failed to get child entry for history")),
+                }
+            };
+            index = index + 1;
         }
     }
 
-    // if let Some(entries_range) = entries_range {
-    //     do_print_entries(
-    //         &client,
-    //         &entries_range,
-    //         entries_vec,
-    //         include_files,
-    //         &files_args,
-    //     )
-    //     .await?;
-    // };
-
-    // if print_audit {
-    //     let _ = do_print_audit(&register);
-    // }
-
-    // if print_merkle_reg {
-    //     let _ = do_print_merkle_reg(&register);
-    // }
-
     Ok(())
 }
 
-fn do_print_type(history_type: Option<XorName>) -> Result<()> {
-    if history_type.is_some() {
-        println!("history type: {:x}", history_type.unwrap());
-    } else {
-        println!("history type: not set");
+fn print_history(
+    _client: &AutonomiClient,
+    history: &History<DirectoryTree>,
+    full: bool,
+    shorten_hex_strings: bool,
+) {
+    println!("history address  : {}", history.history_address().to_hex());
+
+    let mut type_string = format!("{}", hex::encode(History::<DirectoryTree>::trove_type()));
+    let mut pointer_string = history.pointer().address().to_hex();
+    let mut root_string = history
+        .history_address()
+        .to_underlying_graph_root()
+        .to_hex();
+    let mut head_string = hex::encode(history.pointer().target().xorname());
+    if shorten_hex_strings {
+        type_string = format!("{}", History::<DirectoryTree>::trove_type());
+        pointer_string = format!("{}", history.pointer().address().xorname());
+        root_string = format!(
+            "{}",
+            history
+                .history_address()
+                .to_underlying_graph_root()
+                .xorname()
+        );
+        head_string = format!("{}", history.pointer().target().xorname());
     }
-    Ok(())
-}
 
-fn do_print_size(size: usize) -> Result<()> {
-    println!("size        : {size}");
-    Ok(())
+    println!("  type           : {type_string}",);
+    println!("  size           : {}", history.pointer().counter());
+
+    if full {
+        println!("  pointer address: {pointer_string}");
+        println!("  graph root     : {root_string}");
+        println!("  graph head     : {head_string}");
+    }
 }
 
 /// Implement 'inspect-pointer' subcommand
@@ -131,53 +194,84 @@ fn print_pointer(pointer: &Pointer, pointer_address: &PointerAddress) {
 pub async fn handle_inspect_graphentry(
     peers: NetworkPeers,
     graph_entry_address: GraphEntryAddress,
-    print_full: bool,
+    full: bool,
     shorten_hex_strings: bool,
 ) -> Result<()> {
     let client = dweb::client::AutonomiClient::initialise_and_connect(peers)
         .await
         .expect("Failed to connect to Autonomi Network");
 
-    println!(
-        "DEBUG handle_inspect_graphentry() at {}",
-        graph_entry_address.to_hex()
-    );
-
     let graph_entry = graph_entry_get(&client.client, &graph_entry_address).await?;
 
-    if print_full {
-        graph_entry_print_address(&graph_entry_address);
-        graph_entry_print_owner(&graph_entry, shorten_hex_strings);
-        graph_entry_print_parents(&graph_entry, shorten_hex_strings);
-        graph_entry_print_descendents(&graph_entry, shorten_hex_strings);
-        graph_entry_print_content(&graph_entry, shorten_hex_strings);
-        graph_entry_print_signature(&graph_entry, shorten_hex_strings);
+    print_graphentry(
+        &client,
+        "",
+        &graph_entry,
+        false,
+        full,
+        shorten_hex_strings,
+        None,
+    )
+    .await?;
+    Ok(())
+}
+
+/// Print full or partial details for a GraphEntry
+/// If History is Some, shows parent and descendent as network addresses rather than public keys
+pub async fn print_graphentry(
+    _client: &AutonomiClient,
+    indent: &str,
+    graph_entry: &GraphEntry,
+    graph_keys: bool,
+    full: bool,
+    shorten_hex_strings: bool,
+    history: Option<&History<DirectoryTree>>,
+) -> Result<()> {
+    let history = if graph_keys { None } else { history };
+    if full {
+        graph_entry_print_address(indent, &graph_entry.address());
+        graph_entry_print_owner(indent, &graph_entry, shorten_hex_strings);
+        let _ = graph_entry_print_parents(indent, &graph_entry, shorten_hex_strings, history).await;
+        graph_entry_print_descendents(indent, &graph_entry, shorten_hex_strings, history);
+        graph_entry_print_content(indent, &graph_entry, shorten_hex_strings);
+        graph_entry_print_signature(indent, &graph_entry, shorten_hex_strings);
     } else {
-        graph_entry_print_address(&graph_entry_address);
-        graph_entry_print_content(&graph_entry, shorten_hex_strings);
+        graph_entry_print_address(indent, &graph_entry.address());
+        graph_entry_print_content(indent, &graph_entry, shorten_hex_strings);
     }
 
     Ok(())
 }
 
-fn graph_entry_print_address(graph_entry_address: &GraphEntryAddress) {
-    println!("graph_entry  : {}", graph_entry_address.to_hex());
+fn graph_entry_print_address(indent: &str, graph_entry_address: &GraphEntryAddress) {
+    println!("{indent}address   : {}", graph_entry_address.to_hex());
 }
 
-fn graph_entry_print_owner(graph_entry: &GraphEntry, shorten_hex_strings: bool) {
+fn graph_entry_print_owner(indent: &str, graph_entry: &GraphEntry, shorten_hex_strings: bool) {
     let mut hex_string = graph_entry.owner.to_hex();
     if shorten_hex_strings {
         hex_string = String::from(&format!("{hex_string:.6}.."));
     };
 
-    println!("  owner      : {hex_string}");
+    println!("{indent}  owner      : {hex_string}");
 }
 
-fn graph_entry_print_parents(graph_entry: &GraphEntry, shorten_hex_strings: bool) {
-    print!("  parents    : ");
+/// If history is Some prints address rather than public key of parent(s)
+async fn graph_entry_print_parents(
+    indent: &str,
+    graph_entry: &GraphEntry,
+    shorten_hex_strings: bool,
+    history: Option<&History<DirectoryTree>>,
+) -> Result<()> {
+    print!("{indent}  parents    : ");
     let mut parents = graph_entry.parents.iter();
+
     while let Some(public_key) = parents.next() {
-        let mut xor_string = public_key.to_hex();
+        let mut xor_string = if history.is_none() {
+            public_key.to_hex()
+        } else {
+            GraphEntryAddress::from_owner(*public_key).to_hex()
+        };
 
         if shorten_hex_strings {
             xor_string = String::from(&format!("{xor_string:.6}.."));
@@ -185,13 +279,30 @@ fn graph_entry_print_parents(graph_entry: &GraphEntry, shorten_hex_strings: bool
         print!("[{xor_string}] ");
     }
     println!("");
+    Ok(())
 }
 
-fn graph_entry_print_descendents(graph_entry: &GraphEntry, shorten_hex_strings: bool) {
-    print!("  descendents: ");
+/// If history is Some prints address rather than public key of parent(s)
+fn graph_entry_print_descendents(
+    indent: &str,
+    graph_entry: &GraphEntry,
+    shorten_hex_strings: bool,
+    history: Option<&History<DirectoryTree>>,
+) {
+    print!("{indent}  descendents: ");
     let mut descendents = graph_entry.descendants.iter();
-    while let Some((public_key, _)) = descendents.next() {
-        let mut xor_string = public_key.to_hex();
+    while let Some((public_key, derivation_index)) = descendents.next() {
+        let mut xor_string = if history.is_none() {
+            public_key.to_hex()
+        } else {
+            let next_derivation = DerivationIndex::from_bytes(*derivation_index);
+            let next_entry_pk: PublicKey =
+                MainPubkey::from(history.as_ref().unwrap().history_address().owner)
+                    .derive_key(&next_derivation)
+                    .into();
+            let child = GraphEntryAddress::from_owner(next_entry_pk);
+            child.to_hex()
+        };
 
         if shorten_hex_strings {
             xor_string = String::from(&format!("{xor_string:.6}.."));
@@ -201,247 +312,42 @@ fn graph_entry_print_descendents(graph_entry: &GraphEntry, shorten_hex_strings: 
     println!("");
 }
 
-fn graph_entry_print_content(graph_entry: &GraphEntry, shorten_hex_strings: bool) {
+fn graph_entry_print_content(indent: &str, graph_entry: &GraphEntry, shorten_hex_strings: bool) {
     let mut hex_string: String = hex::encode(&graph_entry.content);
     if shorten_hex_strings {
         hex_string = String::from(&format!("{hex_string:.6}.."));
     };
 
-    println!("  content    : {hex_string}",);
+    println!("{indent}  content    : {hex_string}",);
 }
 
-fn graph_entry_print_signature(graph_entry: &GraphEntry, shorten_hex_strings: bool) {
+fn graph_entry_print_signature(indent: &str, graph_entry: &GraphEntry, shorten_hex_strings: bool) {
     let mut hex_string: String = hex::encode(&graph_entry.signature.to_bytes());
     if shorten_hex_strings {
         hex_string = String::from(&format!("{hex_string:.6}.."));
     };
 
-    println!("  signature  : {hex_string}");
+    println!("{indent}  signature  : {hex_string}");
 }
 
-// TODO refactor all Register refs to use Transactions when available
-// fn do_print_merkle_reg(register: &Register) -> Result<()> {
-//     println!("{:?}", register.inner_merkle_reg());
-//     Ok(())
-// }
+fn print_files(indent: &str, directory: &DirectoryTree, files_args: &FilesArgs) -> Result<()> {
+    let directory_stats = directory_stats(directory)?;
 
-// fn do_print_audit_summary(register: &Register) -> Result<()> {
-//     let merkle_reg = register.inner_merkle_reg();
-//     let content = merkle_reg.read();
-
-//     if content.nodes().nth(0).is_some() {
-//         println!("audit       :");
-//         // Print current/root value(s)
-//         // The 'roots' are one or more current values
-//         // We always write and merge so this should always be a single value
-//         let num_root_values = content.values().into_iter().count();
-
-//         if num_root_values == 1 {
-//             println!("   current state is merged, 1 value:");
-//         } else {
-//             println!("   current state is NOT merged, {num_root_values} values:");
-//         }
-//         for value in content.values().into_iter() {
-//             let xor_name = xorname_from_entry(value);
-//             println!("   {xor_name:x}");
-//         }
-//     } else {
-//         println!("audit       : empty (no values)");
-//     }
-
-//     Ok(())
-// }
-
-// fn do_print_audit(register: &Register) -> Result<()> {
-//     let merkle_reg = register.inner_merkle_reg();
-//     let content = merkle_reg.read();
-
-//     let node = content.nodes().nth(0);
-//     if let Some(_node) = node {
-//         print_audit_for_nodes(merkle_reg);
-//     } else {
-//         println!("history     : empty (no values)");
-//     }
-
-//     Ok(())
-// }
-
-// fn print_audit_for_nodes(merkle_reg: &crdts::merkle_reg::MerkleReg<Entry>) {
-//     // Show the Register structure
-//     let content = merkle_reg.read();
-
-//     // Index nodes to make it easier to see where a
-//     // node appears multiple times in the output.
-//     // Note: it isn't related to the order of insertion
-//     // which is hard to determine.
-//     let mut index: usize = 0;
-//     let mut node_ordering: HashMap<Hash, usize> = HashMap::new();
-//     for (_hash, node) in content.hashes_and_nodes() {
-//         index_node_and_descendants(node, &mut index, &mut node_ordering, merkle_reg);
-//     }
-
-//     println!("======================");
-//     println!("Root (Latest) Node(s):");
-//     for node in content.nodes() {
-//         let _ = print_node(0, node, &node_ordering);
-//     }
-
-//     println!("======================");
-//     println!("Register Structure:");
-//     println!("(In general, earlier nodes are more indented)");
-//     let mut indents = 0;
-//     for (_hash, node) in content.hashes_and_nodes() {
-//         print_node_and_descendants(&mut indents, node, &node_ordering, merkle_reg);
-//     }
-
-//     println!("======================");
-// }
-
-// fn index_node_and_descendants(
-//     node: &Node<Entry>,
-//     index: &mut usize,
-//     node_ordering: &mut HashMap<Hash, usize>,
-//     merkle_reg: &MerkleReg<Entry>,
-// ) {
-//     let node_hash = node.hash();
-//     if node_ordering.get(&node_hash).is_none() {
-//         node_ordering.insert(node_hash, *index);
-//         *index += 1;
-//     }
-
-//     for child_hash in node.children.iter() {
-//         if let Some(child_node) = merkle_reg.node(*child_hash) {
-//             index_node_and_descendants(child_node, index, node_ordering, merkle_reg);
-//         } else {
-//             println!("ERROR looking up hash of child");
-//         }
-//     }
-// }
-
-// fn print_node_and_descendants(
-//     indents: &mut usize,
-//     node: &Node<Entry>,
-//     node_ordering: &HashMap<Hash, usize>,
-//     merkle_reg: &MerkleReg<Entry>,
-// ) {
-//     let _ = print_node(*indents, node, node_ordering);
-
-//     *indents += 1;
-//     for child_hash in node.children.iter() {
-//         if let Some(child_node) = merkle_reg.node(*child_hash) {
-//             // let xor_name = xorname_from_entry(child_node.value());
-//             print_node_and_descendants(indents, child_node, node_ordering, merkle_reg);
-//         }
-//     }
-//     *indents -= 1;
-// }
-
-// fn print_node(
-//     indents: usize,
-//     node: &Node<Entry>,
-//     node_ordering: &HashMap<Hash, usize>,
-// ) -> Result<()> {
-//     let order = match node_ordering.get(&node.hash()) {
-//         Some(order) => format!("{order}"),
-//         None => String::new(),
-//     };
-
-//     let indentation = "  ".repeat(indents);
-//     let node_entry = xorname_from_entry(&node.value);
-//     println!(
-//         "{indentation}[{order:>2}] Node({:?}..) Entry({node_entry:x})",
-//         order
-//     );
-//     Ok(())
-// }
-
-// async fn do_print_entries(
-//     client: &AutonomiClient,
-//     entries_range: &EntriesRange,
-//     entries_vec: Vec<Entry>,
-//     include_files: bool,
-//     files_args: &FilesArgs,
-// ) -> Result<()> {
-//     let size = entries_vec.len();
-//     if size == 0 {
-//         return Ok(());
-//     }
-
-//     let first = if entries_range.start.is_some() {
-//         entries_range.start.unwrap()
-//     } else {
-//         0
-//     };
-
-//     let last = if entries_range.end.is_some() {
-//         entries_range.end.unwrap()
-//     } else {
-//         size - 1
-//     };
-
-//     if last > size - 1 {
-//         return Err(eyre!(
-//             "range exceeds maximum register entry which is {}",
-//             size - 1
-//         ));
-//     }
-
-//     // As entries_vec[] is in reverse order we adjust the start and end and count backwards
-//     println!("entries {first} to {last}:");
-//     for index in first..=last {
-//         let xor_name = xorname_from_entry(&entries_vec[index]);
-//         if include_files {
-//             println!("entry {index} - fetching metadata at {xor_name:x}");
-//             match DirectoryTree::directory_tree_download(client, xor_name).await {
-//                 Ok(metadata) => {
-//                     let _ = do_print_files(&metadata, &files_args);
-//                 }
-//                 Err(e) => {
-//                     println!("Failed to get website metadata from network");
-//                     return Err(eyre!(e));
-//                 }
-//             };
-//         } else {
-//             println!("{xor_name:x}");
-//         }
-//     }
-
-//     Ok(())
-// }
-
-fn do_print_files(metadata: &DirectoryTree, files_args: &FilesArgs) -> Result<()> {
-    let metadata_stats = if files_args.print_metadata_summary
-        || files_args.print_counts
-        || files_args.print_total_bytes
-    {
-        metadata_stats(metadata)?
-    } else {
-        (0, 0)
-    };
-
-    if files_args.print_metadata_summary {
-        let _ = do_print_metadata_summary(metadata, metadata_stats);
-    } else {
-        if files_args.print_counts {
-            let _ = do_print_counts(metadata, metadata_stats.0);
-        }
-
-        if files_args.print_total_bytes {
-            let _ = do_print_total_bytes(metadata_stats.1);
-        }
-    }
+    println!("{indent}published  : {}", directory.date_published);
+    let _ = print_counts(indent, directory, directory_stats.0);
+    let _ = print_total_size(indent, directory_stats.1);
 
     if files_args.print_paths || files_args.print_all_details {
-        for (path_string, path_map) in metadata.path_map.paths_to_files_map.iter() {
+        for (path_string, path_map) in directory.path_map.paths_to_files_map.iter() {
             for (file_name, xor_name, modified, size, json_metadata) in path_map.iter() {
                 if files_args.print_all_details {
                     let date_time = DateTime::<Utc>::from(*modified);
                     let modified_str = date_time.format("%Y-%m-%d %H:%M:%S").to_string();
                     println!(
-                        "{xor_name:x} {modified_str} \"{path_string}{file_name}\" {size} bytes and JSON: \"{json_metadata}\"",
+                        "{indent}{xor_name:x} {modified_str} \"{path_string}{file_name}\" {size} bytes and JSON: \"{json_metadata}\"",
                     );
                 } else {
-                    println!("{xor_name:x} \"{path_string}{file_name}\"");
+                    println!("{indent}{xor_name:x} \"{path_string}{file_name}\"");
                 }
             }
         }
@@ -450,63 +356,53 @@ fn do_print_files(metadata: &DirectoryTree, files_args: &FilesArgs) -> Result<()
     Ok(())
 }
 
-fn metadata_stats(metadata: &DirectoryTree) -> Result<(usize, u64)> {
+fn directory_stats(directory: &DirectoryTree) -> Result<(usize, u64)> {
     let mut files_count: usize = 0;
     let mut total_bytes: u64 = 0;
 
-    for (_, path_map) in metadata.path_map.paths_to_files_map.iter() {
+    for (_, path_map) in directory.path_map.paths_to_files_map.iter() {
         files_count = files_count + path_map.len();
 
-        for file_metadata in path_map {
-            total_bytes = total_bytes + file_metadata.3
+        for file_directory in path_map {
+            total_bytes = total_bytes + file_directory.3
         }
     }
 
     Ok((files_count, total_bytes))
 }
 
-fn do_print_metadata_summary(metadata: &DirectoryTree, metadata_stats: (usize, u64)) -> Result<()> {
-    println!("published  : {}", metadata.date_published);
-    let _ = do_print_counts(metadata, metadata_stats.0);
-    let _ = do_print_total_bytes(metadata_stats.1);
-    Ok(())
-}
-
-fn do_print_counts(metadata: &DirectoryTree, count_files: usize) -> Result<()> {
+fn print_counts(indent: &str, directory: &DirectoryTree, count_files: usize) -> Result<()> {
     println!(
-        "directories: {}",
-        metadata.path_map.paths_to_files_map.len()
+        "{indent}directories: {}",
+        directory.path_map.paths_to_files_map.len()
     );
-    println!("files      : {count_files}");
+    println!("{indent}files      : {count_files}");
     Ok(())
 }
 
-fn do_print_total_bytes(total_bytes: u64) -> Result<()> {
-    println!("total bytes: {total_bytes}");
+fn print_total_size(indent: &str, total_bytes: u64) -> Result<()> {
+    println!("{indent}total bytes: {total_bytes}");
     Ok(())
 }
 
 /// Implement 'inspect-files' subcommand
 ///
-/// Accepts a metadata address
-///
-/// TODO extend treatment to handle register with branches etc (post stabilisation of the Autonomi API)
 pub async fn handle_inspect_files(
     peers: NetworkPeers,
-    metadata_address: XorName,
+    directory_address: XorName,
     files_args: FilesArgs,
 ) -> Result<()> {
     let client = dweb::client::AutonomiClient::initialise_and_connect(peers)
         .await
         .expect("Failed to connect to Autonomi Network");
 
-    println!("fetching metadata at {metadata_address:x}");
-    match DirectoryTree::directory_tree_download(&client, metadata_address).await {
-        Ok(metadata) => {
-            let _ = do_print_files(&metadata, &files_args);
+    println!("fetching directory at {directory_address:x}");
+    match DirectoryTree::directory_tree_download(&client, directory_address).await {
+        Ok(directory) => {
+            let _ = print_files("", &directory, &files_args);
         }
         Err(e) => {
-            println!("Failed to get website metadata from network");
+            println!("Failed to get website directory from network");
             return Err(eyre!(e).into());
         }
     };

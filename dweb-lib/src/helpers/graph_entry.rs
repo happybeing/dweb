@@ -39,7 +39,7 @@ pub fn debug_print_graph_entry(
     };
 
     println!(
-        "DEBUG {intro} graph entry with address {}{showing_addresses}",
+        "debug_print_graph_entry() {intro} graph entry with address {}{showing_addresses}",
         graph_entry.address().to_hex()
     );
     let parents = if graph_entry.parents.len() > 0 {
@@ -86,11 +86,11 @@ pub async fn graph_entry_get(
     client: &Client,
     graph_entry_address: &GraphEntryAddress,
 ) -> Result<GraphEntry> {
-    println!("DEBUG graph_entry_get() {}", graph_entry_address.to_hex());
+    // println!("DEBUG graph_entry_get() {}", graph_entry_address.to_hex());
 
     match client.graph_entry_get(graph_entry_address).await {
         Ok(entry) => {
-            debug_print_graph_entry("returning", &entry, None);
+            // debug_print_graph_entry("returning", &entry, None);
             Ok(entry)
         }
         Err(GraphError::Fork(entries)) => {
@@ -104,7 +104,7 @@ pub async fn graph_entry_get(
                 })
                 .min_by(|a, b| a.1.cmp(&b.1))
             {
-                debug_print_graph_entry("returning", &entry.0, None);
+                // debug_print_graph_entry("returning", &entry.0, None);
                 entry
             } else {
                 let msg = format!(
@@ -113,11 +113,11 @@ pub async fn graph_entry_get(
                 println!("{msg}");
                 return Err(eyre!(msg));
             };
-            debug_print_graph_entry(
-                "returning smallest by derivation ",
-                &entry_by_smallest_derivation,
-                None,
-            );
+            // debug_print_graph_entry(
+            //     "returning smallest by derivation ",
+            //     &entry_by_smallest_derivation,
+            //     None,
+            // );
             Ok(entry_by_smallest_derivation)
         }
         Err(e) => {

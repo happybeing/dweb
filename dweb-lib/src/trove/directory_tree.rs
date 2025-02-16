@@ -26,6 +26,7 @@ use serde::{Deserialize, Serialize};
 use xor_name::XorName as FileAddress;
 
 use autonomi::client::payment::PaymentOption;
+use autonomi::AttoTokens;
 use self_encryption::MAX_CHUNK_SIZE;
 
 use crate::client::AutonomiClient;
@@ -281,7 +282,7 @@ impl DirectoryTree {
     pub async fn put_files_metadata_to_network(
         &self,
         client: AutonomiClient,
-    ) -> Result<FileAddress> {
+    ) -> Result<(AttoTokens, FileAddress)> {
         let serialised_metadata = rmp_serde::to_vec(self)?;
         if serialised_metadata.len() > MAX_CHUNK_SIZE {
             return Err(eyre!(
@@ -297,7 +298,7 @@ impl DirectoryTree {
             .data_put_public(bytes.freeze(), PaymentOption::from(client.wallet))
             .await
         {
-            Ok(data_map) => Ok(data_map),
+            Ok((cost, data_map)) => Ok((cost, data_map)),
             Err(e) => {
                 let message = format!("Failed to upload website metadata - {e}");
                 println!("{}", &message);

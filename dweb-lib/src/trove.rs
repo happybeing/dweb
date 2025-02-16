@@ -24,11 +24,11 @@ use color_eyre::eyre::{eyre, Result};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use xor_name::XorName;
 
-use ant_evm::AttoTokens;
 use ant_protocol::storage::{GraphEntry, Pointer, PointerAddress, PointerTarget};
 use autonomi::client::data_types::graph::GraphContent;
 use autonomi::client::key_derivation::{DerivationIndex, MainPubkey, MainSecretKey};
 use autonomi::client::vault::VaultSecretKey as SecretKey;
+use autonomi::AttoTokens;
 use autonomi::GraphEntryAddress;
 
 use crate::client::AutonomiClient;
@@ -150,7 +150,7 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
     // TODO:
     // [ ] inspect-history
     // [ ] inspect-graph --root-address|--history-address|--pointer-address
-    // [ ] History::get_version_entry() start at the nearest GraphEntry and iterate to the target, and return the value aas XorName
+    // [ ] History::get_version_entry_value() start at the nearest GraphEntry and iterate to the target, and return the value aas XorName
     // [ ] review everywhere using LARGEST_VERSION
     // [ ] update notes about version 2^64-1 to 2^32-1
     // [ ]  and bash aliases related to that
@@ -256,7 +256,7 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
             Ok(pointer) => {
                 println!(
                     "DEBUG History::from_name() obtained pointer from {:x}",
-                    pointer.network_address().xorname()
+                    pointer.address().xorname()
                 );
 
                 let history = History {
@@ -294,10 +294,10 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
         client: AutonomiClient,
         history_address: HistoryAddress,
     ) -> Result<History<T>> {
-        println!(
-            "DEBUG History::from_history_address({})",
-            history_address.to_hex()
-        );
+        // println!(
+        //     "DEBUG History::from_history_address({})",
+        //     history_address.to_hex()
+        // );
 
         // Check it exists to avoid accidental creation (and payment)
         let pointer_address = Self::pointer_address_from_history_address(history_address.clone())?;
@@ -378,14 +378,14 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
             Ok(version) => Some(version),
             Err(_) => None,
         };
-        println!(
-            "update_default_version() set to {}",
-            self.default_version.unwrap()
-        );
+        // println!(
+        //     "DEBUG update_default_version() set to {}",
+        //     self.default_version.unwrap()
+        // );
         self.default_version
     }
 
-    fn trove_type() -> XorName {
+    pub fn trove_type() -> XorName {
         T::trove_type()
     }
 
@@ -449,8 +449,8 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
     /// Get the entry value for the given version.
     /// The first entry in the history is version 0, but that is reserved so the
     /// first version in a history is 1 and the last is the number of entries - 1
-    pub async fn get_version_entry(&mut self, version: u32) -> Result<XorName> {
-        println!("DEBUG History::get_version_entry(version: {version})");
+    pub async fn get_version_entry_value(&mut self, version: u32) -> Result<XorName> {
+        println!("DEBUG History::get_version_entry_value(version: {version})");
         self.update_pointer().await?;
         let num_entries = self.pointer.counter() + 1;
 
@@ -459,27 +459,38 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
 
         if version > max_version {
             let message = format!(
-                "History::get_version_entry({version}) out of range for max_version: {max_version}"
+                "History::get_version_entry_value({version}) out of range for max_version: {max_version}"
             );
             println!("{message}");
             return Err(eyre!(message));
         }
 
-        self.get_entry(version).await
+        self.get_entry_value(version).await
     }
 
     pub async fn update_pointer(&mut self) -> Result<()> {
         self.pointer = self
             .client
             .client
-            .pointer_get(self.pointer.network_address())
+            .pointer_get(&self.pointer.address())
             .await?;
         Ok(())
     }
 
-    /// Get the value by absolute index, which is offset by one from that returned by get_version_entry()
-    pub async fn get_entry(&mut self, index: u32) -> Result<XorName> {
-        println!("DEBUG History::get_entry(index: {index})");
+    /// Get the value by absolute entry index.
+    /// Note that the root entry (index 0) is not a valid version. Version 1 is at index 1.
+    pub async fn get_entry_value(&mut self, index: u32) -> Result<XorName> {
+        println!("DEBUG History::get_entry_value(index: {index})");
+        match self.get_graph_entry(index).await {
+            Ok(entry) => str_to_xor_name(&hex::encode(entry.content)),
+            Err(e) => return Err(e),
+        }
+    }
+
+    /// Get the graph entry by absolute entry index.
+    /// Note that the root entry (index 0) is not a valid version. Version 1 is at index 1.
+    pub async fn get_graph_entry(&mut self, index: u32) -> Result<GraphEntry> {
+        // println!("DEBUG History::get_graph_entry(index: {index})");
         self.update_pointer().await?;
         let num_entries = self.pointer.counter() + 1;
 
@@ -489,7 +500,7 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
             ));
         };
 
-        let entry = if index > num_entries / 2 {
+        Ok(if index > num_entries / 2 {
             // Start at the head and move backwards
             let mut iter_entry = match self.get_head_entry().await {
                 Ok(head) => {
@@ -510,7 +521,7 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
                     entry
                 } else {
                     return Err(eyre!(
-                        "Ran out of entries - probably a bug in History::get_entry()"
+                        "Ran out of entries - probably a bug in History::get_entry_value()"
                     ));
                 }
             }
@@ -522,7 +533,9 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
                     if root.is_some() {
                         root.unwrap()
                     } else {
-                        return Err(eyre!("Failed to get root entry in History::get_entry()"));
+                        return Err(eyre!(
+                            "Failed to get root entry in History::get_entry_value()"
+                        ));
                     }
                 }
                 Err(e) => return Err(e),
@@ -536,15 +549,12 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
                     entry
                 } else {
                     return Err(eyre!(
-                        "Ran out of entries - may be a bug in History::get_entry()"
+                        "Ran out of entries - may be a bug in History::get_entry_value()"
                     ));
                 }
             }
             iter_entry
-        };
-
-        let trove_address = str_to_xor_name(&hex::encode(entry.content))?;
-        Ok(trove_address)
+        })
     }
 
     // Get a GraphEntry from the network
@@ -552,15 +562,15 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
         &self,
         graph_entry_address: &GraphEntryAddress,
     ) -> Result<GraphEntry> {
-        println!(
-            "DEBUG get_graph_entry_from_network() at {}",
-            graph_entry_address.to_hex()
-        );
+        // println!(
+        //     "DEBUG get_graph_entry_from_network() at {}",
+        //     graph_entry_address.to_hex()
+        // );
         Ok(graph_entry_get(&self.client.client, graph_entry_address).await?)
     }
 
     // Does not need to update pointer
-    async fn get_root_entry(&self) -> Result<Option<GraphEntry>> {
+    pub async fn get_root_entry(&self) -> Result<Option<GraphEntry>> {
         Ok(Some(
             self.get_graph_entry_from_network(&Self::root_graph_entry_address(
                 GraphEntryAddress::from_owner(self.history_address.owner()),
@@ -570,7 +580,7 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
     }
 
     /// Get the most recent GraphEntry
-    async fn get_head_entry(&self) -> Result<Option<GraphEntry>> {
+    pub async fn get_head_entry(&self) -> Result<Option<GraphEntry>> {
         Ok(Some(
             self.get_graph_entry_from_network(&self.head_entry_address())
                 .await?,
@@ -649,14 +659,14 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
         println!("DEBUG History::update_online()");
         let history_secret_key =
             Self::history_main_secret_key(owner_secret_key).derive_child(self.name.as_bytes());
-        let history_address = GraphEntryAddress::from_owner(history_secret_key.public_key());
 
+        let history_address = history_secret_key.public_key();
         println!("Updating History at {}", history_address.to_hex());
 
         match self
             .client
             .client
-            .pointer_get(self.pointer.network_address())
+            .pointer_get(&self.pointer.address())
             .await
         {
             Ok(old_pointer) => {
@@ -868,7 +878,7 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
                 return Ok(trove_version.trove_address.clone());
             }
         };
-        self.get_version_entry(version).await
+        self.get_version_entry_value(version).await
     }
 }
 

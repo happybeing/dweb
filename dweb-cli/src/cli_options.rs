@@ -222,16 +222,8 @@ pub enum Subcommands {
         history_address: HistoryAddress,
 
         /// Print a summary of the history including type (the value of entry 0) and number of entries
-        #[clap(long = "history-summary", short = 'a', default_value = "false")]
-        print_history_summary: bool,
-
-        /// Print the type of data recorded in the history (the value of entry 0)
-        #[clap(long = "type", short = 't', default_value = "false")]
-        print_type: bool,
-
-        /// Print the number of entries
-        #[clap(long = "size", short = 's', default_value = "false")]
-        print_size: bool,
+        #[clap(long = "full", short = 'f', default_value = "false")]
+        print_history_full: bool,
 
         /// Print information about each entry in RANGE, which can be
         /// an integer (for a single entry), or an integer followed by ':' or
@@ -240,15 +232,26 @@ pub enum Subcommands {
         #[clap(long = "entries", short = 'e', value_name = "RANGE", value_parser = str_to_entries_range )]
         entries_range: Option<EntriesRange>,
 
+        /// Shorten graph entry hex strings to the first six characters plus '..'
+        #[clap(long = "brief", short = 'b', default_value = "false")]
+        shorten_hex_strings: bool,
+
         /// For each entry in RANGE print information about files stored on
-        /// the network, as recorded by the metadata pointed to by the entry. Enables
+        /// the network, as recorded in the directory pointed to by the entry. Enables
         /// the following 'print' options for files metadata entries in RANGE
         #[clap(
             long = "include-files",
             default_value = "false",
-            requires = "entries_range"
+            requires = "entries_range",
+            conflicts_with("graph_keys")
         )]
         include_files: bool,
+
+        /// Show the public keys in a graph entry rather than the addresses
+        /// of parent/descendents in the entry. Default is to show the
+        /// addresses.
+        #[clap(long = "graph-with-keys", short = 'k', default_value = "false")]
+        graph_keys: bool,
 
         #[command(flatten)]
         files_args: FilesArgs,
@@ -318,18 +321,6 @@ pub enum Subcommands {
 
 #[derive(Args, Debug)]
 pub struct FilesArgs {
-    /// Print summary information about files based on files metadata
-    #[clap(long = "metadata-summary", short = 'm', default_value = "false")]
-    pub print_metadata_summary: bool,
-
-    /// Print the number of directories and files
-    #[clap(long = "numbers", short = 'n', default_value = "false")]
-    pub print_counts: bool,
-
-    /// Print the total number of bytes for all files
-    #[clap(long = "total-bytes", short = 'b', default_value = "false")]
-    pub print_total_bytes: bool,
-
     /// Print the path of each file
     #[clap(long = "paths", short = 'p', default_value = "false")]
     pub print_paths: bool,
@@ -342,8 +333,8 @@ pub struct FilesArgs {
 use regex::Regex;
 #[derive(Clone, Debug)]
 pub struct EntriesRange {
-    pub start: Option<usize>,
-    pub end: Option<usize>,
+    pub start: Option<u32>,
+    pub end: Option<u32>,
 }
 
 fn str_to_entries_range(s: &str) -> Result<EntriesRange> {
@@ -355,7 +346,7 @@ fn str_to_entries_range(s: &str) -> Result<EntriesRange> {
     };
 
     let start = if !captures[1].is_empty() {
-        match captures[1].parse::<usize>() {
+        match captures[1].parse::<u32>() {
             Ok(n) => Some(n),
             Err(_) => return Err(eyre!("invalid start value")),
         }
@@ -367,7 +358,7 @@ fn str_to_entries_range(s: &str) -> Result<EntriesRange> {
         start
     } else {
         if !captures[3].is_empty() {
-            match captures[3].parse::<usize>() {
+            match captures[3].parse::<u32>() {
                 Ok(n) => Some(n),
                 Err(_) => return Err(eyre!("invalid end value")),
             }

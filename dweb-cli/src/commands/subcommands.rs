@@ -15,13 +15,9 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-use autonomi::graph;
 use color_eyre::{eyre::eyre, Result};
 
-use dweb::{
-    helpers::get_app_secret_key,
-    storage::{publish_or_update_files, report_content_published_or_updated},
-};
+use dweb::storage::{publish_or_update_files, report_content_published_or_updated};
 
 use crate::cli_options::{Opt, Subcommands};
 
@@ -112,21 +108,21 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
 
         Some(Subcommands::Inspect_history {
             history_address,
-            print_history_summary,
-            print_type,
-            print_size,
+            print_history_full,
             entries_range,
+            shorten_hex_strings,
             include_files,
+            graph_keys,
             files_args,
         }) => {
             match crate::commands::cmd_inspect::handle_inspect_history(
                 peers.await?,
                 history_address,
-                print_history_summary,
-                print_type,
-                print_size,
+                print_history_full,
                 entries_range,
                 include_files,
+                graph_keys,
+                shorten_hex_strings,
                 files_args,
             )
             .await

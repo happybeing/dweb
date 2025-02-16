@@ -20,8 +20,8 @@ use std::path::PathBuf;
 use walkdir::WalkDir;
 use xor_name::XorName;
 
-use ant_evm::AttoTokens;
 use autonomi::client::files::archive_public::PublicArchive;
+use autonomi::AttoTokens;
 
 use crate::client::AutonomiClient;
 use crate::trove::directory_tree::{osstr_to_string, DirectoryTree, JsonSettings, WebsiteSettings};
@@ -57,7 +57,7 @@ pub async fn publish_or_update_files(
     }
 
     println!("Uploading files to network...");
-    let files_address = publish_files(&client, &files_root, &website_config)
+    let (files_cost, files_address) = publish_files(&client, &files_root, &website_config)
         .await
         .inspect_err(|e| println!("{}", e))?;
 
@@ -106,7 +106,8 @@ pub async fn publish_or_update_files(
         .await
     {
         Ok((update_cost, version)) => {
-            let total_cost = history_cost.checked_add(update_cost).or(Some(update_cost));
+            let total_cost = files_cost.checked_add(update_cost).or(Some(update_cost));
+            let total_cost = total_cost.unwrap().checked_add(history_cost).or(total_cost);
             Ok((
                 total_cost.unwrap(),
                 name,
@@ -167,7 +168,7 @@ pub async fn publish_files(
     client: &AutonomiClient,
     files_root: &PathBuf,
     website_config: &Option<PathBuf>,
-) -> Result<XorName> {
+) -> Result<(AttoTokens, XorName)> {
     let website_config = if let Some(website_config) = website_config {
         match JsonSettings::load_json_file(&website_config) {
             Ok(config) => Some(config),
@@ -191,9 +192,9 @@ pub async fn publish_files(
     };
 
     match publish_content(client, files_root).await {
-        Ok(archive) => {
+        Ok((cost, archive)) => {
             match publish_directory(client, files_root, &archive, website_settings).await {
-                Ok(directory_address) => Ok(directory_address),
+                Ok(directory_address) => Ok((cost, directory_address)),
                 Err(e) => Err(eyre!(
                     "Failed to store directory tree (metadata) for uploaded files: {}",
                     e.root_cause()
@@ -209,7 +210,7 @@ pub async fn publish_files(
 pub async fn publish_content(
     client: &AutonomiClient,
     files_root: &PathBuf,
-) -> Result<PublicArchive> {
+) -> Result<(AttoTokens, PublicArchive)> {
     if !files_root.is_dir() {
         return Err(eyre!("Path to files must be a directory: {files_root:?}"));
     }
@@ -223,23 +224,27 @@ pub async fn publish_content(
     }
 
     println!("Uploading files from: {files_root:?}");
-    let archive = match client
+    let (cost, archive) = match client
         .client
         .dir_upload_public(files_root.clone(), &client.wallet)
         .await
     {
-        Ok(archive) => archive,
+        Ok((cost, archive)) => (cost, archive),
         Err(e) => return Err(eyre!("Failed to upload directory tree: {e}")),
     };
 
-    println!("publish completed files: {:?}", archive.map().len());
+    println!(
+        "publish completed files: {:?}. Cost {cost} ANT",
+        archive.map().len()
+    );
 
     println!("CONTENT UPLOADED:");
     for (path, datamap_chunk, _metadata) in archive.iter() {
         println!("{:x} {path:?}", datamap_chunk);
     }
+    println!("Cost: {cost} ANT");
 
-    Ok(archive)
+    Ok((cost, archive))
 }
 
 /// Publish a DirectoryTree for uploaded files
@@ -288,10 +293,10 @@ pub async fn publish_directory(
             }
         }
 
-        let xor_name = directory_tree
+        let (cost, xor_name) = directory_tree
             .put_files_metadata_to_network(client.clone())
             .await?;
-        println!("DIRECTORY ADDRESS:\n{xor_name:x}");
+        println!("DIRECTORY ADDRESS:\n{xor_name:x}\nCost: {cost} ANT");
 
         return Ok(xor_name);
     }

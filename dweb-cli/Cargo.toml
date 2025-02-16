@@ -25,10 +25,17 @@ fixed-dweb-hosts = []
 autonomi = { version = "0.3.6" }
 ant-bootstrap = { version = "0.1.5" }
 ant-build-info = { version = "0.1.24" }
-ant-evm = { version = "0.1.9" }
 ant-logging = { version = "0.2.46" }
 ant-networking = { version = "0.3.5" }
 ant-protocol = { version = "1.0.0" }
+
+# Generated using: awe-dependencies --branch stable --ant-path ../../autonomi
+# autonomi = { version = "0.3.6", path = "../../autonomi/autonomi" }
+# ant-bootstrap = { version = "0.1.5", path = "../../autonomi/ant-bootstrap" }
+# ant-build-info = { version = "0.1.24", path = "../../autonomi/ant-build-info" }
+# ant-logging = { version = "0.2.46", path = "../../autonomi/ant-logging" }
+# ant-networking = { version = "0.3.5", path = "../../autonomi/ant-networking" }
+# ant-protocol = { version = "1.0.0", path = "../../autonomi/ant-protocol" }
 
 # Generated using: awe-dependencies --branch rc-2025.1.1 --ant-path ../../autonomi
 # autonomi = { version = "0.3.6-rc.1", path = "../../autonomi/autonomi" }
@@ -78,6 +85,7 @@ mime = "0.3.17"
 qstring = "0.7.2"
 open = "5.3.2"
 hex = "0.4.3"
+blsttc = "8.0.2"
 
 [lints]
 workspace = true

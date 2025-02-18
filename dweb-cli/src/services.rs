@@ -83,7 +83,7 @@ pub async fn serve(peers: NetworkPeers, host: String, port: u16) -> io::Result<(
             .service(api::dweb_v0::init_service(DWEB_SERVICE_API))
             .service(app::test::init_service(DWEB_SERVICE_APP))
             //
-            // <DIRECTORY-ADDRESS>|[vN].<HISTORY-ADDRESS>.www-dweb.au services must be
+            // <ARCHIVE-ADDRESS>|[vN].<HISTORY-ADDRESS>.www-dweb.au services must be
             // after above routes or will consume them too!
             .service(www::test::init_service())
             .service(www::www::init_service())

@@ -21,14 +21,16 @@ use std::marker::PhantomData;
 
 use blsttc::PublicKey;
 use color_eyre::eyre::{eyre, Result};
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+// use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use xor_name::XorName;
 
 use ant_protocol::storage::{GraphEntry, Pointer, PointerAddress, PointerTarget};
 use autonomi::client::data_types::graph::GraphContent;
 use autonomi::client::key_derivation::{DerivationIndex, MainPubkey, MainSecretKey};
 use autonomi::client::vault::VaultSecretKey as SecretKey;
+use autonomi::client::Client;
 use autonomi::AttoTokens;
+use autonomi::Bytes;
 use autonomi::GraphEntryAddress;
 
 use crate::client::AutonomiClient;
@@ -53,7 +55,7 @@ const POINTER_DERIVATION_INDEX: &str = "dweb Pointer derivatation index ";
 /// it is up to the owner to encrypt the data uploaded to the register, if wanted.
 /// Only the owner can update the register with its [`SecretKey`].
 /// The [`SecretKey`] is the only piece of information an owner should keep to access to the register.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct HistoryAddress {
     pub owner: PublicKey,
 }
@@ -119,15 +121,18 @@ pub const REGISTER_VALUE_SIZE: usize = size_of::<HistoryValue>();
 /// to the Internet Archive).
 /// -  History manages a sequence of versions of a struct implementing Trove,
 /// amounting to a versioned history for any struct impl Trove.
-pub trait Trove {
+#[allow(async_fn_in_trait)]
+pub trait Trove<T> {
     fn trove_type() -> XorName;
+    fn to_bytes(trove: &T) -> Result<Bytes>;
+    async fn from_bytes(client: &AutonomiClient, bytes: Bytes) -> Result<T>;
 }
 
 /// A history of versions of a type implementing the Trove trait. This
 /// can be used to create and access versions of a file, a collection of
 /// files such as a directory, or all the files and settings that make up a website,
 /// and so on.
-pub struct History<T: Trove + Serialize + DeserializeOwned + Clone> {
+pub struct History<T: Trove<T> + Clone> {
     client: AutonomiClient,
 
     history_address: HistoryAddress,
@@ -143,17 +148,10 @@ pub struct History<T: Trove + Serialize + DeserializeOwned + Clone> {
     phantom: std::marker::PhantomData<T>,
 }
 
-impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
+impl<T: Trove<T> + Clone> History<T> {
     /// Create a new History for read-write access and store it on the network
     /// To update the history use the same owner_secret_key
     /// name cannot be an empty string
-    // TODO:
-    // [ ] inspect-history
-    // [ ] inspect-graph --root-address|--history-address|--pointer-address
-    // [ ] History::get_version_entry_value() start at the nearest GraphEntry and iterate to the target, and return the value aas XorName
-    // [ ] review everywhere using LARGEST_VERSION
-    // [ ] update notes about version 2^64-1 to 2^32-1
-    // [ ]  and bash aliases related to that
     pub async fn create_online(
         client: AutonomiClient,
         name: String,
@@ -429,7 +427,7 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
         match autonomi_get_file_public(client, &data_address).await {
             Ok(content) => {
                 println!("Retrieved {} bytes", content.len());
-                let trove: T = match rmp_serde::from_slice(&content) {
+                let trove: T = match T::from_bytes(client, content).await {
                     Ok(trove) => trove,
                     Err(e) => {
                         println!("FAILED: {e}");
@@ -884,7 +882,7 @@ impl<T: Trove + Serialize + DeserializeOwned + Clone> History<T> {
 
 /// The state of a Trove struct at a given version  with optional cache of its data
 #[derive(Clone)]
-pub struct TroveVersion<ST: Trove + Serialize + DeserializeOwned + Clone> {
+pub struct TroveVersion<ST: Trove<ST> + Clone> {
     // Version of Some(trove) with address trove_address
     pub version: u32,
 
@@ -892,7 +890,7 @@ pub struct TroveVersion<ST: Trove + Serialize + DeserializeOwned + Clone> {
     trove: Option<ST>,
 }
 
-impl<ST: Trove + Serialize + DeserializeOwned + Clone> TroveVersion<ST> {
+impl<ST: Trove<ST> + Clone> TroveVersion<ST> {
     pub fn new(version: u32, trove_address: XorName, trove: Option<ST>) -> TroveVersion<ST> {
         TroveVersion {
             version,

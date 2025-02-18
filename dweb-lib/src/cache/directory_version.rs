@@ -23,7 +23,7 @@ use std::sync::{LazyLock, Mutex};
 
 use schnellru::{ByLength, LruMap};
 
-use xor_name::XorName as DirectoryAddress;
+use xor_name::XorName as ArchiveAddress;
 
 use crate::trove::{directory_tree::DirectoryTree, HistoryAddress};
 use crate::web::name::DwebHost;
@@ -79,7 +79,7 @@ pub struct DirectoryVersion {
     /// A version of 0 implies use most recent version (highest available)
     version: Option<u32>,
     /// Directory / website metadata
-    pub directory_address: DirectoryAddress,
+    pub archive_address: ArchiveAddress,
     /// Directory / website metadata
     pub directory_tree: Option<DirectoryTree>,
 
@@ -91,14 +91,14 @@ impl DirectoryVersion {
     pub fn new(
         web_name: &DwebHost,
         history_address: HistoryAddress,
-        directory_address: DirectoryAddress,
+        archive_address: ArchiveAddress,
         directory_tree: Option<DirectoryTree>,
     ) -> DirectoryVersion {
         DirectoryVersion {
             dweb_host_string: web_name.dweb_host_string.clone(),
             history_address,
             version: web_name.version,
-            directory_address,
+            archive_address,
             directory_tree,
 
             #[cfg(feature = "fixed-dweb-hosts")]

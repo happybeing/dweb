@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 use chrono::offset::Utc;
 use chrono::DateTime;
 use color_eyre::{eyre::eyre, Result};
-use dweb::trove::History;
+use std::time::{Duration, UNIX_EPOCH};
 use xor_name::XorName;
 
 use ant_protocol::storage::{GraphEntry, GraphEntryAddress, Pointer, PointerAddress};
@@ -28,6 +28,7 @@ use dweb::autonomi::access::network::NetworkPeers;
 use dweb::client::AutonomiClient;
 use dweb::helpers::convert::str_to_xor_name;
 use dweb::helpers::graph_entry::graph_entry_get;
+use dweb::trove::History;
 use dweb::trove::{directory_tree::DirectoryTree, HistoryAddress};
 
 use crate::cli_options::{EntriesRange, FilesArgs};
@@ -97,10 +98,10 @@ pub async fn handle_inspect_history(
                 Some(&history),
             )
             .await?;
-            let directory_address = str_to_xor_name(&hex::encode(entry_iter.content))?;
+            let archive_address = str_to_xor_name(&hex::encode(entry_iter.content))?;
             if include_files {
-                println!("    entry {index} - fetching content at {directory_address:x}");
-                match DirectoryTree::directory_tree_download(&client, directory_address).await {
+                println!("    entry {index} - fetching content at {archive_address:x}");
+                match DirectoryTree::from_archive_address(&client, archive_address).await {
                     Ok(directory) => {
                         let _ = print_files("      ", &directory, &files_args);
                     }
@@ -333,18 +334,24 @@ fn graph_entry_print_signature(indent: &str, graph_entry: &GraphEntry, shorten_h
 fn print_files(indent: &str, directory: &DirectoryTree, files_args: &FilesArgs) -> Result<()> {
     let directory_stats = directory_stats(directory)?;
 
-    println!("{indent}published  : {}", directory.date_published);
     let _ = print_counts(indent, directory, directory_stats.0);
     let _ = print_total_size(indent, directory_stats.1);
 
     if files_args.print_paths || files_args.print_all_details {
-        for (path_string, path_map) in directory.path_map.paths_to_files_map.iter() {
-            for (file_name, xor_name, modified, size, json_metadata) in path_map.iter() {
+        for (path_string, path_map) in directory.directory_map.paths_to_files_map.iter() {
+            for (file_name, xor_name, metadata) in path_map.iter() {
                 if files_args.print_all_details {
-                    let date_time = DateTime::<Utc>::from(*modified);
-                    let modified_str = date_time.format("%Y-%m-%d %H:%M:%S").to_string();
+                    let created: DateTime<Utc> =
+                        (UNIX_EPOCH + Duration::from_secs(metadata.created)).into();
+                    let modified: DateTime<Utc> =
+                        (UNIX_EPOCH + Duration::from_secs(metadata.modified)).into();
+                    let created = created.format("%Y-%m-%d %H:%M:%S").to_string();
+                    let modified = modified.format("%Y-%m-%d %H:%M:%S").to_string();
+
+                    let size = metadata.size;
+                    let extra = metadata.extra.clone().unwrap_or(String::from(""));
                     println!(
-                        "{indent}{xor_name:x} {modified_str} \"{path_string}{file_name}\" {size} bytes and JSON: \"{json_metadata}\"",
+                        "{indent}{xor_name:x} c({created}) m({modified}) \"{path_string}{file_name}\" {size} bytes and JSON: \"{extra}\"",
                     );
                 } else {
                     println!("{indent}{xor_name:x} \"{path_string}{file_name}\"");
@@ -360,11 +367,11 @@ fn directory_stats(directory: &DirectoryTree) -> Result<(usize, u64)> {
     let mut files_count: usize = 0;
     let mut total_bytes: u64 = 0;
 
-    for (_, path_map) in directory.path_map.paths_to_files_map.iter() {
-        files_count = files_count + path_map.len();
+    for (_, directory_map) in directory.directory_map.paths_to_files_map.iter() {
+        files_count = files_count + directory_map.len();
 
-        for file_directory in path_map {
-            total_bytes = total_bytes + file_directory.3
+        for directory_entry in directory_map {
+            total_bytes = total_bytes + directory_entry.2.size
         }
     }
 
@@ -374,7 +381,7 @@ fn directory_stats(directory: &DirectoryTree) -> Result<(usize, u64)> {
 fn print_counts(indent: &str, directory: &DirectoryTree, count_files: usize) -> Result<()> {
     println!(
         "{indent}directories: {}",
-        directory.path_map.paths_to_files_map.len()
+        directory.directory_map.paths_to_files_map.len()
     );
     println!("{indent}files      : {count_files}");
     Ok(())
@@ -389,15 +396,15 @@ fn print_total_size(indent: &str, total_bytes: u64) -> Result<()> {
 ///
 pub async fn handle_inspect_files(
     peers: NetworkPeers,
-    directory_address: XorName,
+    archive_address: XorName,
     files_args: FilesArgs,
 ) -> Result<()> {
     let client = dweb::client::AutonomiClient::initialise_and_connect(peers)
         .await
         .expect("Failed to connect to Autonomi Network");
 
-    println!("fetching directory at {directory_address:x}");
-    match DirectoryTree::directory_tree_download(&client, directory_address).await {
+    println!("fetching directory at {archive_address:x}");
+    match DirectoryTree::from_archive_address(&client, archive_address).await {
         Ok(directory) => {
             let _ = print_files("", &directory, &files_args);
         }

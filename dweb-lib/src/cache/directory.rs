@@ -15,6 +15,6 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-// TODO: Cache of DIRECTORY-ADDRESS to directory_tree
+// TODO: Cache of ARCHIVE-ADDRESS to directory_tree
 // TODO: Is this needed or is it covered by FILE_TREE_VERSIONS cache?
 // TODO: -> I think it's an unlikely use case because access is expected to be via History which is cached

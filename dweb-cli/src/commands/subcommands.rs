@@ -38,7 +38,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
         Some(Subcommands::Publish_new {
             files_root,
             name,
-            website_config,
+            dweb_settings,
             is_new_network: _,
         }) => {
             let app_secret_key = dweb::helpers::get_app_secret_key()?;
@@ -51,7 +51,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                 &files_root,
                 app_secret_key,
                 name,
-                website_config,
+                dweb_settings,
                 true,
             )
             .await
@@ -77,7 +77,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
         Some(Subcommands::Publish_update {
             files_root,
             name,
-            website_config,
+            dweb_settings,
         }) => {
             let app_secret_key = dweb::helpers::get_app_secret_key()?;
             let client = dweb::client::AutonomiClient::initialise_and_connect(peers.await?)
@@ -89,7 +89,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                 &files_root,
                 app_secret_key,
                 name,
-                website_config,
+                dweb_settings,
                 false,
             )
             .await?;
@@ -172,12 +172,12 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
         }
 
         Some(Subcommands::Inspect_files {
-            directory_address,
+            archive_address,
             files_args,
         }) => {
             match crate::commands::cmd_inspect::handle_inspect_files(
                 peers.await?,
-                directory_address,
+                archive_address,
                 files_args,
             )
             .await
@@ -228,12 +228,12 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
         Some(Subcommands::Browse {
             dweb_name,
             history_address,
-            // directory_address, only if I support feature("fixed-dweb-hosts")
+            // archive_address, only if I support feature("fixed-dweb-hosts")
         }) => {
             dweb::web::browse::handle_open_browser(
                 dweb_name,
                 history_address,
-                // directory_address  // Only if I support feature("fixed-dweb-hosts")
+                // archive_address  // Only if I support feature("fixed-dweb-hosts")
             );
         }
 

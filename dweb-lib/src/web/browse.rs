@@ -21,7 +21,7 @@ use crate::trove::HistoryAddress;
 pub fn handle_open_browser(
     _dweb_name: String,
     _history_address: Option<HistoryAddress>,
-    // _directory_address: Option<XorName>, // Only if I support feature("fixed-dweb-hosts")
+    // _archive_address: Option<XorName>, // Only if I support feature("fixed-dweb-hosts")
 ) {
     // For opening on different platforms:
     //  programmatic?

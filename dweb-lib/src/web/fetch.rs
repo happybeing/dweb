@@ -22,7 +22,7 @@ use actix_web::{
 use color_eyre::eyre::{eyre, Result};
 use mime;
 use url::Url;
-use xor_name::XorName as DirectoryAddress;
+use xor_name::XorName as ArchiveAddress;
 
 use crate::cache::directory_version::{DirectoryVersion, DIRECTORY_VERSIONS, HISTORY_NAMES};
 use crate::client::AutonomiClient;
@@ -111,8 +111,8 @@ pub async fn fetch(client: &AutonomiClient, url: Url) -> HttpResponse {
 // Notes:
 //   1) ensures that cache locks are released ASAP, and not held during network access.
 //   2) may return an error, but still update the cache with an incomplete DirectoryVersion
-//      if it obtains the DirectoryVersion.directory_address but not the directory_tree. A subsequent call
-//      using the same DwebHost can then skip getting the directory_address and will just retry getting
+//      if it obtains the DirectoryVersion.archive_address but not the directory_tree. A subsequent call
+//      using the same DwebHost can then skip getting the archive_address and will just retry getting
 //      the directory_tree.
 // TODO refactor fetch_website_version() to reduce complexity
 pub async fn fetch_website_version(
@@ -124,7 +124,7 @@ pub async fn fetch_website_version(
         dweb_host.dweb_host_string, dweb_host.dweb_name, dweb_host.version
     );
     // If the cache has all the info we return, or if it has an entry but no DirectoryTree we can use the addresses
-    let (history_address, directory_address) = if let Ok(lock) = &mut DIRECTORY_VERSIONS.lock() {
+    let (history_address, archive_address) = if let Ok(lock) = &mut DIRECTORY_VERSIONS.lock() {
         if let Some(cached_directory_version) = lock.get(&dweb_host.dweb_host_string) {
             if cached_directory_version.directory_tree.is_some() {
                 // Version 0 is ok here because if we have the tree we will already have cached the version
@@ -132,7 +132,7 @@ pub async fn fetch_website_version(
             } else {
                 (
                     Some(cached_directory_version.history_address),
-                    Some(cached_directory_version.directory_address),
+                    Some(cached_directory_version.archive_address),
                 )
             }
         } else {
@@ -143,7 +143,7 @@ pub async fn fetch_website_version(
     };
 
     let history_address = if history_address.is_none() {
-        // We need the history to get either the DirectoryAddress and/or the DirectoryTree
+        // We need the history to get either the ArchiveAddress and/or the DirectoryTree
         if let Ok(lock) = &mut HISTORY_NAMES.lock() {
             if let Some(history_address) = lock.get(&dweb_host.dweb_name).copied() {
                 history_address
@@ -161,17 +161,17 @@ pub async fn fetch_website_version(
     };
 
     // At this point we have at least a history address
-    if directory_address.is_some() {
-        let directory_address = directory_address.unwrap();
+    if archive_address.is_some() {
+        let archive_address = archive_address.unwrap();
         let directory_tree =
-            match History::<DirectoryTree>::raw_trove_download(client, directory_address).await {
+            match History::<DirectoryTree>::raw_trove_download(client, archive_address).await {
                 Ok(directory_tree) => directory_tree,
                 Err(e) => return Err(eyre!("failed to download directory from network: {e}")),
             };
         return update_cached_directory_version(
             &dweb_host,
             history_address,
-            directory_address,
+            archive_address,
             Some(directory_tree),
         );
     } else {
@@ -190,17 +190,19 @@ pub async fn fetch_website_version(
 
         if let Some(version) = dweb_host.version {
             if let Ok(history_versions) = history.num_versions() {
-                if version > history_versions {
+                if history_versions == 0 {
+                    return Err(eyre!("History is empty - no website to display"));
+                } else if version > history_versions {
                     return Err(eyre!(
                         "Invalid version {version}, highest version is {history_versions}"
                     ));
-                } else {
-                    return Err(eyre!("History is empty - no website to display"));
-                }
+                } else if version < 1 {
+                    return Err(eyre!("Invalid version {version}, lowest version is 1"));
+                };
             }
         }
 
-        let (directory_address, directory_tree, version) =
+        let (archive_address, directory_tree, version) =
             match history.fetch_version_trove(dweb_host.version).await {
                 Some(directory_tree) => match history.get_cached_version() {
                     Some(cached_version) => (
@@ -217,7 +219,7 @@ pub async fn fetch_website_version(
         let default_result = update_cached_directory_version(
             &dweb_host,
             history_address,
-            directory_address,
+            archive_address,
             Some(directory_tree.clone()),
         );
 
@@ -237,7 +239,7 @@ pub async fn fetch_website_version(
             return update_cached_directory_version(
                 &versioned_dweb_host,
                 history_address,
-                directory_address,
+                archive_address,
                 Some(directory_tree),
             );
         }
@@ -249,16 +251,12 @@ pub async fn fetch_website_version(
 pub fn update_cached_directory_version(
     dweb_host: &DwebHost,
     history_address: HistoryAddress,
-    directory_address: DirectoryAddress,
+    archive_address: ArchiveAddress,
     directory_tree: Option<DirectoryTree>,
 ) -> Result<(u32, DirectoryVersion)> {
     // TODO may need both version_retrieved and version_requested in DirectoryVersion
-    let new_directory_version = DirectoryVersion::new(
-        &dweb_host,
-        history_address,
-        directory_address,
-        directory_tree,
-    );
+    let new_directory_version =
+        DirectoryVersion::new(&dweb_host, history_address, archive_address, directory_tree);
 
     match &mut DIRECTORY_VERSIONS.lock() {
         Ok(lock) => {

@@ -56,7 +56,7 @@ pub fn init_service() -> impl HttpServiceFactory {
 }
 
 /// Handle Autonomi www requests of the form:
-/// fixed website:			<DIRECTORY-ADDRESS>.www-dweb.au[<PATH>][?params]
+/// fixed website:			<ARCHIVE-ADDRESS>.www-dweb.au[<PATH>][?params]
 ///	versioned website: 		<HISTORY-ADDRESS>.v[<version>].www-dweb.au[<PATH>][?params]
 ///
 /// Example urls:
@@ -88,7 +88,7 @@ pub async fn debug_handler(request: HttpRequest, path: web::Path<String>) -> Htt
         let subdomains: Vec<&str> = host.unwrap().split_terminator('.').collect();
         match subdomains.len() {
             3 => {
-                // <DIRECTORY-ADDRESS>.www-dweb.au has three parts
+                // <ARCHIVE-ADDRESS>.www-dweb.au has three parts
                 let directory = subdomains[0];
                 println!("3 -> fixed: www-dweb.au address with DIRECTORY '{directory}'");
             }

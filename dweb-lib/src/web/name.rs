@@ -157,10 +157,10 @@ pub fn make_version_part(version: u32) -> String {
 }
 
 #[cfg(feature = "fixed-dweb-hosts")]
-use xor_name::XorName as DirectoryAddress;
+use xor_name::XorName as ArchiveAddress;
 pub fn make_fixed_dweb_name(
     memorable_part: &String,
-    directory_address: DirectoryAddress,
+    archive_address: ArchiveAddress,
 ) -> Result<String> {
     if memorable_part.len() == 0 {
         return Err(eyre!(
@@ -203,7 +203,7 @@ pub fn make_fixed_dweb_name(
         ));
     }
 
-    let directory_part = format!("{directory_address:x}");
+    let directory_part = format!("{archive_address:x}");
     let web_name = memorable_part[..MEMORABLE_PART_LEN].to_string()
         + FIXED_WEBNAME_SEPARATOR
         + "-"

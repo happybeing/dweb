@@ -145,11 +145,11 @@ pub enum Subcommands {
         /// Defaults to the name of the website directory (FILES-ROOT).
         #[clap(long, short = 'n')]
         name: Option<String>,
-        /// Optional configuration when uploading content for a website. This can specify alternative default index file(s), redirects etc.
-        /// TODO review implementation when dweb-lib implements config via a file in the website directory
-        /// TODO rename as dweb_config, and store at /.dweb/dweb.config.json
-        #[clap(long = "website-config", short = 'c', value_name = "JSON-FILE")]
-        website_config: Option<PathBuf>,
+        /// Optional configuration when uploading content for a website. This can specify alternative
+        /// default index file(s), redirects etc.
+        /// You can either specify a path here or include the settings in <FILES-ROOT>/.dweb/dweb-settings.json
+        #[clap(long = "dweb-settings", short = 'c', value_name = "JSON-FILE")]
+        dweb_settings: Option<PathBuf>,
         //
         /// Disable the AWV check when publishing a new website to allow for init of a new Autonomi network (during beta)
         #[clap(long, name = "is-new-network", hide = true, default_value = "false")]
@@ -171,10 +171,11 @@ pub enum Subcommands {
         /// Defaults to use the name of the website directory (FILES-ROOT)
         #[clap(long, short = 'n')]
         name: Option<String>,
-        /// Optional configuration when uploading content for a website, such as default index file(s), redirects etc.
-        /// TODO review implementation when dweb-lib implements config via a file in the website directory
-        #[clap(long = "website-config", short = 'c', value_name = "JSON-FILE")]
-        website_config: Option<PathBuf>,
+        /// Optional configuration when uploading content for a website. This can specify alternative
+        /// default index file(s), redirects etc.
+        /// You can either specify a path here or include the settings in <FILES-ROOT>/.dweb/dweb-settings.json
+        #[clap(long = "dweb-settings", short = 'c', value_name = "JSON-FILE")]
+        dweb_settings: Option<PathBuf>,
     },
 
     /// Download a file or directory. TODO: not yet implemented
@@ -185,7 +186,7 @@ pub enum Subcommands {
         /// For a history, you must provide the RANGE of entries to be processed.
         ///
         /// For a directory you may specify the path of a specific file or directory to be downloaded
-        /// by including this at the end of the DIRECTORY-ADDRESS. This defaults to the directory root ('/').
+        /// by including this at the end of the ARCHIVE-ADDRESS. This defaults to the directory root ('/').
         ///
         /// If you do not specify a DOWNLOAD-PATH the content downloaded will be printed
         /// on the terminal (via stdout).
@@ -266,6 +267,7 @@ pub enum Subcommands {
     /// graph entry and then following the graph without having the public key of
     /// the History or Register. If you wish to follow the graph, see the inspect-history
     /// command.
+    // TODO: [ ] inspect-graph --root-address|--history-address|--pointer-address
     #[allow(non_camel_case_types)]
     Inspect_graphentry {
         /// The address of a graph entry on Autonomi
@@ -293,15 +295,15 @@ pub enum Subcommands {
     #[allow(non_camel_case_types)]
     Inspect_files {
         /// The address of some a directory uploaded to Autonomi
-        #[clap(value_name = "DIRECTORY-ADDRESS", value_parser = str_to_xor_name)]
-        directory_address: XorName,
+        #[clap(value_name = "ARCHIVE-ADDRESS", value_parser = str_to_xor_name)]
+        archive_address: XorName,
 
         #[command(flatten)]
         files_args: FilesArgs,
     },
 
     /// Open a browser to view a website on Autonomi - not yet implemented
-    #[clap(hide = true)] // TODO hide until dweb::web::handle_open_browser() is implemented
+    #[clap(hide = true)]
     Browse {
         /// A name which will be registered for this session as part of the URL hostname for this site
         #[clap(value_name = "DWEB-NAME", value_parser = dweb::web::name::validate_dweb_name)]
@@ -310,12 +312,12 @@ pub enum Subcommands {
         /// The address of a history on Autonomi
         /// TODO this can be optional if it was published using our secret key and the given dweb_name
         /// TODO consider UX as this could be confusing (maybe a separate option to enable this --use-my-secret)
-        #[clap(name = "HISTORY-ADDRESS", value_parser = str_to_pointer_address)]
+        #[clap(name = "HISTORY-ADDRESS", value_parser = str_to_history_address)]
         history_address: Option<HistoryAddress>,
         // /// The address of some a directory uploaded to Autonomi
-        // history_address: conflicts_with("directory_address")
-        // #[clap(value_name = "DIRECTORY-ADDRESS", value_parser = str_to_xor_name)]
-        // directory_address: Option<XorName>,  only if I support feature("fixed-dweb-hosts")
+        // history_address: conflicts_with("archive_address")
+        // #[clap(value_name = "ARCHIVE-ADDRESS", value_parser = str_to_xor_name)]
+        // archive_address: Option<XorName>,  only if I support feature("fixed-dweb-hosts")
     },
 }
 

@@ -17,38 +17,53 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use bytes::{BufMut, BytesMut};
-use chrono::{DateTime, Utc};
+use actix_web::web::Json;
+use autonomi::files::archive_public::ArchiveAddr;
+use bytes::Bytes;
 use color_eyre::eyre::{eyre, Result};
 use http::status::StatusCode;
 use mime_guess;
-use serde::{Deserialize, Serialize};
 use xor_name::XorName as FileAddress;
 
-use autonomi::client::payment::PaymentOption;
-use autonomi::AttoTokens;
-use self_encryption::MAX_CHUNK_SIZE;
+use autonomi::client::files::archive_public::PublicArchive;
+use autonomi::client::files::Metadata as FileMetadata;
 
 use crate::client::AutonomiClient;
-use crate::data::autonomi_get_file_public;
-use crate::trove::{History, HistoryAddress, Trove};
+use crate::trove::{str_to_xor_name, History, HistoryAddress, Trove};
 
 // The Trove type for a DirectoryTree
 const FILE_TREE_TYPE: &str = "ee383f084cffaab845617b1c43ffaee8b5c17e8fbbb3ad3d379c96b5b844f24e";
 
-/// Separator used in DirectoryTree.path_map
+// Default favicon.ico file, fixed by content addressing
+//
+// Old safe browser icon, black dotted cube. A bit small
+const ADDRESS_DEFAULT_FAVICON: &str =
+    "9fa52fc5027ed23cbb080b7f049cf1ec742606ed8fd2a8cf72219e17098114ac";
+
+// Early Safepress icon, blue cube inside a cube. Nice resolution
+// const ADDRESS_DEFAULT_FAVICON: &str = "";
+
+/// Separator used in DirectoryTree::directory_map
 pub const PATH_SEPARATOR: char = '/';
 
-/// Manage settings as a JSON string in order to ensure serialisation and deserialisation
-/// of DirectoryTree succeeds even as different settings are added or removed.
+/// Manage settings as a JSON string
 //
-// This struct is used for two separate groups of settings. The first configure the
-// website by defining redirects, overrides for default index files etc. The second is
-// for awe and third-party application settings which are not needed in order to
-// display the website itself, but may be used to change the behaviour of a client
-// app when it accesses the website, or provide information about the client used
-// to create or publish the site.
-#[derive(Serialize, Deserialize, Clone)]
+// This struct is used for two multiple groups of settings, under separate 'keys':
+//
+//      dweb            - settings that should only be written by dweb
+//      app/<APPNAME>   - settings for third party apps. Advise that <APPNAME> should
+//                        attempt to be unique (e.g. using a domain owned by the
+//                        author such as com.yourdomain.yourapp)
+//
+// The dweb section will contain settings for defining website redirects, overrides
+// for default index files etc.
+//
+// The app sections will contain settings forthird-party applications which are not
+// needed by dweb, but may be used to change the behaviour of a client app when it
+// accesses the DirectoryTree, or provide information about the client used to create or
+// the DirectoryTree.
+//
+#[derive(Clone)]
 pub struct JsonSettings {
     json_string: String,
     // TODO implement non-serialised holder for JSON query object
@@ -65,57 +80,117 @@ impl JsonSettings {
 
     /// Reads a JSON website configuration and returns a JSON query object
     /// TODO replace return type with a JSON query object holding settings
-    pub fn load_json_file(_website_config: &PathBuf) -> Result<JsonSettings> {
+    pub fn from_file(_dweb_settings: &PathBuf) -> Result<JsonSettings> {
         // TODO load_json_file()
         Ok(JsonSettings::new())
     }
+
+    /// Reads a JSON website configuration and returns a JSON query object
+    /// TODO replace return type with a JSON query object holding settings
+    pub fn from_string(json_string: String) -> Result<JsonSettings> {
+        // TODO parse the JSON
+        Ok(JsonSettings { json_string })
+    }
 }
 
-/// WIP: DirectoryTree is a work in progress and subject to breaking changes
-/// Container for a directory tree of files stored on Autonomi. Includes metadata needed
-/// to store and view a website using the dweb CLI.
-/// Used by DirectoryTreeHistory to provide a persistent history of all versions of the tree or website.
-#[derive(Serialize, Deserialize, Clone)]
+pub const DWEB_SETTINGS_PATH: &str = "/.dweb/dweb-settings.json";
+
+/// A set of default settings for use with a website when dweb_settings is none
+#[derive(Clone)]
+pub struct DwebSettings {
+    // Content of the DWEB_SETTINGS_FILE
+    pub json_config: JsonSettings,
+
+    // Settings read from json_config
+    pub index_filenames: Vec<String>, // Acceptable default index filenames (e.g. 'index.html')
+}
+
+impl DwebSettings {
+    // TODO implement parsing to/from JSON query object
+    // TODO implement setting/getting values using a hierarchy of keys
+
+    pub fn from_bytes(bytes: &Bytes) -> Result<DwebSettings> {
+        match String::from_utf8(bytes.to_vec()) {
+            Ok(string) => return Self::from_string(string),
+            Err(e) => panic!("DwebSettings::from_bytes() - failed {e}"),
+        };
+    }
+
+    pub fn from_string(string: String) -> Result<DwebSettings> {
+        // TODO
+        let json_config = JsonSettings::from_string(string)?;
+
+        Ok(DwebSettings {
+            json_config,
+            index_filenames: Vec::from([String::from("index.html"), String::from("index.htm")]),
+        })
+    }
+
+    pub fn default() -> DwebSettings {
+        DwebSettings {
+            index_filenames: Vec::from([String::from("index.html"), String::from("index.htm")]),
+            json_config: JsonSettings::new(),
+        }
+    }
+
+    /// Reads a JSON website configuration and returns a JSON query object
+    /// TODO replace return type with a JSON query object holding settings
+    pub fn load_json_file(_dweb_settings: &PathBuf) -> Result<DwebSettings> {
+        // TODO load_json_file()
+        Ok(DwebSettings::default())
+    }
+}
+
+/// DirectoryTree is a directory tree of files stored on Autonomi. It supports
+/// optional metadata for a website which is stored in the Autonomi Archive
+/// as a special file.
+///
+/// See also, History<DirectoryTree> which provides a persistent history of all versions
+/// of the tree or website which have been stored.
+#[derive(Clone)]
 pub struct DirectoryTree {
-    /// System time of the device used, when publishing this DirectoryTree to Autonomi
-    pub date_published: DateTime<Utc>,
-    /// Map of paths to directory and file metadata
-    pub path_map: DirectoryTreePathMap,
-    // TODO document usage of third_party_settings JSON for metadata created by and accessible
+    // We use a different map structure than Archive here but use an Autonomi PublicArchive
+    // for serialisation in order to be compatible with other apps using that to store files.
+    //
+    /// Map using directory as key:
+    pub directory_map: DirectoryTreePathMap,
+
+    /// Keep a copy of the archive for serialisation.
+    pub archive: PublicArchive,
+
+    /// Optional settings for dweb or third party apps. These are stored as a JSON formatted
+    /// file in the Archive, updated whenever the DirectoryTree is stored on or retrieved
+    /// from the network.
+    //
+    // TODO document usage of dweb_settings JSON for metadata created by and accessible
     // TODO to unknown applications such as a website builder or the dweb CLI. Mandate that:
     // TODO   Only a single application unique key per application be stored at the top level
     // TODO   and that applications only create values under their own key.
     // TODO   In the default provide "awe" as a top level key with no sub-values
-    /// Optionally used by an app to store arbitrary app specific settings or metadata.
-    pub third_party_settings: JsonSettings,
-
-    // Optional settings when a DirectoryTree is used to store a website
-    website_settings: Option<WebsiteSettings>,
+    pub dweb_settings: DwebSettings,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
-pub struct WebsiteSettings {
-    // TODO use website_config to implement web server like configuration such as redirects, short links and subdomains
-    pub website_config: JsonSettings,
-    pub index_filenames: Vec<String>, // Acceptable default index filenames (e.g. 'index.html')
-}
+impl Trove<DirectoryTree> for DirectoryTree {
+    fn trove_type() -> FileAddress {
+        FileAddress::from_content(FILE_TREE_TYPE.as_bytes())
+    }
 
-impl WebsiteSettings {
-    pub fn new() -> WebsiteSettings {
-        WebsiteSettings {
-            index_filenames: Vec::from([String::from("index.html"), String::from("index.htm")]),
-            website_config: JsonSettings::new(),
+    fn to_bytes(directory_tree: &DirectoryTree) -> Result<Bytes> {
+        match directory_tree.archive.to_bytes() {
+            Ok(bytes) => Ok(bytes),
+            Err(e) => Err(eyre!("Failed to serialise DirectoryTree::archive - {e}")),
+        }
+    }
+
+    async fn from_bytes(client: &AutonomiClient, bytes: Bytes) -> Result<DirectoryTree> {
+        match PublicArchive::from_bytes(bytes) {
+            Ok(archive) => Ok(DirectoryTree::from_archive(client, archive).await),
+            Err(e) => Err(eyre!("Failed to serialise DirectoryTree::archive - {e}")),
         }
     }
 }
 
-impl Trove for DirectoryTree {
-    fn trove_type() -> FileAddress {
-        FileAddress::from_content(FILE_TREE_TYPE.as_bytes())
-    }
-}
-
-// TODO consider how to handle use as a virtual file store:
+// TODO consider how to use DirectoryTree for a virtual file store:
 // TODO - currently it is given a file tree to upload in one operation, based on a local path
 // TODO A virtual file store would:
 // TODO - have a std::fs style interface which return fs style error codes
@@ -124,25 +199,30 @@ impl Trove for DirectoryTree {
 /// Work in progress and subject to breaking changes
 /// TODO consider how to handle use as a virtual file store (see comments above this in the code)
 impl DirectoryTree {
-    pub fn new(website_settings: Option<WebsiteSettings>) -> DirectoryTree {
-        DirectoryTree {
-            date_published: Utc::now(),
-            third_party_settings: JsonSettings::new(),
-            path_map: DirectoryTreePathMap::new(),
-            website_settings,
-        }
-    }
+    // pub fn new(website_settings: Option<DwebSettings>) -> DirectoryTree {
+    //     DirectoryTree {
+    //         archive: &PublicArchive::new(),
+    //         directory_map: DirectoryTreePathMap::new(),
+    //         dweb_settings: website_settings,
+    //     }
+    // }
 
-    pub async fn directory_tree_download(
+    /// Get an archive from the network and use it to create a new DirectoryTree
+    // TODO was directory_tree_download()
+    pub async fn from_archive_address(
         client: &AutonomiClient,
-        data_address: FileAddress,
+        archive_address: ArchiveAddr,
     ) -> Result<DirectoryTree> {
-        println!("DEBUG directory_tree_download() at {data_address:x}");
-        match autonomi_get_file_public(client, &data_address).await {
-            Ok(content) => {
-                println!("Retrieved {} bytes", content.len());
-                let metadata: DirectoryTree = rmp_serde::from_slice(&content)?;
-                Ok(metadata)
+        println!("DEBUG directory_tree_download() at {archive_address:x}");
+        match client.client.archive_get_public(&archive_address).await {
+            Ok(archive) => {
+                println!(
+                    "DEBUG Retrieved Public Archive of {} files",
+                    archive.files().len()
+                );
+                let mut directory_tree = Self::from_archive_raw(archive);
+                directory_tree.update_dweb_settings(client).await;
+                Ok(directory_tree)
             }
 
             Err(e) => {
@@ -150,6 +230,38 @@ impl DirectoryTree {
                 Err(e.into())
             }
         }
+    }
+
+    // Initialise with data from the archive without accessing the network for DwebSettings
+    pub async fn from_archive(client: &AutonomiClient, archive: PublicArchive) -> DirectoryTree {
+        let mut directory_tree = Self::from_archive_raw(archive);
+        directory_tree.update_dweb_settings(client).await;
+        directory_tree
+    }
+
+    // Initialise with data from the archive without accessing the network for DwebSettings
+    fn from_archive_raw(archive: PublicArchive) -> DirectoryTree {
+        DirectoryTree {
+            directory_map: DirectoryTreePathMap::from_public_archive(&archive),
+            archive,
+            dweb_settings: DwebSettings::default(),
+        }
+    }
+
+    // Update DwebSettings if present in the archive
+    // Return true if settings were updated
+    async fn update_dweb_settings(&mut self, client: &AutonomiClient) -> bool {
+        // Initialise dweb settings
+        let dweb_settings_path = PathBuf::from(DWEB_SETTINGS_PATH);
+        if let Some((settings_address, _metadata)) = self.archive.map().get(&dweb_settings_path) {
+            if let Ok(bytes) = client.client.data_get_public(settings_address).await {
+                if let Ok(parsed_settings) = DwebSettings::from_bytes(&bytes) {
+                    self.dweb_settings = parsed_settings;
+                    return true;
+                };
+            }
+        }
+        false
     }
 
     /// Looks up the web resource in a version of a History
@@ -166,10 +278,10 @@ impl DirectoryTree {
                 && history.cached_version.as_ref().unwrap().trove.is_some()
             {
                 let cached_version = history.cached_version.as_ref().unwrap();
-                let metadata = cached_version.trove.as_ref().unwrap();
-                return metadata.lookup_web_resource(resource_path);
+                let directory = cached_version.trove.as_ref().unwrap();
+                return directory.lookup_web_resource(resource_path);
             } else {
-                println!("Failed to fetch metadata.");
+                println!("Failed to fetch directory.");
             }
         }
         Err(StatusCode::NOT_FOUND)
@@ -177,7 +289,7 @@ impl DirectoryTree {
 
     /// Look up a canonicalised web resource path (which must begin with '/').
     /// If the path ends with '/' or no file matches a directory is assumed.
-    /// For directories it will look for a default index file based on the site metadata settings.
+    /// For directories it will look for a default index file based on any dweb settings.
     /// If found returns a tuple with the resource's xor address if found and content type if known
     /// On error, returns a suitable status code??? TODO
     pub fn lookup_web_resource(
@@ -197,10 +309,10 @@ impl DirectoryTree {
 
         println!("Looking for resource at '{resource_path}'");
         let mut path_and_address = None;
-        if let Some(resources) = self.path_map.paths_to_files_map.get(&resource_path) {
+        if let Some(resources) = self.directory_map.paths_to_files_map.get(&resource_path) {
             if second_part.len() > 0 {
                 println!("DEBUG DirectoryTree looking up '{}'", second_part);
-                match Self::lookup_name_in_vec(&second_part, &resources) {
+                match Self::lookup_name_in_vec(&second_part, resources) {
                     Some(data_address) => path_and_address = Some((second_part, data_address)),
                     None => {}
                 }
@@ -216,13 +328,12 @@ impl DirectoryTree {
             };
 
             println!("Retrying for index file in new_resource_path '{new_resource_path}'");
-            let index_filenames = if let Some(website_settings) = &self.website_settings {
-                &website_settings.index_filenames
-            } else {
-                &Vec::from([String::from("index.html"), String::from("index.htm")])
-            };
-
-            if let Some(new_resources) = self.path_map.paths_to_files_map.get(&new_resource_path) {
+            let index_filenames = &self.dweb_settings.index_filenames;
+            if let Some(new_resources) = self
+                .directory_map
+                .paths_to_files_map
+                .get(&new_resource_path)
+            {
                 println!("DEBUG looking for a default INDEX file, one of {index_filenames:?}",);
                 // Look for a default index file
                 for index_file in index_filenames {
@@ -245,7 +356,12 @@ impl DirectoryTree {
             }
             None => {
                 println!("FAILED to find resource for path: '{original_resource_path}' in:");
-                println!("{:?}", self.path_map.paths_to_files_map);
+                println!("{:?}", self.directory_map.paths_to_files_map);
+                if original_resource_path == "/favicon.ico" {
+                    if let Ok(address) = str_to_xor_name(ADDRESS_DEFAULT_FAVICON) {
+                        return Ok((address, None));
+                    }
+                }
                 Err(StatusCode::NOT_FOUND)
             }
         }
@@ -253,70 +369,24 @@ impl DirectoryTree {
 
     fn lookup_name_in_vec(
         name: &String,
-        resources_vec: &Vec<(String, FileAddress, std::time::SystemTime, u64, String)>,
+        resources_vec: &Vec<(String, FileAddress, FileMetadata)>,
     ) -> Option<FileAddress> {
         println!("DEBUG lookup_name_in_vec({name})");
-        for (resource_name, xor_name, _modified, _size, _json_metadata) in resources_vec {
+        for (resource_name, xor_name, _metadata) in resources_vec {
             if resource_name.eq(name) {
                 return Some(xor_name.clone());
             }
         }
         None
     }
-
-    /// Add a resource to the metadata map
-    /// The resource_website_path MUST:
-    /// - start with a forward slash denoting the website root
-    /// - use forward slash to separate directories
-    pub fn add_content_to_metadata(
-        &mut self,
-        resource_website_path: &String,
-        xor_name: FileAddress,
-        file_metadata: Option<&std::fs::Metadata>,
-    ) -> Result<()> {
-        self.path_map
-            .add_content_to_metadata(resource_website_path, xor_name, file_metadata)
-    }
-
-    /// Upload content metadata and return the address (ie of the data map)
-    pub async fn put_files_metadata_to_network(
-        &self,
-        client: AutonomiClient,
-    ) -> Result<(AttoTokens, FileAddress)> {
-        let serialised_metadata = rmp_serde::to_vec(self)?;
-        if serialised_metadata.len() > MAX_CHUNK_SIZE {
-            return Err(eyre!(
-                "Failed to store website metadata - too large for one Chunk",
-            ));
-        }
-
-        let mut bytes = BytesMut::with_capacity(MAX_CHUNK_SIZE);
-        bytes.put(serialised_metadata.as_slice());
-
-        match client
-            .client
-            .data_put_public(bytes.freeze(), PaymentOption::from(client.wallet))
-            .await
-        {
-            Ok((cost, data_map)) => Ok((cost, data_map)),
-            Err(e) => {
-                let message = format!("Failed to upload website metadata - {e}");
-                println!("{}", &message);
-                return Err(eyre!(message.clone()));
-            }
-        }
-    }
 }
 
-/// A map of paths to files used to access xor addresses of content
-#[derive(Serialize, Deserialize, Clone)]
+/// Map each directory path to a vector of the metadata for each file in the directory
+/// The metadata tuple for a file is:
+///   (filename: String, archive_address: XorName, metadata: FileMetadata)
+#[derive(Clone)]
 pub struct DirectoryTreePathMap {
-    // Maps of paths of directories and files to metadata.
-    // File metadata tuple is (filename, data_address, date modified, size, extended metadata)
-    // where extended metadata can be a JSON encoded String at some point
-    // TODO consider if using a BTree or other collection would make serialization deterministic
-    pub paths_to_files_map:
-        HashMap<String, Vec<(String, FileAddress, std::time::SystemTime, u64, String)>>,
+    pub paths_to_files_map: HashMap<String, Vec<(String, FileAddress, FileMetadata)>>,
 }
 
 // TODO replace OS path separator with '/' when storing web paths
@@ -324,53 +394,49 @@ pub struct DirectoryTreePathMap {
 impl DirectoryTreePathMap {
     pub fn new() -> DirectoryTreePathMap {
         DirectoryTreePathMap {
-            paths_to_files_map: HashMap::<
-                String,
-                Vec<(String, FileAddress, std::time::SystemTime, u64, String)>,
-            >::new(),
+            paths_to_files_map: HashMap::<String, Vec<(String, FileAddress, FileMetadata)>>::new(),
         }
+    }
+
+    pub fn from_public_archive(archive: &PublicArchive) -> DirectoryTreePathMap {
+        let mut path_map = DirectoryTreePathMap::new();
+        let mut iter = archive.map().iter();
+        while let Some((path_buf, (xor_name, metadata))) = iter.next() {
+            // Remove the containing directory to produce a path from the website root, and which starts with '/'
+            let mut path_string = String::from(path_buf.to_string_lossy());
+            let offset = path_string.find("/").unwrap_or(path_string.len());
+            path_string.replace_range(..offset, "");
+            match path_map.add_content_to_map(&path_string, *xor_name, metadata.clone()) {
+                Ok(_) => (),
+                Err(e) => {
+                    println!("add_content_to_metadata() failed to add path {path_string} - {e}");
+                }
+            }
+        }
+        path_map
     }
 
     /// Add a website resource to the metadata map
     /// resource_website_path MUST begin with a path separator denoting the website root
     /// This method handles translation of path separators
-    pub fn add_content_to_metadata(
+    pub fn add_content_to_map(
         &mut self,
         resource_website_path: &String,
         xor_name: FileAddress,
-        file_metadata: Option<&std::fs::Metadata>,
+        metadata: FileMetadata,
     ) -> Result<()> {
-        // println!("DEBUG add_content_to_metadata() path '{resource_website_path}'");
+        // println!("DEBUG add_content_to_map() path '{resource_website_path}'");
         let mut web_path = Self::webify_string(&resource_website_path);
         if let Some(last_separator_position) = web_path.rfind(PATH_SEPARATOR) {
             let resource_file_name = web_path.split_off(last_separator_position + 1);
             // println!(
             //     "DEBUG Splitting at {last_separator_position} into path: '{web_path}' file: '{resource_file_name}'"
             // );
-            let metadata_tuple = if let Some(metadata) = file_metadata {
-                (
-                    // Use metadata for time and size
-                    resource_file_name.clone(),
-                    xor_name,
-                    metadata.modified().unwrap(),
-                    metadata.len(),
-                    String::from(""), // Provision for future JSON encoded extended metadata (e.g. with MIME type)
-                )
-            } else {
-                (
-                    // Use system time and set unknown size (0)
-                    resource_file_name.clone(),
-                    xor_name,
-                    std::time::SystemTime::now(),
-                    0,
-                    String::from(""), // Provision for future JSON encoded extended metadata (e.g. with MIME type)
-                )
-            };
-
+            let entry_tuple = (resource_file_name.clone(), xor_name, metadata);
             self.paths_to_files_map
                 .entry(web_path)
-                .and_modify(|vector| vector.push(metadata_tuple.clone()))
-                .or_insert(vec![metadata_tuple]);
+                .and_modify(|vector| vector.push(entry_tuple.clone()))
+                .or_insert(vec![entry_tuple]);
         } else {
             return Err(eyre!(
                 "Path separator not found in resource website path: {resource_website_path}"

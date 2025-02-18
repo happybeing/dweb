@@ -21,17 +21,19 @@ use walkdir::WalkDir;
 use xor_name::XorName;
 
 use autonomi::client::files::archive_public::PublicArchive;
+use autonomi::client::files::Metadata as FileMetadata;
 use autonomi::AttoTokens;
 
 use crate::client::AutonomiClient;
-use crate::trove::directory_tree::{osstr_to_string, DirectoryTree, JsonSettings, WebsiteSettings};
+use crate::trove::directory_tree::DWEB_SETTINGS_PATH;
+use crate::trove::directory_tree::{osstr_to_string, DirectoryTree};
 use crate::trove::{History, HistoryAddress};
 
 /// Publish a history entry, creating the history if no name is provided
 ///
 /// files_root is the path to a the directory tree to upload
 /// name is required for update but not publishing the first version
-/// website_config is an optional configuration if publishing a website (TODO)
+/// dweb_settings is an optional configuration if publishing a website (TODO)
 ///
 /// Returns the amount paid (cost), history name for updates, and the history address
 pub async fn publish_or_update_files(
@@ -39,7 +41,7 @@ pub async fn publish_or_update_files(
     files_root: &PathBuf,
     app_secret_key: SecretKey,
     name: Option<String>,
-    website_config: Option<PathBuf>,
+    dweb_settings: Option<PathBuf>,
     is_publish: bool,
 ) -> Result<(AttoTokens, String, HistoryAddress, u32)> {
     println!("DEBUG publish_or_update_files()...");
@@ -57,7 +59,7 @@ pub async fn publish_or_update_files(
     }
 
     println!("Uploading files to network...");
-    let (files_cost, files_address) = publish_files(&client, &files_root, &website_config)
+    let (files_cost, files_address) = publish_files(&client, &files_root, dweb_settings)
         .await
         .inspect_err(|e| println!("{}", e))?;
 
@@ -163,44 +165,27 @@ pub fn report_content_published_or_updated(
 }
 
 /// Upload a directory tree to Autonomi
-/// Returns the DirectoryAddress needed to access the content
+/// Returns the XorName of the PublicArchive (which can be used to initialise a DirectoryTree).
 pub async fn publish_files(
     client: &AutonomiClient,
     files_root: &PathBuf,
-    website_config: &Option<PathBuf>,
+    dweb_settings: Option<PathBuf>,
 ) -> Result<(AttoTokens, XorName)> {
-    let website_config = if let Some(website_config) = website_config {
-        match JsonSettings::load_json_file(&website_config) {
-            Ok(config) => Some(config),
-            Err(e) => {
-                return Err(eyre!(
-                    "Failed to load website config from {website_config:?}. {}",
-                    e.root_cause()
-                ));
+    println!("DEBUG publish_files() files_root '{files_root:?}'");
+    match publish_content(client, files_root, dweb_settings).await {
+        Ok((cost, archive)) => match client
+            .client
+            .archive_put_public(&archive, &client.wallet)
+            .await
+        {
+            Ok((cost, archive_address)) => {
+                println!("ARCHIVE ADDRESS:\n{archive_address:x}\nCost: {cost} ANT");
+                Ok((cost, archive_address))
             }
-        }
-    } else {
-        None
-    };
-
-    // TODO to allow use of Autonomi Archive, this will be a file added to the
-    // TODO uploaded Archive at /.dweb/dweb-config.json (by uploading separately
-    // TODO and then merging into the directory). May not provided this way, TBD.
-    let mut website_settings = WebsiteSettings::new();
-    if let Some(website_config) = website_config {
-        website_settings.website_config = website_config;
-    };
-
-    match publish_content(client, files_root).await {
-        Ok((cost, archive)) => {
-            match publish_directory(client, files_root, &archive, website_settings).await {
-                Ok(directory_address) => Ok((cost, directory_address)),
-                Err(e) => Err(eyre!(
-                    "Failed to store directory tree (metadata) for uploaded files: {}",
-                    e.root_cause()
-                )),
-            }
-        }
+            Err(e) => Err(eyre!(
+                "Failed to store the PublicArchive for uploaded files: {e}"
+            )),
+        },
         Err(e) => Err(eyre!("Failed to store content. {}", e.root_cause())),
     }
 }
@@ -210,6 +195,7 @@ pub async fn publish_files(
 pub async fn publish_content(
     client: &AutonomiClient,
     files_root: &PathBuf,
+    dweb_settings: Option<PathBuf>,
 ) -> Result<(AttoTokens, PublicArchive)> {
     if !files_root.is_dir() {
         return Err(eyre!("Path to files must be a directory: {files_root:?}"));
@@ -224,7 +210,7 @@ pub async fn publish_content(
     }
 
     println!("Uploading files from: {files_root:?}");
-    let (cost, archive) = match client
+    let (cost, mut archive) = match client
         .client
         .dir_upload_public(files_root.clone(), &client.wallet)
         .await
@@ -233,6 +219,32 @@ pub async fn publish_content(
         Err(e) => return Err(eyre!("Failed to upload directory tree: {e}")),
     };
 
+    let settings_cost = if let Some(dweb_path) = dweb_settings {
+        let dweb_settings_file = dweb_path.to_string_lossy();
+        let dweb_settings_path = PathBuf::from(DWEB_SETTINGS_PATH);
+        println!("Uploading {dweb_settings_file}");
+
+        match client
+            .client
+            .file_upload_public(dweb_path.clone(), &client.wallet)
+            .await
+        {
+            Ok((cost, upload_address)) => {
+                let autonomi_metadata =
+                    crate::helpers::file::metadata_for_file(&dweb_settings_file);
+                archive.add_file(dweb_settings_path, upload_address, autonomi_metadata);
+                cost
+            }
+            Err(e) => {
+                println!("Failed to upload dweb settings - {e}");
+                0.into()
+            }
+        }
+    } else {
+        0.into()
+    };
+
+    let cost = settings_cost.checked_add(cost).unwrap_or(cost);
     println!(
         "publish completed files: {:?}. Cost {cost} ANT",
         archive.map().len()
@@ -245,63 +257,6 @@ pub async fn publish_content(
     println!("Cost: {cost} ANT");
 
     Ok((cost, archive))
-}
-
-/// Publish a DirectoryTree for uploaded files
-/// Assumes paths are canonical
-/// Returns the DirectoryAddress for the stored directory
-pub async fn publish_directory(
-    client: &AutonomiClient,
-    files_root: &PathBuf,
-    files_uploaded: &PublicArchive,
-    website_settings: WebsiteSettings,
-) -> Result<XorName> {
-    let mut directory_tree = DirectoryTree::new(Some(website_settings));
-
-    if let Some(mut files_root_string) = osstr_to_string(files_root.as_os_str()) {
-        // Ensure the full_root_string ends with OS path separator
-        if !files_root_string.ends_with(std::path::MAIN_SEPARATOR) {
-            files_root_string += &String::from(std::path::MAIN_SEPARATOR);
-        }
-        println!("DEBUG publish_directory() files_root '{files_root_string}'");
-
-        for (relative_path, datamap_address, _file_metadata) in files_uploaded.iter() {
-            // Archive paths include the parent directory of the upload so remove it
-            let mut components = relative_path.components();
-            components.next();
-            let relative_path = components.as_path();
-
-            if let Some(resource_relative_path) = osstr_to_string(relative_path.as_os_str()) {
-                let resource_full_path = files_root_string.clone() + &resource_relative_path;
-                let resource_based_path = String::from("/") + &resource_relative_path;
-                println!("Adding '{resource_full_path}' as '{resource_based_path}'");
-                match std::fs::metadata(resource_full_path) {
-                    Ok(file_metadata) => directory_tree.add_content_to_metadata(
-                        &resource_based_path,
-                        datamap_address.clone(),
-                        Some(&file_metadata),
-                    )?,
-                    Err(e) => {
-                        println!("Failed to obtain metadata for file due to: {e:}");
-                        directory_tree.add_content_to_metadata(
-                            &resource_based_path,
-                            datamap_address.clone(),
-                            None,
-                        )?
-                    }
-                };
-            }
-        }
-
-        let (cost, xor_name) = directory_tree
-            .put_files_metadata_to_network(client.clone())
-            .await?;
-        println!("DIRECTORY ADDRESS:\n{xor_name:x}\nCost: {cost} ANT");
-
-        return Ok(xor_name);
-    }
-
-    return Err(eyre!("Invalid root path: '{files_root:?}'"));
 }
 
 /// Check that the path is a directory tree containing at least one file

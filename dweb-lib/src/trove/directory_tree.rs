@@ -36,9 +36,15 @@ const FILE_TREE_TYPE: &str = "ee383f084cffaab845617b1c43ffaee8b5c17e8fbbb3ad3d37
 
 // Default favicon.ico file, fixed by content addressing
 //
-// Old safe browser icon, black dotted cube. A bit small
+// Safe dotted blue cube
 const ADDRESS_DEFAULT_FAVICON: &str =
-    "9fa52fc5027ed23cbb080b7f049cf1ec742606ed8fd2a8cf72219e17098114ac";
+    "35cae9297780dcc0fe2d328dd1dc8060ec352eb54cc8192faaf3aedd803c119d";
+// Safe quill inkpot
+// const ADDRESS_DEFAULT_FAVICON: &str =
+//     "164ea083d71e6e756e81244840b9bb46bd6284ce3316af91acf018a62a1c2af7";
+// Safe dotted black cube. Low resolution
+// const ADDRESS_DEFAULT_FAVICON: &str =
+//     "9fa52fc5027ed23cbb080b7f049cf1ec742606ed8fd2a8cf72219e17098114ac";
 
 // Early Safepress icon, blue cube inside a cube. Nice resolution
 // const ADDRESS_DEFAULT_FAVICON: &str = "";

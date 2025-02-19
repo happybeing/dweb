@@ -478,30 +478,30 @@ pub fn osstr_to_string(file_name: &std::ffi::OsStr) -> Option<String> {
     None
 }
 
-/// Helper which gets a directory version and looks up a web resource.
-/// Returns a tuple of the the resource address and content type string if known
-pub async fn lookup_resource_for_website_version(
-    client: &AutonomiClient,
-    resource_path: &String,
-    history_address: HistoryAddress,
-    version: Option<u32>,
-) -> Result<(FileAddress, Option<String>), StatusCode> {
-    println!("DEBUG lookup_resource_for_website_version() version {version:?}");
-    println!("DEBUG history_address: {}", history_address.to_hex());
-    println!("DEBUG resource_path    : {resource_path}");
+// Helper which gets a directory version and looks up a web resource.
+// Returns a tuple of the the resource address and content type string if known
+// pub async fn lookup_resource_for_website_version(
+//     client: &AutonomiClient,
+//     resource_path: &String,
+//     history_address: HistoryAddress,
+//     version: Option<u32>,
+// ) -> Result<(FileAddress, Option<String>), StatusCode> {
+//     println!("DEBUG lookup_resource_for_website_version() version {version:?}");
+//     println!("DEBUG history_address: {}", history_address.to_hex());
+//     println!("DEBUG resource_path    : {resource_path}");
 
-    match History::<DirectoryTree>::from_history_address(client.clone(), history_address).await {
-        Ok(mut history) => {
-            return DirectoryTree::history_lookup_web_resource(
-                &mut history,
-                resource_path,
-                version,
-            )
-            .await;
-        }
-        Err(e) => {
-            println!("Failed to load versions register: {e:?}");
-            return Err(StatusCode::NOT_FOUND);
-        }
-    };
-}
+//     match History::<DirectoryTree>::from_history_address(client.clone(), history_address).await {
+//         Ok(mut history) => {
+//             return DirectoryTree::history_lookup_web_resource(
+//                 &mut history,
+//                 resource_path,
+//                 version,
+//             )
+//             .await;
+//         }
+//         Err(e) => {
+//             println!("Failed to load versions register: {e:?}");
+//             return Err(StatusCode::NOT_FOUND);
+//         }
+//     };
+// }

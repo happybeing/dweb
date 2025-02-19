@@ -21,7 +21,6 @@ use walkdir::WalkDir;
 use xor_name::XorName;
 
 use autonomi::client::files::archive_public::PublicArchive;
-use autonomi::client::files::Metadata as FileMetadata;
 use autonomi::AttoTokens;
 
 use crate::client::AutonomiClient;
@@ -90,8 +89,14 @@ pub async fn publish_or_update_files(
         .await
     } else {
         println!("Getting History from network...");
-        History::<DirectoryTree>::from_name(client.clone(), app_secret_key.clone(), name.clone())
-            .await
+        History::<DirectoryTree>::from_name(
+            client.clone(),
+            app_secret_key.clone(),
+            name.clone(),
+            false,
+            0,
+        )
+        .await
     };
 
     let (history_cost, mut files_history) = match result {

@@ -48,16 +48,21 @@ pub async fn handle_inspect_history(
         .await
         .expect("Failed to connect to Autonomi Network");
 
-    let mut history =
-        match History::<DirectoryTree>::from_history_address(client.clone(), history_address).await
-        {
-            Ok(pointer) => pointer,
-            Err(e) => {
-                let message = format!("Failed to get History pointer from network - {e}");
-                println!("{message}");
-                return Err(eyre!(message));
-            }
-        };
+    let mut history = match History::<DirectoryTree>::from_history_address(
+        client.clone(),
+        history_address,
+        true,
+        0,
+    )
+    .await
+    {
+        Ok(pointer) => pointer,
+        Err(e) => {
+            let message = format!("Failed to get History pointer from network - {e}");
+            println!("{message}");
+            return Err(eyre!(message));
+        }
+    };
 
     print_history(&client, &history, print_history_full, shorten_hex_strings);
     if let Some(entries_range) = entries_range {

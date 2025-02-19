@@ -39,7 +39,7 @@ pub fn debug_print_graph_entry(
     };
 
     println!(
-        "debug_print_graph_entry() {intro} graph entry with address {}{showing_addresses}",
+        "DEBUG {intro} graph entry with address {}{showing_addresses}",
         graph_entry.address().to_hex()
     );
     let parents = if graph_entry.parents.len() > 0 {

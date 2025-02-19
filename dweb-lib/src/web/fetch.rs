@@ -175,18 +175,39 @@ pub async fn fetch_website_version(
             Some(directory_tree),
         );
     } else {
-        let mut history =
-            match History::<DirectoryTree>::from_history_address(client.clone(), history_address)
-                .await
-            {
-                Ok(history) => history,
-                Err(e) => {
-                    return Err(eyre!(
-                        "failed to get History for DWEB-NAME '{}': {e}",
-                        dweb_host.dweb_name,
-                    ));
-                }
-            };
+        // TODO using dweb_host.version.is_none() for ignore pointer would ensures all versions
+        // TODO are available even if the pointer is out of date, but this takes 5s.
+        // TODO If apps cache the pointer counter, provide a way they can pass that for minimum_entry_index
+        // TODO so that from_history_address() never has to wait while walking the graph, and
+        // TODO can know the pointer is up-to-date from the minimum_entry_index
+
+        // TODO this makes every first load take +5s.
+        let (ignore_pointer, minimum_entry_index) = if dweb_host.version.is_some() {
+            (false, dweb_host.version.unwrap() + 1)
+        } else {
+            (true, 0)
+        };
+
+        // TODO this will load fast but may be missing later updates if the pointer
+        // TODO isn't up-to-date on the network
+        let (ignore_pointer, minimum_entry_index) = (false, 0);
+
+        let mut history = match History::<DirectoryTree>::from_history_address(
+            client.clone(),
+            history_address,
+            ignore_pointer,
+            minimum_entry_index,
+        )
+        .await
+        {
+            Ok(history) => history,
+            Err(e) => {
+                return Err(eyre!(
+                    "failed to get History for DWEB-NAME '{}': {e}",
+                    dweb_host.dweb_name,
+                ));
+            }
+        };
 
         if let Some(version) = dweb_host.version {
             if let Ok(history_versions) = history.num_versions() {

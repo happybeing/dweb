@@ -81,13 +81,17 @@ pub async fn handle_inspect_history(
             ));
         }
 
-        // As entries_vec[] is in reverse order we adjust the start and end and count backwards
         println!("  entries {first} to {last:2}:");
         let mut index = first;
         let mut entry_iter = history.get_graph_entry(index).await?;
 
         while index <= last {
-            println!("    entry {index:4.}:");
+            let pointer_indicator = if history.pointer_counter() == index {
+                "P>"
+            } else {
+                "  "
+            };
+            println!("{pointer_indicator}  entry {index:4.}:");
             print_graphentry(
                 &client,
                 "    ",
@@ -111,13 +115,13 @@ pub async fn handle_inspect_history(
                     }
                 };
             }
+            index = index + 1;
             if index <= last {
-                entry_iter = match history.get_child_entry_of(&entry_iter).await? {
+                entry_iter = match history.get_child_entry_of(&entry_iter).await {
                     Some(entry) => entry,
                     None => return Err(eyre!("failed to get child entry for history")),
                 }
             };
-            index = index + 1;
         }
     }
 
@@ -133,15 +137,38 @@ fn print_history(
     println!("history address  : {}", history.history_address().to_hex());
 
     let mut type_string = format!("{}", hex::encode(History::<DirectoryTree>::trove_type()));
-    let mut pointer_string = history.pointer().address().to_hex();
+
+    let mut pointer_string = if let Ok(pointer_address) =
+        History::<DirectoryTree>::pointer_address_from_history_address(history.history_address())
+    {
+        pointer_address.to_hex()
+    } else {
+        String::from("history.pointer_address_from_history_address() not valid - probably a bug")
+    };
+
     let mut root_string = history
         .history_address()
         .to_underlying_graph_root()
         .to_hex();
-    let mut head_string = hex::encode(history.pointer().target().xorname());
+
+    let mut head_string = if let Ok(head) = history.head_entry_address() {
+        head.to_hex()
+    } else {
+        String::from("history.head_entry_address() not valid - probably a bug")
+    };
+
     if shorten_hex_strings {
         type_string = format!("{}", History::<DirectoryTree>::trove_type());
-        pointer_string = format!("{}", history.pointer().address().xorname());
+        pointer_string = if let Ok(pointer_address) =
+            History::<DirectoryTree>::pointer_address_from_history_address(
+                history.history_address(),
+            ) {
+            format!("{}", pointer_address.xorname())
+        } else {
+            String::from(
+                "history.pointer_address_from_history_address() not valid - probably a bug",
+            )
+        };
         root_string = format!(
             "{}",
             history
@@ -149,11 +176,16 @@ fn print_history(
                 .to_underlying_graph_root()
                 .xorname()
         );
-        head_string = format!("{}", history.pointer().target().xorname());
+
+        head_string = if let Ok(head) = history.head_entry_address() {
+            format!("{}", head.xorname())
+        } else {
+            String::from("history.head_entry_address() not valid - probably a bug")
+        };
     }
 
     println!("  type           : {type_string}",);
-    println!("  size           : {}", history.pointer().counter());
+    println!("  size           : {}", history.num_entries());
 
     if full {
         println!("  pointer address: {pointer_string}");

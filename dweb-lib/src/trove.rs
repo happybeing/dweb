@@ -28,7 +28,6 @@ use ant_protocol::storage::{GraphEntry, Pointer, PointerAddress, PointerTarget};
 use autonomi::client::data_types::graph::GraphContent;
 use autonomi::client::key_derivation::{DerivationIndex, MainPubkey, MainSecretKey};
 use autonomi::client::vault::VaultSecretKey as SecretKey;
-use autonomi::client::Client;
 use autonomi::AttoTokens;
 use autonomi::Bytes;
 use autonomi::GraphEntryAddress;
@@ -37,7 +36,7 @@ use crate::client::AutonomiClient;
 use crate::data::autonomi_get_file_public;
 use crate::helpers::convert::str_to_xor_name;
 use crate::helpers::graph_entry::{
-    create_graph_entry, get_derivation_from_graph_entry, graph_entry_get,
+    self, create_graph_entry, get_derivation_from_graph_entry, graph_entry_get,
 };
 
 const LARGEST_VERSION: u32 = u32::MAX;
@@ -132,12 +131,20 @@ pub trait Trove<T> {
 /// can be used to create and access versions of a file, a collection of
 /// files such as a directory, or all the files and settings that make up a website,
 /// and so on.
+/// TODO provide a way to initialise a history from an Autonomi Register pointer and graph
+//  TODO this will require storing the POINTER_DERIVATION_INDEX in the History, and
+//  TODO initialising it according to whether or not it is initialised from a Register .
+//  TODO Also changes to History::history_main_secret_key() for compatibility with Registers
 pub struct History<T: Trove<T> + Clone> {
     client: AutonomiClient,
 
     history_address: HistoryAddress,
     name: String,
-    pointer: Pointer,
+
+    // We can't trust a pointer from the network to be up-to-date, so these are updated from the graph
+    head_graphentry: Option<GraphEntry>,
+    num_entries: u32,
+    pointer_counter: u32, // Keep track of the pointer version for comparisson (e.g. using 'inspect-history')
 
     // For operations when no version is specified. Typically, None implies most recent
     default_version: Option<u32>,
@@ -182,7 +189,7 @@ impl<T: Trove<T> + Clone> History<T> {
         );
         let (graph_cost, root_entry_address) = match client
             .client
-            .graph_entry_put(root_entry, client.payment_option())
+            .graph_entry_put(root_entry.clone(), client.payment_option())
             .await
         {
             Ok(result) => result,
@@ -198,7 +205,7 @@ impl<T: Trove<T> + Clone> History<T> {
         println!("DEBUG created pointer at {}", pointer.address().to_hex());
         match client
             .client
-            .pointer_put(pointer.clone(), client.wallet.clone().into())
+            .pointer_put(pointer, client.wallet.clone().into())
             .await
         {
             Ok((pointer_cost, pointer_address)) => {
@@ -210,7 +217,9 @@ impl<T: Trove<T> + Clone> History<T> {
                     client: client.clone(),
                     name,
                     history_address,
-                    pointer,
+                    head_graphentry: Some(root_entry), // The first and only entry so far
+                    num_entries: 1,
+                    pointer_counter: 0,
                     default_version: None,
                     cached_version: None,
                     phantom: PhantomData,
@@ -250,28 +259,112 @@ impl<T: Trove<T> + Clone> History<T> {
         let history_address = HistoryAddress::new(history_secret_key.public_key());
 
         let pointer_address = Self::pointer_address_from_history_address(history_address.clone())?;
-        match client.client.pointer_get(&pointer_address).await {
+        match Self::get_and_verify_pointer(&client, &pointer_address).await {
             Ok(pointer) => {
                 println!(
                     "DEBUG History::from_name() obtained pointer from {:x}",
                     pointer.address().xorname()
                 );
 
-                let history = History {
+                let mut history = History {
                     client: client.clone(),
                     name,
                     history_address,
-                    pointer,
+                    head_graphentry: None,
+                    num_entries: 0,
+                    pointer_counter: pointer.counter(),
                     default_version: None,
                     cached_version: None,
                     phantom: PhantomData,
                 };
+                // Necessary because the pointer may not be up-to-data
+                history
+                    .update_from_graph(
+                        &GraphEntryAddress(pointer.target().xorname()),
+                        pointer.counter(),
+                    )
+                    .await?;
 
                 Ok((Into::into(0), history))
             }
             Err(e) => {
                 let message = format!("History::from_name() pointer not found on network: {e}");
                 println!("DEBUG {message}");
+                return Err(eyre!(message));
+            }
+        }
+    }
+
+    /// Update the History head and num_entries based on the graph and return the head GraphEntry.
+    /// This is necessary because the pointer retrieved from the network may not be up-to-date
+    ///
+    /// Gets the actual head by starting from the Pointer and moving
+    /// forward to the most recently added entry
+    ///
+    /// Returns the head GraphEntry
+    pub async fn update_from_graph(
+        &mut self,
+        pointer_target: &GraphEntryAddress,
+        pointer_counter: u32,
+    ) -> Result<GraphEntry> {
+        println!("DEBUG History::update_from_graph()");
+
+        // Get the Pointer target entry and move forwards - because the pointer may not be up to date
+        let pointer_target_entry = match self.get_graph_entry_from_network(pointer_target).await {
+            Ok(head) => head,
+            Err(e) => return Err(eyre!("Failed to get pointer target entry - {e}")),
+        };
+
+        let mut iter_entry = pointer_target_entry;
+        let mut iter_index = pointer_counter;
+
+        let mut final_index = iter_index;
+        let mut final_entry;
+        loop {
+            println!("DEBUG stepping forwards: iter_index {iter_index}");
+            final_entry = iter_entry.clone();
+            iter_entry = if let Some(entry) = self.get_child_entry_of(&iter_entry).await {
+                iter_index = iter_index + 1;
+                final_index = final_index + 1;
+                entry
+            } else {
+                break;
+            }
+        }
+
+        self.head_graphentry = Some(final_entry.clone());
+        self.num_entries = final_index + 1;
+
+        Ok(final_entry)
+    }
+
+    async fn get_and_verify_pointer(
+        client: &AutonomiClient,
+        pointer_address: &PointerAddress,
+    ) -> Result<Pointer> {
+        match client.client.pointer_get(pointer_address).await {
+            Ok(pointer) => {
+                if !pointer.verify_signature() {
+                    let message =
+                        format!("Error - pointer retrieved from network has INVALID SIGNATURE");
+                    println!("{message}");
+                    return Err(eyre!(message));
+                }
+
+                let head_address = match pointer.target() {
+                    PointerTarget::GraphEntryAddress(address) => address,
+                    other => return Err(eyre!("Invalid head address {:?}", other.clone())),
+                };
+                println!(
+                    "DEBUG pointer counter: {}, head address: {}",
+                    pointer.counter(),
+                    head_address.to_hex()
+                );
+                Ok(pointer)
+            }
+            Err(e) => {
+                let message = format!("failed to get pointer from the network - {e}");
+                println!("{message}");
                 return Err(eyre!(message));
             }
         }
@@ -299,7 +392,7 @@ impl<T: Trove<T> + Clone> History<T> {
 
         // Check it exists to avoid accidental creation (and payment)
         let pointer_address = Self::pointer_address_from_history_address(history_address.clone())?;
-        let pointer = match client.client.pointer_get(&pointer_address).await {
+        let pointer = match Self::get_and_verify_pointer(&client, &pointer_address).await {
             Ok(pointer) => pointer,
             Err(e) => {
                 let msg = format!(
@@ -315,20 +408,30 @@ impl<T: Trove<T> + Clone> History<T> {
             client,
             name: String::from(""),
             history_address,
-            pointer,
+            head_graphentry: None,
+            num_entries: 0,
+            pointer_counter: pointer.counter(),
             default_version: None,
             cached_version: None,
             phantom: PhantomData,
         };
+        // Necessary because the pointer may not be up-to-data
+        history
+            .update_from_graph(
+                &GraphEntryAddress(pointer.target().xorname()),
+                pointer.counter(),
+            )
+            .await?;
         history.update_default_version();
         Ok(history)
     }
 
     /// Get the main secret key for all histories belonging to an owner
     fn history_main_secret_key(owner_secret_key: SecretKey) -> SecretKey {
-        // For release:
+        // For release use the trove type:
         let derivation_index: [u8; 32] = Self::trove_type().to_vec().try_into().unwrap();
-        // TODO DEBUG For testing until the I the scripts are uploading to the Arbitrum One network reliably
+        // TODO DEBUG For testing until the scripts are uploading to the Arbitrum One network reliably
+        // TODO use this, and change it to wipe the slate clean
         let derivation_index: [u8; 32] = [0; 32]; // Modify each time I need to start afresh
         MainSecretKey::new(owner_secret_key.clone())
             .derive_key(&DerivationIndex::from_bytes(derivation_index))
@@ -341,10 +444,6 @@ impl<T: Trove<T> + Clone> History<T> {
         MainSecretKey::new(history_secret_key.clone())
             .derive_key(&DerivationIndex::from_bytes(derivation_index))
             .into()
-    }
-
-    pub fn pointer(&self) -> &Pointer {
-        &self.pointer
     }
 
     /// The root graph entry of the History (not the entry for the first value).
@@ -367,8 +466,15 @@ impl<T: Trove<T> + Clone> History<T> {
 
     /// The address of the head in the current pointer
     /// Does not update pointer from network
-    fn head_entry_address(&self) -> GraphEntryAddress {
-        GraphEntryAddress::new(self.pointer.target().xorname())
+    pub fn head_entry_address(&self) -> Result<GraphEntryAddress> {
+        match self.head_graphentry.clone() {
+            Some(head_entry) => Ok(head_entry.address()),
+            None => Err(eyre!("History has uninitialised head_graphentry_entry")),
+        }
+    }
+
+    pub fn pointer_counter(&self) -> u32 {
+        self.pointer_counter
     }
 
     fn update_default_version(&mut self) -> Option<u32> {
@@ -398,14 +504,14 @@ impl<T: Trove<T> + Clone> History<T> {
     /// the Trove type). Example types include file
     /// system and website.
     pub fn num_entries(&self) -> u32 {
-        self.pointer.counter()
+        self.num_entries
     }
 
     /// Return the number of available versions
     /// or an error if no versions are available.
     /// The first version is 1 last version is num_versions()
     pub fn num_versions(&self) -> Result<u32> {
-        let num_entries = self.pointer.counter() + 1;
+        let num_entries = self.num_entries;
 
         if num_entries == 0 {
             let message = "pointer is empty (0 entries)";
@@ -449,8 +555,8 @@ impl<T: Trove<T> + Clone> History<T> {
     /// first version in a history is 1 and the last is the number of entries - 1
     pub async fn get_version_entry_value(&mut self, version: u32) -> Result<XorName> {
         println!("DEBUG History::get_version_entry_value(version: {version})");
-        self.update_pointer().await?;
-        let num_entries = self.pointer.counter() + 1;
+        // self.update_pointer().await?;
+        let num_entries = self.num_entries();
 
         // The first entry is the Trove<T>::trove_type(), and not used so max version is num_entries - 1
         let max_version = if num_entries > 0 { num_entries - 1 } else { 0 };
@@ -464,15 +570,6 @@ impl<T: Trove<T> + Clone> History<T> {
         }
 
         self.get_entry_value(version).await
-    }
-
-    pub async fn update_pointer(&mut self) -> Result<()> {
-        self.pointer = self
-            .client
-            .client
-            .pointer_get(&self.pointer.address())
-            .await?;
-        Ok(())
     }
 
     /// Get the value by absolute entry index.
@@ -489,8 +586,8 @@ impl<T: Trove<T> + Clone> History<T> {
     /// Note that the root entry (index 0) is not a valid version. Version 1 is at index 1.
     pub async fn get_graph_entry(&mut self, index: u32) -> Result<GraphEntry> {
         // println!("DEBUG History::get_graph_entry(index: {index})");
-        self.update_pointer().await?;
-        let num_entries = self.pointer.counter() + 1;
+        // self.update_pointer().await?;
+        let num_entries = self.num_entries();
 
         if index >= num_entries {
             return Err(eyre!(
@@ -543,7 +640,7 @@ impl<T: Trove<T> + Clone> History<T> {
             while index > iter_index {
                 println!("DEBUG stepping forwards: index {index} > {iter_index} iter_index");
                 iter_index = iter_index + 1;
-                iter_entry = if let Some(entry) = self.get_child_entry_of(&iter_entry).await? {
+                iter_entry = if let Some(entry) = self.get_child_entry_of(&iter_entry).await {
                     entry
                 } else {
                     return Err(eyre!(
@@ -580,7 +677,7 @@ impl<T: Trove<T> + Clone> History<T> {
     /// Get the most recent GraphEntry
     pub async fn get_head_entry(&self) -> Result<Option<GraphEntry>> {
         Ok(Some(
-            self.get_graph_entry_from_network(&self.head_entry_address())
+            self.get_graph_entry_from_network(&self.head_entry_address()?)
                 .await?,
         ))
     }
@@ -596,7 +693,7 @@ impl<T: Trove<T> + Clone> History<T> {
 
     /// Get the child of a GraphEntry
     /// Assumes each entry has only one descendent
-    pub async fn get_child_entry_of(&self, graph_entry: &GraphEntry) -> Result<Option<GraphEntry>> {
+    pub async fn get_child_entry_of(&self, graph_entry: &GraphEntry) -> Option<GraphEntry> {
         // // TODO I don't understand why this isn't sufficient:
         // let child = GraphEntryAddress::from_owner(graph_entry.descendants[0].0);
 
@@ -607,7 +704,10 @@ impl<T: Trove<T> + Clone> History<T> {
             .into();
         let child = GraphEntryAddress::from_owner(next_entry_pk);
 
-        Ok(Some(self.get_graph_entry_from_network(&child).await?))
+        match self.get_graph_entry_from_network(&child).await {
+            Ok(graph_entry) => Some(graph_entry),
+            Err(_) => None,
+        }
     }
 
     // Returns the version of the cached entry if present
@@ -649,7 +749,7 @@ impl<T: Trove<T> + Clone> History<T> {
     }
 
     /// Add a trove to the History and return the index of the most recent entry (1 = first trove entry, 0 = root entry)
-    pub async fn update_online(
+    async fn update_online(
         &mut self,
         owner_secret_key: SecretKey,
         trove_address: XorName,
@@ -658,36 +758,31 @@ impl<T: Trove<T> + Clone> History<T> {
         let history_secret_key =
             Self::history_main_secret_key(owner_secret_key).derive_child(self.name.as_bytes());
 
-        let history_address = history_secret_key.public_key();
+        let history_address = HistoryAddress::new(history_secret_key.public_key());
         println!("Updating History at {}", history_address.to_hex());
 
-        match self
-            .client
-            .client
-            .pointer_get(&self.pointer.address())
-            .await
-        {
+        let pointer_address = Self::pointer_address_from_history_address(history_address.clone())?;
+        match Self::get_and_verify_pointer(&self.client, &pointer_address).await {
             Ok(old_pointer) => {
-                if !old_pointer.verify_signature() {
-                    let message =
-                        format!("Error - pointer retrieved from network has INVALID SIGNATURE");
-                    println!("{message}");
-                    return Err(eyre!(message));
-                }
+                self.pointer_counter = old_pointer.counter();
 
-                let head_address = match old_pointer.target() {
-                    PointerTarget::GraphEntryAddress(address) => address,
-                    other => return Err(eyre!("Invalid head address {:?}", other.clone())),
-                };
-                println!(
-                    "DEBUG fetched head address from pointer: {}",
-                    head_address.to_hex()
-                );
+                // We don't trust the retrieved pointer to be up-to-date so treat it
+                // as near the head and get the actual head and num_entries from
+                // the graph. These are saved in:
+                //    self.head_graphentry;
+                //    self.num_entries;
+                self.update_from_graph(
+                    &GraphEntryAddress(old_pointer.target().xorname()),
+                    old_pointer.counter(),
+                )
+                .await?;
+
+                let head_address = self.head_graphentry.clone().unwrap().address();
 
                 let (graph_cost, next_address) = match self
                     .create_next_graph_entry_online(
                         history_secret_key.clone(),
-                        *head_address,
+                        head_address,
                         &trove_address,
                     )
                     .await
@@ -699,7 +794,7 @@ impl<T: Trove<T> + Clone> History<T> {
                 println!("Pointer retrieved with counter {}", old_pointer.counter());
                 let pointer_secret_key = Self::history_pointer_secret_key(history_secret_key);
                 let new_pointer = Self::create_pointer_for_update(
-                    old_pointer.counter() + 1,
+                    self.num_entries(),
                     &next_address,
                     &pointer_secret_key,
                 );
@@ -719,7 +814,6 @@ impl<T: Trove<T> + Clone> History<T> {
                     .await
                 {
                     Ok((pointer_cost, _pointer_address)) => {
-                        self.pointer = new_pointer.clone();
                         let total_cost = pointer_cost.checked_add(graph_cost);
                         if total_cost.is_none() {
                             return Err(eyre!("Invalid cost"));

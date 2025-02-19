@@ -122,7 +122,7 @@ pub async fn graph_entry_get(
         }
         Err(e) => {
             let msg = format!("failed to get graph entry - {e}");
-            println!("DEBUG graph_entry_get() {msg}");
+            // println!("DEBUG graph_entry_get() {msg}");
             return Err(eyre!(msg));
         }
     }

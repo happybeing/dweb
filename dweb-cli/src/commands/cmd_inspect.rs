@@ -122,7 +122,7 @@ pub async fn handle_inspect_history(
             }
             index = index + 1;
             if index <= last {
-                entry_iter = match history.get_child_entry_of(&entry_iter).await {
+                entry_iter = match history.get_child_entry_of(&entry_iter, true).await {
                     Some(entry) => entry,
                     None => return Err(eyre!("failed to get child entry for history")),
                 }
@@ -239,7 +239,7 @@ pub async fn handle_inspect_graphentry(
         .await
         .expect("Failed to connect to Autonomi Network");
 
-    let graph_entry = graph_entry_get(&client.client, &graph_entry_address).await?;
+    let graph_entry = graph_entry_get(&client.client, &graph_entry_address, false).await?;
 
     print_graphentry(
         &client,

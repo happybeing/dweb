@@ -323,7 +323,7 @@ impl<T: Trove<T> + Clone> History<T> {
         } else {
             // Use the pointer even though it may not be up-to-date
             match history
-                .get_graph_entry_from_network(&GraphEntryAddress(pointer.target().xorname()))
+                .get_graph_entry_from_network(&GraphEntryAddress(pointer.target().xorname()), false)
                 .await
             {
                 Ok(pointer_head) => {
@@ -404,7 +404,7 @@ impl<T: Trove<T> + Clone> History<T> {
         } else {
             // Use the pointer even though it may not be up-to-date
             match history
-                .get_graph_entry_from_network(&GraphEntryAddress(pointer.target().xorname()))
+                .get_graph_entry_from_network(&GraphEntryAddress(pointer.target().xorname()), false)
                 .await
             {
                 Ok(pointer_head) => {
@@ -442,7 +442,10 @@ impl<T: Trove<T> + Clone> History<T> {
         }
 
         // Get the Pointer target entry and move forwards - because the pointer may not be up to date
-        let pointer_target_entry = match self.get_graph_entry_from_network(pointer_target).await {
+        let pointer_target_entry = match self
+            .get_graph_entry_from_network(pointer_target, false)
+            .await
+        {
             Ok(head) => head,
             Err(e) => return Err(eyre!("Failed to get pointer target entry - {e}")),
         };
@@ -455,7 +458,7 @@ impl<T: Trove<T> + Clone> History<T> {
         loop {
             println!("DEBUG stepping forwards: iter_index {iter_index}");
             final_entry = iter_entry.clone();
-            iter_entry = if let Some(entry) = self.get_child_entry_of(&iter_entry).await {
+            iter_entry = if let Some(entry) = self.get_child_entry_of(&iter_entry, true).await {
                 iter_index = iter_index + 1;
                 final_index = final_index + 1;
                 entry
@@ -726,7 +729,8 @@ impl<T: Trove<T> + Clone> History<T> {
             while index > iter_index {
                 println!("DEBUG stepping forwards: index {index} > {iter_index} iter_index");
                 iter_index = iter_index + 1;
-                iter_entry = if let Some(entry) = self.get_child_entry_of(&iter_entry).await {
+                iter_entry = if let Some(entry) = self.get_child_entry_of(&iter_entry, false).await
+                {
                     entry
                 } else {
                     return Err(eyre!(
@@ -742,20 +746,25 @@ impl<T: Trove<T> + Clone> History<T> {
     async fn get_graph_entry_from_network(
         &self,
         graph_entry_address: &GraphEntryAddress,
+        check_exists: bool,
     ) -> Result<GraphEntry> {
         // println!(
         //     "DEBUG get_graph_entry_from_network() at {}",
         //     graph_entry_address.to_hex()
         // );
-        Ok(graph_entry_get(&self.client.client, graph_entry_address).await?)
+
+        Ok(graph_entry_get(&self.client.client, graph_entry_address, check_exists).await?)
     }
 
     // Does not need to update pointer
     pub async fn get_root_entry(&self) -> Result<Option<GraphEntry>> {
         Ok(Some(
-            self.get_graph_entry_from_network(&Self::root_graph_entry_address(
-                GraphEntryAddress::from_owner(self.history_address.owner()),
-            ))
+            self.get_graph_entry_from_network(
+                &Self::root_graph_entry_address(GraphEntryAddress::from_owner(
+                    self.history_address.owner(),
+                )),
+                false,
+            )
             .await?,
         ))
     }
@@ -763,7 +772,7 @@ impl<T: Trove<T> + Clone> History<T> {
     /// Get the most recent GraphEntry
     pub async fn get_head_entry(&self) -> Result<Option<GraphEntry>> {
         Ok(Some(
-            self.get_graph_entry_from_network(&self.head_entry_address()?)
+            self.get_graph_entry_from_network(&self.head_entry_address()?, false)
                 .await?,
         ))
     }
@@ -774,12 +783,18 @@ impl<T: Trove<T> + Clone> History<T> {
         graph_entry: &GraphEntry,
     ) -> Result<Option<GraphEntry>> {
         let parent = GraphEntryAddress::from_owner(graph_entry.parents[0]);
-        Ok(Some(self.get_graph_entry_from_network(&parent).await?))
+        Ok(Some(
+            self.get_graph_entry_from_network(&parent, false).await?,
+        ))
     }
 
     /// Get the child of a GraphEntry
     /// Assumes each entry has only one descendent
-    pub async fn get_child_entry_of(&self, graph_entry: &GraphEntry) -> Option<GraphEntry> {
+    pub async fn get_child_entry_of(
+        &self,
+        graph_entry: &GraphEntry,
+        check_exists: bool,
+    ) -> Option<GraphEntry> {
         // // TODO I don't understand why this isn't sufficient:
         // let child = GraphEntryAddress::from_owner(graph_entry.descendants[0].0);
 
@@ -790,7 +805,10 @@ impl<T: Trove<T> + Clone> History<T> {
             .into();
         let child = GraphEntryAddress::from_owner(next_entry_pk);
 
-        match self.get_graph_entry_from_network(&child).await {
+        match self
+            .get_graph_entry_from_network(&child, check_exists)
+            .await
+        {
             Ok(graph_entry) => Some(graph_entry),
             Err(_) => None,
         }
@@ -817,7 +835,10 @@ impl<T: Trove<T> + Clone> History<T> {
         graph_entry_address: &GraphEntryAddress,
     ) -> Result<(GraphEntry, DerivationIndex)> {
         println!("DEBUG history_get_graph_entry_and_next_derivation_index()");
-        let entry = match self.get_graph_entry_from_network(graph_entry_address).await {
+        let entry = match self
+            .get_graph_entry_from_network(graph_entry_address, false)
+            .await
+        {
             Ok(entry) => entry,
             Err(e) => {
                 let msg = format!("Failed to get graph entry from network - {e}");

@@ -176,12 +176,12 @@ pub async fn fetch_website_version(
         );
     } else {
         // TODO using dweb_host.version.is_none() for ignore pointer would ensures all versions
-        // TODO are available even if the pointer is out of date, but this takes 5s.
+        // TODO are available even if the pointer is out of date, but this takes more than 20s.
         // TODO If apps cache the pointer counter, provide a way they can pass that for minimum_entry_index
         // TODO so that from_history_address() never has to wait while walking the graph, and
         // TODO can know the pointer is up-to-date from the minimum_entry_index
 
-        // TODO this makes every first load take +5s.
+        // TODO this makes every first load take more than 20s.
         let (ignore_pointer, minimum_entry_index) = if dweb_host.version.is_some() {
             (false, dweb_host.version.unwrap() + 1)
         } else {

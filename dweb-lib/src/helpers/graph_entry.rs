@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+use autonomi::graph;
 use blsttc::PublicKey;
 use color_eyre::{eyre::eyre, Result};
 use xor_name::XorName;
@@ -85,8 +86,26 @@ pub fn debug_print_graph_entry(
 pub async fn graph_entry_get(
     client: &Client,
     graph_entry_address: &GraphEntryAddress,
+    check_exists: bool,
 ) -> Result<GraphEntry> {
     // println!("DEBUG graph_entry_get() {}", graph_entry_address.to_hex());
+
+    if check_exists {
+        match client
+            .graph_entry_check_existance(graph_entry_address)
+            .await
+        {
+            Ok(exists) => {
+                if !exists {
+                    println!("DEBUG GraphEntry does not exist");
+                    return Err(eyre!("GraphEntry does not exist"));
+                } else {
+                    println!("DEBUG GraphEntry exists");
+                }
+            }
+            Err(e) => {}
+        };
+    };
 
     match client.graph_entry_get(graph_entry_address).await {
         Ok(entry) => {

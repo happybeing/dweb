@@ -20,6 +20,7 @@ use autonomi::GraphEntryAddress;
 use color_eyre::eyre::{eyre, Result};
 use xor_name::XorName;
 
+use crate::cache::directory_with_name::HISTORY_NAMES;
 use crate::trove::HistoryAddress;
 
 // The following functions copied from sn_cli with minor changes (eg to message text)
@@ -64,6 +65,42 @@ pub fn str_to_xor_name(str: &str) -> Result<XorName> {
     }
 }
 
+/// Parse a string which is a recognised HISTORY-ADDRESS or ARCHIVE-ADDRESS
+/// See also
+pub fn address_tuple_from_address(address: &str) -> (Option<HistoryAddress>, Option<XorName>) {
+    if let Ok(address) = str_to_history_address(address) {
+        return (Some(address), None);
+    }
+
+    if let Ok(address) = str_to_xor_name(address) {
+        return (None, Some(address));
+    }
+
+    return (None, None);
+}
+
+/// Parse a string which is a recognised DWEB-NAME, HISTORY-ADDRESS or ARCHIVE-ADDRESS
+/// For now the only recognised DWEB-NAME is 'awesome'
+pub fn address_tuple_from_address_or_name(
+    address_or_name: &str,
+) -> (Option<HistoryAddress>, Option<XorName>) {
+    if let Ok(address) = str_to_history_address(address_or_name) {
+        return (Some(address), None);
+    }
+
+    if let Ok(address) = str_to_xor_name(address_or_name) {
+        return (None, Some(address));
+    }
+
+    if let Ok(lock) = &mut HISTORY_NAMES.lock() {
+        if let Some(history_address) = lock.get(address_or_name).copied() {
+            return (Some(history_address), None);
+        }
+    }
+
+    return (None, None);
+}
+
 ////// awe protocol versions of the above for use by dweb CLI
 
 pub const AWE_PROTOCOL_HISTORY: &str = "awv://";
@@ -71,11 +108,6 @@ pub const AWE_PROTOCOL_HISTORY: &str = "awv://";
 pub const AWE_PROTOCOL_DIRECTORY: &str = "awm://";
 #[allow(dead_code)]
 pub const AWE_PROTOCOL_FILE: &str = "awf://";
-
-// Default ports for HTTP / HTTPS
-pub const DEFAULT_HTTP_PORT_STR: &str = "8080";
-pub const DEFAULT_HTTPS_PORT_STR: &str = "8443";
-pub const LOCALHOST: &str = "127.0.0.1";
 
 // Assignable port range (https://en.wikipedia.org/wiki/Registered_port)
 pub const MIN_SERVER_PORT: u16 = 1024;

@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2025 Mark Hughes
+ Copyright (c) 2024-2025 Mark Hughes
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as published by
@@ -14,11 +14,3 @@
  You should have received a copy of the GNU Affero General Public License
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-
-pub mod fetch;
-pub mod name;
-
-// Default ports for HTTP / HTTPS
-pub const DEFAULT_HTTP_PORT: u16 = 8080;
-pub const DEFAULT_HTTPS_PORT: u16 = 8443;
-pub const LOCALHOST_STR: &str = "127.0.0.1";

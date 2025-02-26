@@ -116,7 +116,8 @@ pub async fn www_handler(
     );
     if version != 0 && dweb_host.version.is_none() {
         let versioned_host = format!("v{version}.{}.{}", &dweb_host.dweb_name, DWEB_SERVICE_WWW);
-        return response_redirect(&request, &versioned_host, Some(&path));
+        let path = String::from(path.as_str());
+        return response_redirect(&request, &versioned_host, None, Some(path));
     }
 
     match directory_tree.lookup_web_resource(&(String::from("/") + path.as_str())) {

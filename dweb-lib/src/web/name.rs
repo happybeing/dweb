@@ -61,7 +61,7 @@
 
 use color_eyre::eyre::{eyre, Result};
 
-use crate::cache::directory_version::HISTORY_NAMES;
+use crate::cache::directory_with_name::HISTORY_NAMES;
 use crate::trove::HistoryAddress;
 
 // Domain name and subdomain constraints based on IETF RFC1035 with links to relevant sections:
@@ -96,8 +96,7 @@ pub struct DwebHost {
 
 /// Make a valid DWEB-NAME for a dweb URL
 ///
-/// memorable_part must start with an alphabetic character followed by zero or more alphanumeric
-/// characters which may be separated by single hyphens, up to a length of MEMORABLE_PART_LEN.
+/// See validate_dweb_name() for more.
 pub fn make_dweb_name(memorable_part: &String, history_address: HistoryAddress) -> Result<String> {
     if memorable_part.len() == 0 {
         return Err(eyre!(
@@ -158,6 +157,7 @@ pub fn make_version_part(version: u32) -> String {
 
 #[cfg(feature = "fixed-dweb-hosts")]
 use xor_name::XorName as ArchiveAddress;
+
 pub fn make_fixed_dweb_name(
     memorable_part: &String,
     archive_address: ArchiveAddress,
@@ -345,9 +345,25 @@ pub fn decode_dweb_host(dweb_host: &str) -> Result<DwebHost> {
     })
 }
 
-pub fn validate_dweb_name(dweb_name: &str) -> Result<String> {
-    if !dweb_name.as_bytes()[0].is_ascii_alphabetic() {
-        return Err(eyre!("DWEB-NAME must start with an alphbetic character"));
+/// Validate a DWEB-NAME string.
+///
+/// The part off a DWEB-NAME up but excluding the final hyphen is known as the 'memorable part'.
+///
+/// The memorable_part must start with at least two alphabetic characters. This is to allow it to
+/// be distinguished from a version parameter, which is a 'v' or 'V' followed by an integer (u32),
+/// which is useful in apps, for parsing links where the version is an optional part of the URL path.
+///
+/// Following the first two alphabetic characters are a number of alphanumeric characters which may
+/// be separated by single hyphens, up to a total length for the memorable part of MEMORABLE_PART_LEN.
+///
+pub fn validate_dweb_name(dweb_name: &str) -> Result<()> {
+    if dweb_name.len() < 2
+        || !dweb_name.as_bytes()[0].is_ascii_alphabetic()
+        || !dweb_name.as_bytes()[1].is_ascii_alphabetic()
+    {
+        return Err(eyre!(
+            "DWEB-NAME must start with at least two alphabetic characters"
+        ));
     }
 
     if !dweb_name[dweb_name.len() - 1..]
@@ -367,7 +383,7 @@ pub fn validate_dweb_name(dweb_name: &str) -> Result<String> {
         return Err(eyre!("DWEB-NAME cannot contain '--'"));
     }
 
-    Ok(String::from(dweb_name))
+    Ok(())
 }
 
 /// Register a DWEB-NAME programmatically so it can be used in the browser address bar

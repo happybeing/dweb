@@ -23,6 +23,7 @@ mod commands;
 mod generated_rs;
 mod helpers;
 mod services;
+mod services_quick;
 
 use clap::Parser;
 use color_eyre::Result;

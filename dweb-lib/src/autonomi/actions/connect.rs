@@ -52,7 +52,7 @@ pub async fn connect_to_network_with_config(
 
     match res {
         Ok(client) => {
-            println!("Connected to the Network");
+            // println!("Connected to the Network");
             progress_bar.finish_with_message("Connected to the Network");
             Ok(client)
         }

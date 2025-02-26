@@ -15,8 +15,10 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-use color_eyre::{eyre::eyre, Result};
+use color_eyre::{eyre::eyre, Report, Result};
 
+use dweb::autonomi::access::network::NetworkPeers;
+use dweb::client::AutonomiClient;
 use dweb::storage::{publish_or_update_files, report_content_published_or_updated};
 
 use crate::cli_options::{Opt, Subcommands};
@@ -27,9 +29,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
 
     match opt.cmd {
         Some(Subcommands::Estimate { files_root }) => {
-            let client = dweb::client::AutonomiClient::initialise_and_connect(peers.await?)
-                .await
-                .expect("Failed to connect to Autonomi Network");
+            let (client, _) = connect_and_announce(peers.await?, true).await;
             match client.client.file_cost(&files_root).await {
                 Ok(tokens) => println!("Cost estimate: {tokens}"),
                 Err(e) => println!("Unable to estimate cost: {e}"),
@@ -42,9 +42,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             is_new_network: _,
         }) => {
             let app_secret_key = dweb::helpers::get_app_secret_key()?;
-            let client = dweb::client::AutonomiClient::initialise_and_connect(peers.await?)
-                .await
-                .expect("Failed to connect to Autonomi Network");
+            let (client, _) = connect_and_announce(peers.await?, true).await;
 
             let (cost, name, history_address, version) = match publish_or_update_files(
                 &client,
@@ -80,9 +78,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             dweb_settings,
         }) => {
             let app_secret_key = dweb::helpers::get_app_secret_key()?;
-            let client = dweb::client::AutonomiClient::initialise_and_connect(peers.await?)
-                .await
-                .expect("Failed to connect to Autonomi Network");
+            let (client, _) = connect_and_announce(peers.await?, true).await;
 
             let (cost, name, history_address, version) = publish_or_update_files(
                 &client,
@@ -115,8 +111,9 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             graph_keys,
             files_args,
         }) => {
+            let (client, _) = connect_and_announce(peers.await?, true).await;
             match crate::commands::cmd_inspect::handle_inspect_history(
-                peers.await?,
+                client,
                 history_address,
                 print_history_full,
                 entries_range,
@@ -140,8 +137,9 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             print_full,
             shorten_hex_strings,
         }) => {
+            let (client, _) = connect_and_announce(peers.await?, true).await;
             match crate::commands::cmd_inspect::handle_inspect_graphentry(
-                peers.await?,
+                client,
                 graph_entry_address,
                 print_full,
                 shorten_hex_strings,
@@ -157,8 +155,9 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
         }
 
         Some(Subcommands::Inspect_pointer { pointer_address }) => {
+            let (client, _) = connect_and_announce(peers.await?, true).await;
             match crate::commands::cmd_inspect::handle_inspect_pointer(
-                peers.await?,
+                client,
                 pointer_address,
             )
             .await
@@ -175,8 +174,9 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             archive_address,
             files_args,
         }) => {
+            let (client, _) = connect_and_announce(peers.await?, true).await;
             match crate::commands::cmd_inspect::handle_inspect_files(
-                peers.await?,
+                client,
                 archive_address,
                 files_args,
             )
@@ -199,16 +199,6 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             println!("TODO: implement subcommand 'download'");
         }
 
-        Some(Subcommands::Serve { host, port }) => {
-            match crate::services::serve(peers.await?, host, port).await {
-                Ok(_) => return Ok(true),
-                Err(e) => {
-                    println!("{e:?}");
-                    return Err(eyre!(e));
-                }
-            }
-        }
-
         Some(Subcommands::Awesome {}) => {
             let site_address = if peers.await?.is_local() {
                 crate::generated_rs::builtins_local::AWESOME_SITE_HISTORY_LOCAL
@@ -225,16 +215,63 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             let _ = open::that(url);
         }
 
+        // TODO consider detecting if a serve is running and if not starting automatically
         Some(Subcommands::Browse {
             dweb_name,
             history_address,
-            // archive_address, only if I support feature("fixed-dweb-hosts")
+            port: u16,
         }) => {
-            dweb::web::browse::handle_open_browser(
+            crate::commands::cmd_browse::handle_browse(
                 dweb_name,
                 history_address,
                 // archive_address  // Only if I support feature("fixed-dweb-hosts")
             );
+        }
+
+        // TODO consider detecting if serve-quick is running and if not starting automatically
+        Some(Subcommands::Browse_quick {
+            address_or_name,
+            version,
+            remote_path,
+            port,
+        }) => {
+            crate::commands::cmd_browse::handle_browse_quick(
+                &address_or_name,
+                version,
+                remote_path,
+                Some(port),
+            );
+        }
+
+        Some(Subcommands::Serve { host, port }) => {
+            let (client, is_local_network) = connect_and_announce(peers.await?, true).await;
+            match crate::services::serve_localdns(client, host, port, is_local_network).await {
+                Ok(_) => return Ok(true),
+                Err(e) => {
+                    println!("{e:?}");
+                    return Err(eyre!(e));
+                }
+            }
+        }
+
+        Some(Subcommands::Serve_quick { port }) => {
+            let (client, is_local_network) = connect_and_announce(peers.await?, true).await;
+            // Starts the main quick server, which will handle /dweb-link URLs  opened by Browse_quick
+            match crate::services_quick::serve_quick(
+                &client,
+                None,
+                Some(port),
+                false,
+                is_local_network,
+            )
+            .await
+            {
+                Ok(_) => return Ok(true),
+                Err(e) => {
+                    println!("{e:?}");
+                    return Err(eyre!(e));
+                }
+            }
         }
 
         // Default is not to return, but open the browser by continuing
@@ -244,4 +281,21 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
         }
     }
     Ok(true)
+}
+
+async fn connect_and_announce(peers: NetworkPeers, announce: bool) -> (AutonomiClient, bool) {
+    let is_local_network = peers.is_local();
+    let client = dweb::client::AutonomiClient::initialise_and_connect(peers)
+        .await
+        .expect("Failed to connect to Autonomi Network");
+
+    if announce {
+        if is_local_network {
+            println!("-> local network: {}", client.network);
+        } else {
+            println!("-> public network {}", client.network);
+        };
+    };
+
+    (client, is_local_network)
 }

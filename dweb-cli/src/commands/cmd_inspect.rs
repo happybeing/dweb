@@ -35,7 +35,7 @@ use crate::cli_options::{EntriesRange, FilesArgs};
 
 /// Implement 'inspect-history' subcommand
 pub async fn handle_inspect_history(
-    peers: NetworkPeers,
+    client: AutonomiClient,
     history_address: HistoryAddress,
     print_history_full: bool,
     entries_range: Option<EntriesRange>,
@@ -44,10 +44,6 @@ pub async fn handle_inspect_history(
     shorten_hex_strings: bool,
     files_args: FilesArgs,
 ) -> Result<()> {
-    let client = dweb::client::AutonomiClient::initialise_and_connect(peers)
-        .await
-        .expect("Failed to connect to Autonomi Network");
-
     let mut history = match History::<DirectoryTree>::from_history_address(
         client.clone(),
         history_address,
@@ -201,13 +197,9 @@ fn print_history(
 
 /// Implement 'inspect-pointer' subcommand
 pub async fn handle_inspect_pointer(
-    peers: NetworkPeers,
+    client: AutonomiClient,
     pointer_address: PointerAddress,
 ) -> Result<()> {
-    let client = dweb::client::AutonomiClient::initialise_and_connect(peers)
-        .await
-        .expect("Failed to connect to Autonomi Network");
-
     let pointer = match client.client.pointer_get(&pointer_address).await {
         Ok(pointer) => pointer,
         Err(e) => {
@@ -230,15 +222,11 @@ fn print_pointer(pointer: &Pointer, pointer_address: &PointerAddress) {
 
 /// Implement 'inspect-graphentry' subcommand
 pub async fn handle_inspect_graphentry(
-    peers: NetworkPeers,
+    client: AutonomiClient,
     graph_entry_address: GraphEntryAddress,
     full: bool,
     shorten_hex_strings: bool,
 ) -> Result<()> {
-    let client = dweb::client::AutonomiClient::initialise_and_connect(peers)
-        .await
-        .expect("Failed to connect to Autonomi Network");
-
     let graph_entry = graph_entry_get(&client.client, &graph_entry_address, false).await?;
 
     print_graphentry(
@@ -430,16 +418,11 @@ fn print_total_size(indent: &str, total_bytes: u64) -> Result<()> {
 }
 
 /// Implement 'inspect-files' subcommand
-///
 pub async fn handle_inspect_files(
-    peers: NetworkPeers,
+    client: AutonomiClient,
     archive_address: XorName,
     files_args: FilesArgs,
 ) -> Result<()> {
-    let client = dweb::client::AutonomiClient::initialise_and_connect(peers)
-        .await
-        .expect("Failed to connect to Autonomi Network");
-
     println!("fetching directory at {archive_address:x}");
     match DirectoryTree::from_archive_address(&client, archive_address).await {
         Ok(directory) => {

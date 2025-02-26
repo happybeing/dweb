@@ -15,16 +15,11 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-use crate::trove::HistoryAddress;
+// TODO implement a lazy static map of handles and basic details of each spawned server
+// TODO when the main server app shuts down it can shut these down (if that is needed?)
+// TODO web API and CLI for listing active ports and what they are serving
+// TODO see TODOs in serve_quick()
 
-/// Cross platform open browser (assumes dweb serve is running)
-pub fn handle_open_browser(
-    _dweb_name: String,
-    _history_address: Option<HistoryAddress>,
-    // _archive_address: Option<XorName>, // Only if I support feature("fixed-dweb-hosts")
-) {
-    // For opening on different platforms:
-    //  programmatic?
-    //  command line - see https://stackoverflow.com/a/38147878
-    println!("TODO - construct URL for dweb and open in a browser on the current platform");
+pub fn is_main_server_quick_running() -> bool {
+    return true; // TODO look-up the main server in the spawned servers struct
 }

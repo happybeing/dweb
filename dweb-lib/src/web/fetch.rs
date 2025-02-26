@@ -24,12 +24,21 @@ use mime;
 use url::Url;
 use xor_name::XorName as ArchiveAddress;
 
-use crate::cache::directory_version::{DirectoryVersion, DIRECTORY_VERSIONS, HISTORY_NAMES};
 use crate::client::AutonomiClient;
 use crate::trove::History;
 use crate::trove::{directory_tree::DirectoryTree, HistoryAddress};
 use crate::web::name::decode_dweb_host;
 use crate::web::name::DwebHost;
+use crate::{
+    cache::directory_with_name::{
+        DirectoryVersionWithName, DIRECTORY_VERSIONS_WITH_NAME, HISTORY_NAMES,
+    },
+    cache::directory_with_port::{
+        key_for_directory_versions_with_port, DirectoryVersionWithPort,
+        DIRECTORY_VERSIONS_WITH_PORT,
+    },
+    helpers::convert::address_tuple_from_address,
+};
 
 /// Fetch the requested resource from Autonomi or from cached data if available.
 ///  Assumes a dweb URL
@@ -103,44 +112,46 @@ pub async fn fetch(client: &AutonomiClient, url: Url) -> HttpResponse {
     }
 }
 
-/// Retrieve a given DirectoryVersion from the cache, or if not access the network and
-/// create a new DirectoryVersion based on the DwebHost.
-/// If the return is Ok(version, DirectoryVersion), the DirectoryVersion will have Some(DirectoryTree).
+/// Retrieve a given DirectoryVersionWithName from the cache, or if not access the network and
+/// create a new DirectoryVersionWithName based on the DwebHost.
+/// If the return is Ok(version, DirectoryVersionWithName), the DirectoryVersionWithName will have Some(DirectoryTree).
 /// The version returned is the version retrieved, which is useful if dweb_host.version is None.
 //
 // Notes:
 //   1) ensures that cache locks are released ASAP, and not held during network access.
-//   2) may return an error, but still update the cache with an incomplete DirectoryVersion
-//      if it obtains the DirectoryVersion.archive_address but not the directory_tree. A subsequent call
+//   2) may return an error, but still update the cache with an incomplete DirectoryVersionWithName
+//      if it obtains the DirectoryVersionWithName.archive_address but not the directory_tree. A subsequent call
 //      using the same DwebHost can then skip getting the archive_address and will just retry getting
 //      the directory_tree.
 // TODO refactor fetch_website_version() to reduce complexity
 pub async fn fetch_website_version(
     client: &AutonomiClient,
     dweb_host: &DwebHost,
-) -> Result<(u32, DirectoryVersion)> {
+) -> Result<(u32, DirectoryVersionWithName)> {
     println!(
-        "DEBUG pub async fn fetch_website_version([ {}, {}, {:?} ])...",
+        "DEBUG fetch_website_version([ {}, {}, {:?} ])...",
         dweb_host.dweb_host_string, dweb_host.dweb_name, dweb_host.version
     );
+
     // If the cache has all the info we return, or if it has an entry but no DirectoryTree we can use the addresses
-    let (history_address, archive_address) = if let Ok(lock) = &mut DIRECTORY_VERSIONS.lock() {
-        if let Some(cached_directory_version) = lock.get(&dweb_host.dweb_host_string) {
-            if cached_directory_version.directory_tree.is_some() {
-                // Version 0 is ok here because if we have the tree we will already have cached the version
-                return Ok((0, cached_directory_version.clone()));
+    let (history_address, archive_address) =
+        if let Ok(lock) = &mut DIRECTORY_VERSIONS_WITH_NAME.lock() {
+            if let Some(cached_directory_version) = lock.get(&dweb_host.dweb_host_string) {
+                if cached_directory_version.directory_tree.is_some() {
+                    // Version 0 is ok here because if we have the tree we will already have cached the version
+                    return Ok((0, cached_directory_version.clone()));
+                } else {
+                    (
+                        Some(cached_directory_version.history_address),
+                        Some(cached_directory_version.archive_address),
+                    )
+                }
             } else {
-                (
-                    Some(cached_directory_version.history_address),
-                    Some(cached_directory_version.archive_address),
-                )
+                (None, None)
             }
         } else {
             (None, None)
-        }
-    } else {
-        (None, None)
-    };
+        };
 
     let history_address = if history_address.is_none() {
         // We need the history to get either the ArchiveAddress and/or the DirectoryTree
@@ -168,7 +179,7 @@ pub async fn fetch_website_version(
                 Ok(directory_tree) => directory_tree,
                 Err(e) => return Err(eyre!("failed to download directory from network: {e}")),
             };
-        return update_cached_directory_version(
+        return update_cached_directory_version_with_name(
             &dweb_host,
             history_address,
             archive_address,
@@ -237,7 +248,7 @@ pub async fn fetch_website_version(
             };
 
         // When retrieving the most recent version, ensure that the corresponding versioned DwebHost is cached
-        let default_result = update_cached_directory_version(
+        let default_result = update_cached_directory_version_with_name(
             &dweb_host,
             history_address,
             archive_address,
@@ -257,7 +268,7 @@ pub async fn fetch_website_version(
                 is_fixed_dweb_host: false,
             };
 
-            return update_cached_directory_version(
+            return update_cached_directory_version_with_name(
                 &versioned_dweb_host,
                 history_address,
                 archive_address,
@@ -269,17 +280,81 @@ pub async fn fetch_website_version(
     };
 }
 
-pub fn update_cached_directory_version(
+/// Get a DirectoryTree from the network using the address and if a history, the optional version
+pub async fn get_directory_tree_for_address_string(
+    client: &AutonomiClient,
+    // The hex representation of either a HistoryAddress or an ArchiveAddress (XorName)
+    address: &String,
+    // Optional version when the address is a HistoryAddress
+    version: Option<u32>,
+) -> Result<(
+    Option<HistoryAddress>,
+    ArchiveAddress,
+    Option<u32>,
+    DirectoryTree,
+)> {
+    println!("DEBUG get_directory_tree_for_address_string({address}, {version:?})...");
+
+    let (history_address, archive_address) = address_tuple_from_address(address);
+    if history_address.is_none() && archive_address.is_none() {
+        let msg = format!("Not a history or archive address: {address}");
+        return Err(eyre!(msg));
+    };
+
+    if archive_address.is_some() {
+        return Ok((
+            None,
+            archive_address.unwrap(),
+            version,
+            DirectoryTree::from_archive_address(client, archive_address.unwrap()).await?,
+        ));
+    }
+
+    let ignore_pointer = true; // Fast but may not get most recent version when version is None
+    let minimum_entry_index = version.unwrap_or(0);
+    match History::<DirectoryTree>::from_history_address(
+        client.clone(),
+        history_address.unwrap(),
+        ignore_pointer,
+        minimum_entry_index,
+    )
+    .await
+    {
+        Ok(mut history) => {
+            let (archive_address, directory_tree, version) =
+                match history.fetch_version_trove(version).await {
+                    Some(directory_tree) => match history.get_cached_version() {
+                        Some(cached_version) => (
+                            cached_version.trove_address(),
+                            directory_tree,
+                            cached_version.version,
+                        ),
+                        None => return Err(eyre!("History failed to get_cached_version()")),
+                    },
+                    None => return Err(eyre!("History failed to fetch_version_metadata()")),
+                };
+            Ok((
+                history_address,
+                archive_address,
+                Some(version),
+                directory_tree,
+            ))
+        }
+        Err(e) => Err(e),
+    }
+}
+
+pub fn update_cached_directory_version_with_name(
     dweb_host: &DwebHost,
     history_address: HistoryAddress,
     archive_address: ArchiveAddress,
     directory_tree: Option<DirectoryTree>,
-) -> Result<(u32, DirectoryVersion)> {
-    // TODO may need both version_retrieved and version_requested in DirectoryVersion
+) -> Result<(u32, DirectoryVersionWithName)> {
+    // TODO may need both version_retrieved and version_requested in DirectoryVersionWithName
     let new_directory_version =
-        DirectoryVersion::new(&dweb_host, history_address, archive_address, directory_tree);
+        DirectoryVersionWithName::new(&dweb_host, history_address, archive_address, directory_tree);
 
-    match &mut DIRECTORY_VERSIONS.lock() {
+    match &mut DIRECTORY_VERSIONS_WITH_NAME.lock() {
         Ok(lock) => {
             #[cfg(feature = "development")]
             println!(
@@ -294,13 +369,49 @@ pub fn update_cached_directory_version(
         }
         Err(e) => {
             return Err(eyre!(
-                "Failed to store DirectoryVersion in cache for DWEB-NAME '{}': {e}",
+                "Failed to store DirectoryVersionWithName in cache for DWEB-NAME '{}': {e}",
                 dweb_host.dweb_name
             ));
         }
     }
 
     Ok((dweb_host.version.unwrap_or(0), new_directory_version))
+}
+
+pub fn update_cached_directory_version_with_port(
+    port: u16,
+    history_address: Option<HistoryAddress>,
+    archive_address: ArchiveAddress,
+    version: Option<u32>,
+    directory_tree: DirectoryTree,
+) -> Result<(u32, DirectoryVersionWithPort)> {
+    // TODO may need both version_retrieved and version_requested in DirectoryVersionWithName
+    let new_directory_version = DirectoryVersionWithPort::new(
+        port,
+        history_address,
+        version,
+        archive_address,
+        directory_tree,
+    );
+
+    match &mut DIRECTORY_VERSIONS_WITH_PORT.lock() {
+        Ok(lock) => {
+            #[cfg(feature = "development")]
+            println!(
+                "DEBUG directory version with port (v {version:?}) added to cache for port: {port}",
+            );
+
+            let key = key_for_directory_versions_with_port(archive_address);
+            lock.insert(key, new_directory_version.clone());
+        }
+        Err(e) => {
+            return Err(eyre!(
+                "Failed to store DirectoryVersionWithPort in cache for PORT '{port}': {e}",
+            ));
+        }
+    }
+
+    Ok((version.unwrap_or(0), new_directory_version))
 }
 
 #[cfg(not(feature = "development"))]
@@ -332,25 +443,34 @@ pub fn response_with_body(status: StatusCode, reason: Option<String>) -> HttpRes
     }
 }
 
-pub fn response_redirect(req: &HttpRequest, host: &String, path: Option<&String>) -> HttpResponse {
+pub fn response_redirect(
+    req: &HttpRequest,
+    host: &str,
+    port: Option<u16>,
+    path: Option<String>,
+) -> HttpResponse {
     let scheme = &String::from(req.full_url().scheme());
-    let port = if let Some(port) = req.full_url().port() {
+    let port_str = if let Some(port) = port {
         &format!(":{port}")
     } else {
-        ""
+        if let Some(port) = req.full_url().port() {
+            &format!(":{port}")
+        } else {
+            ""
+        }
     };
 
     #[cfg(feature = "development")]
     println!("DEBUG req.full_url(): {}", req.full_url());
     println!("DEBUG scheme   : {scheme}");
-    println!("DEBUG port     : {port}");
+    println!("DEBUG port     : {port_str}");
 
     let mut redirect_url = String::from(scheme) + "://" + host;
     if let Some(path) = path {
         redirect_url = redirect_url + &path;
     }
 
-    redirect_url = redirect_url + port;
+    redirect_url = redirect_url + port_str;
 
     #[cfg(feature = "development")]
     println!("DEBUG response_redirect() redirecting to {redirect_url}");

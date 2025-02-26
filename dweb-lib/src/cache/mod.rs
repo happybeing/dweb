@@ -27,5 +27,7 @@
 // This module includes these cache implementations:
 
 pub mod directory;
-pub mod directory_version;
+pub mod directory_with_name;
+pub mod directory_with_port;
 pub mod file;
+pub mod spawn;

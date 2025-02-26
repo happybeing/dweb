@@ -1,0 +1,236 @@
+/*
+
+ Copyright (c) 2025 Mark Hughes
+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ GNU Affero General Public License for more details.
+
+ You should have received a copy of the GNU Affero General Public License
+ along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
+
+//! Cache of active per-port directory/website listeners.
+//!
+//! The 'services quick' mode uses a port per directory/website, and
+//! adds a new lister each time a request for data at the address is
+//! received. Redirection of the request to the new port causes the current
+//! and subsequent requests to be served by the correct listener.
+
+use std::sync::{LazyLock, Mutex};
+
+use color_eyre::eyre::{eyre, Result};
+use schnellru::{ByLength, LruMap};
+
+use xor_name::XorName as ArchiveAddress;
+
+use crate::{
+    cache::directory_with_name::HISTORY_NAMES,
+    client::AutonomiClient,
+    helpers::convert::*,
+    trove::{directory_tree::DirectoryTree, HistoryAddress},
+};
+
+// TODO: tune cache size values
+const WITH_PORT_CAPACITY: u32 = u16::MAX as u32; // When exceeded, port servers will be forgotten and new versions inaccessible
+
+/// A cache of DirectoryVersionWithPort
+///
+/// Key:     ARCHIVE_ADDRESS
+///
+/// Entry:   DirectoryVersionWithPort
+///
+
+pub fn key_for_directory_versions_with_port(archive_address: ArchiveAddress) -> String {
+    format!("{:x}", archive_address).to_ascii_lowercase()
+}
+
+// TODO use Mutex here because LazyLock.get_mut() is a Nightly Rust feature (01/2025)
+pub static DIRECTORY_VERSIONS_WITH_PORT: LazyLock<Mutex<LruMap<String, DirectoryVersionWithPort>>> =
+    LazyLock::new(|| {
+        Mutex::<LruMap<String, DirectoryVersionWithPort>>::new(LruMap::<
+            String,
+            DirectoryVersionWithPort,
+        >::new(ByLength::new(
+            WITH_PORT_CAPACITY,
+        )))
+    });
+
+pub fn directory_versions_with_port_key(address: &str, version: Option<u32>) -> String {
+    let version_str = if version.is_some() {
+        &format!("{}", version.unwrap())
+    } else {
+        ""
+    };
+    format!("{address}-v{version_str}")
+}
+
+#[derive(Clone)]
+pub struct DirectoryVersionWithPort {
+    /// The port on which a listener has been started - used for redirection of a URL by another listener
+    pub port: u16,
+    /// Address of a History<trove::DirectoryTree> on Autonomi
+    pub history_address: Option<HistoryAddress>,
+    /// A version of 0 implies use most recent version (highest available)
+    pub version: Option<u32>,
+    /// Directory / website metadata
+    pub archive_address: ArchiveAddress,
+    /// Directory / website metadata
+    pub directory_tree: DirectoryTree,
+
+    #[cfg(feature = "fixed-dweb-hosts")]
+    is_fixed_webname: bool,
+}
+
+impl DirectoryVersionWithPort {
+    pub fn new(
+        port: u16,
+        history_address: Option<HistoryAddress>,
+        version: Option<u32>,
+        archive_address: ArchiveAddress,
+        directory_tree: DirectoryTree,
+    ) -> DirectoryVersionWithPort {
+        DirectoryVersionWithPort {
+            port,
+            history_address,
+            version,
+            archive_address,
+            directory_tree,
+
+            #[cfg(feature = "fixed-dweb-hosts")]
+            is_fixed_webname: false,
+        }
+    }
+}
+
+/// Look-up the DirectoryVersionWithPort for a given address/version combination in the cache.
+pub fn lookup_directory_version_with_port(
+    address_or_name: &String,
+    version: Option<u32>,
+) -> Result<DirectoryVersionWithPort> {
+    let (history_address, archive_address) = address_tuple_from_address_or_name(address_or_name);
+
+    // If the address appears to be a name check it is valid
+    if history_address.is_none() && archive_address.is_none() {
+        if let Ok(lock) = &mut HISTORY_NAMES.lock() {
+            if lock.get(address_or_name).is_none() {
+                return Err(eyre!(
+                    "Unrecognised DWEB-NAME or invalid address: '{address_or_name}'"
+                ));
+            };
+        };
+    };
+
+    // Try the cache
+    let key = directory_versions_with_port_key(address_or_name, version);
+    if let Ok(lock) = &mut DIRECTORY_VERSIONS_WITH_PORT.lock() {
+        if let Some(directory_version) = lock.get(&key) {
+            return Ok(directory_version.clone());
+        };
+    };
+
+    Err(eyre!("DirectoryVersionWithPort not present in cache"))
+}
+
+/// Create a DirectoryVersionWithPort with a free port for a given address/version combination.
+/// To be successful, it must succeed in creating a DirectoryTree, and then will add it to the cach.
+pub async fn create_directory_version_with_port(
+    client: &AutonomiClient,
+    address_or_name: &String,
+    version: Option<u32>,
+) -> Result<DirectoryVersionWithPort> {
+    let (history_address, archive_address) = address_tuple_from_address_or_name(address_or_name);
+
+    let mut history_address = history_address;
+
+    // If the address appears to be a name, try using that to get the history address
+    if history_address.is_none() && archive_address.is_none() {
+        if let Ok(lock) = &mut HISTORY_NAMES.lock() {
+            let cached_address = lock.get(address_or_name);
+            if cached_address.is_none() {
+                return Err(eyre!(
+                    "Unrecognised DWEB-NAME or invalid address: '{address_or_name}'"
+                ));
+            } else {
+                history_address = Some(*cached_address.unwrap());
+            }
+        };
+    };
+
+    // Get the archive address and DirectoryTree
+    let archive_address = if archive_address.is_none() {
+        let min_entry = version.unwrap_or(1);
+        match crate::trove::History::<DirectoryTree>::from_history_address(
+            client.clone(),
+            history_address.unwrap(),
+            false,
+            min_entry,
+        )
+        .await
+        {
+            Ok(mut history) => {
+                let version = version.unwrap_or(history.num_versions().unwrap_or(0));
+                let archive_address = match history.get_version_entry_value(version).await {
+                    Ok(archive_address) => archive_address,
+                    Err(e) => {
+                        let msg =
+                            format!("Unable to get archive address for version {version} - {e}");
+                        println!("DEBUG {msg}");
+                        return Err(eyre!(msg));
+                    }
+                };
+                archive_address
+            }
+            Err(e) => {
+                let msg = format!("Unable to create directory version because from_history_address() failed - {e}");
+                println!("DEBUG {msg}");
+                return Err(eyre!(msg));
+            }
+        }
+    } else {
+        archive_address.unwrap()
+    };
+
+    let directory_tree = match DirectoryTree::from_archive_address(client, archive_address).await {
+        Ok(directory_tree) => directory_tree,
+        Err(e) => {
+            let msg = format!("Failed to fetch archive from network - {e}");
+            println!("DEBUG {msg}");
+            return Err(eyre!(msg));
+        }
+    };
+
+    // Create a new one on a free port
+    if let Some(port) = port_check::free_local_port() {
+        let directory_version = DirectoryVersionWithPort::new(
+            port,
+            history_address,
+            version,
+            archive_address,
+            directory_tree,
+        );
+
+        // Add it to the cache
+        if let Ok(lock) = &mut DIRECTORY_VERSIONS_WITH_PORT.lock() {
+            let key = key_for_directory_versions_with_port(archive_address);
+            if lock.insert(key, directory_version.clone()) {
+                return Ok(directory_version);
+            } else {
+                let msg = format!("Failed to add new DirectoryVersionWithPort to the cache");
+                println!("DEBUG {msg}");
+                return Err(eyre!(msg));
+            }
+        }
+        Ok(directory_version)
+    } else {
+        return Err(eyre!(
+            "Unable to spawn a serve-quick server - no free ports available"
+        ));
+    }
+}

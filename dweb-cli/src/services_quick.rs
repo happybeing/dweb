@@ -19,60 +19,78 @@ mod api;
 mod app;
 mod www;
 
-// use color_eyre::Result;
 use std::io;
 use std::time::Duration;
 
-use crate::cli_options::Opt;
+use actix_web::dev::Server;
 use actix_web::{
     dev::Service, get, http::StatusCode, middleware::Logger, post, web, web::Data, App,
     HttpRequest, HttpResponse, HttpServer, Responder,
 };
 use clap::Parser;
 
+use dweb::cache::directory_with_port::{self, DirectoryVersionWithPort};
 use dweb::client::AutonomiClient;
 use dweb::helpers::convert::str_to_xor_name;
 use dweb::web::fetch::response_with_body;
+use dweb::web::name::validate_dweb_name;
 
+use crate::cli_options::Opt;
 use crate::generated_rs::register_builtin_names;
+use crate::services::register_name;
 
-pub const CONNECTION_TIMEOUT: u64 = 75;
-
-pub const DWEB_SERVICE_WWW: &str = "www-dweb.au";
-pub const DWEB_SERVICE_API: &str = "api-dweb.au";
-pub const DWEB_SERVICE_APP: &str = "app-dweb.au";
-
-// We have two server options, both can be running simultaneously on different ports
-pub(crate) const SERVER_LOCALDNS_MAIN_PORT: u16 = 8081;
-pub(crate) const SERVER_LOCALDNS_MAIN_PORT_STR: &str = "8081";
-
-// A random port we expect to be free (see: https://stackoverflow.com/questions/10476987/best-tcp-port-number-range-for-internal-applications)
-// This default must be used by *both* 'dweb serve-quick' and 'dweb browse-quick'
-// so if it is overridden on the command line, it must be overridden for both commands.
-pub(crate) const SERVER_QUICK_MAIN_PORT: u16 = 8080;
-pub(crate) const SERVER_QUICK_MAIN_PORT_STR: &str = "8080";
+// const DWEB_SERVICE_WWW: &str = "www-dweb.au";
+// const DWEB_SERVICE_API: &str = "api-dweb.au";
+// const DWEB_SERVICE_APP: &str = "app-dweb.au";
 
 #[cfg(feature = "development")]
 const DWEB_SERVICE_DEBUG: &str = "debug-dweb.au";
 
-pub async fn serve_localdns(
-    client: AutonomiClient,
-    host: String,
-    port: u16,
+/// serve_quick may be called as follows:
+///
+/// Note: The presence of DirectoryVersionWithPort indicates a server on the port for a directory/website.
+///
+/// Via CLI 'dweb server-quick': start (NOT spawn) the main 'quick' server on the supplied port with
+///     DirectoryVersionsWithPort as None this server stays alive until killed on the command line. Its job is to:
+///       1) respond to /dweb-link URLs (e.g. when opened by 'dweb browse-quick') by looking up the directory
+///     version and if no server is running, call serve_quick() to start one before redirecting the link;
+///       2) manage DirectoryVersionsWithPort servers by killing them when it shuts down and supporting a web API
+///     for listing and killing other DirectoryVersionsWithPort servers.
+///
+/// Via dweb browse-quick: when it creates and opens a /dweb-link URL on the main server port and no DirectoryVersionWithPort
+///     has been found.
+///
+/// Via any URL handler of a /dweb-link URL, and behave as above to look for a server and if no DirectoryVersionsWithPort
+///     is found, call serve_quick() to spawn a new one. Then redirect the link.
+///
+pub async fn serve_quick(
+    client: &AutonomiClient,
+    directory_version_with_port: Option<DirectoryVersionWithPort>,
+    // Port when spawning the main server (ie spawn_server false)
+    port: Option<u16>,
+    // Either spawn a thread for the server and return, or do server.await
+    spawn_server: bool,
     is_local_network: bool,
 ) -> io::Result<()> {
     register_builtin_names(is_local_network).await;
-    // TODO control using CLI? (this enables Autonomi and HttpRequest logging to terminal)
+    let directory_version_with_port_copy = directory_version_with_port.clone();
+    let directory_version_with_port = directory_version_with_port;
+
+    // TODO control logger using CLI? (this enables Autonomi and HttpRequest logging to terminal)
     // env_logger::init_from_env(Env::default().default_filter_or("info"));
 
-    println!("dweb serve listening on {host}:{port}");
-    HttpServer::new(move || {
+    let client = client.clone();
+    let server = HttpServer::new(move || {
         App::new()
             // Macro logging using env_logger for both actix and libs such as Autonomi
             .wrap(Logger::default())
             // Log Requests and Responses to terminal
             .wrap_fn(|req, srv| {
-                println!("DEBUG HttpRequest : {} {}", req.head().method, req.path());
+                println!(
+                    "DEBUG serve quick HttpRequest : {} {}",
+                    req.head().method,
+                    req.path()
+                );
                 let fut = srv.call(req);
                 async {
                     let res = fut.await?;
@@ -87,38 +105,78 @@ pub async fn serve_localdns(
                     } else {
                         ""
                     };
-                    println!("DEBUG HttpResponse: {} {}", res.status(), reason);
+                    println!(
+                        "DEBUG serve quick HttpResponse: {} {}",
+                        res.status(),
+                        reason
+                    );
 
                     Ok(res)
                 }
             }) // <SERVICE>-dweb.au routes
-            // TODO add routes for SERVICE: solid, rclone etc.
-            .service(api::dweb_v0::init_service(DWEB_SERVICE_API))
-            .service(app::test::init_service(DWEB_SERVICE_APP))
+            // TODO work out how to handle API and APP services without a local DNS
+            // .service(api::dweb_v0::init_service(DWEB_SERVICE_API))
+            // .service(app::test::init_service(DWEB_SERVICE_APP))
             //
             // <ARCHIVE-ADDRESS>|[vN].<HISTORY-ADDRESS>.www-dweb.au services must be
             // after above routes or will consume them too!
-            .service(www::test::init_service())
-            .service(www::www::init_service())
-            .service(www::debug::init_service())
+            .service(www::dweb_link::init_service())
+            // .service(www::www::init_service())
+            // .service(www::debug::init_service())
             //
             // TODO: (eventually!) remove these basic test routes
-            .service(hello)
-            .service(echo)
-            .service(test_fetch_file)
-            .route("/hey", web::get().to(manual_hello))
-            .route(
-                "/test-show-request",
-                web::get().to(manual_test_show_request),
-            )
-            .route("/test-connect", web::get().to(manual_test_connect))
+            // .service(hello)
+            // .service(echo)
+            // .service(test_fetch_file)
+            // .route("/hey", web::get().to(manual_hello))
+            // .route(
+            //     "/test-show-request",
+            //     web::get().to(manual_test_show_request),
+            // )
+            // .route("/test-connect", web::get().to(manual_test_connect))
             .app_data(Data::new(client.clone()))
-            .default_service(web::get().to(manual_test_default_route))
+            .app_data(Data::new(directory_version_with_port.clone()))
+            .app_data(Data::new(is_local_network))
+            .default_service(web::get().to(www::www::www_handler))
     })
-    .keep_alive(Duration::from_secs(CONNECTION_TIMEOUT))
-    .bind((host.as_str(), port))?
-    .run()
-    .await
+    .keep_alive(Duration::from_secs(crate::services::CONNECTION_TIMEOUT));
+
+    let host = dweb::web::LOCALHOST_STR;
+    if spawn_server {
+        // TODO keep a map of struct {handle, port, history address, version, archive address}
+        // TODO main server uses this to kill all spawned servers when it shuts down
+        // TODO provide a command to list runnning servers and addresses
+        // TODO maybe provide a command to kill by port or port range
+        let directory_version = match directory_version_with_port_copy {
+            None => {
+                println!("DEBUG cannot spawn serve_quick when provided directory_version_with_port is None");
+                return Ok(());
+            }
+            Some(directory_version_with_port_copy) => directory_version_with_port_copy,
+        };
+
+        let server = server.bind((host, directory_version.port))?.run();
+        actix_web::rt::spawn(server);
+        println!(
+            "DEBUG spawned server quick on port: {} for version {:?} at {:?} -> {}",
+            directory_version.port,
+            directory_version.version,
+            directory_version.history_address,
+            directory_version.archive_address
+        );
+
+        Ok(())
+    } else {
+        let port = match port {
+            None => {
+                println!("DEBUG cannot bind serve_quick when provided directory_version_with_port is None");
+                return Ok(());
+            }
+            Some(port) => port,
+        };
+        println!("dweb serve-quick main server listening on {host}:{port}");
+        server.bind((host, port))?.run().await
+    }
 }
 
 // impl Guard for HttpRequest {
@@ -144,13 +202,13 @@ async fn manual_hello() -> impl Responder {
     HttpResponse::Ok().body("Hey there!")
 }
 
-async fn manual_test_default_route(request: HttpRequest) -> impl Responder {
-    return HttpResponse::Ok().body(format!(
-        "<!DOCTYPE html><head></head><body>test-default-route '/':<br/>uri: {}<br/>method: {}<body>",
-        request.uri(),
-        request.method()
-    ));
-}
+// async fn manual_test_default_route(request: HttpRequest) -> impl Responder {
+//     return HttpResponse::Ok().body(format!(
+//         "<!DOCTYPE html><head></head><body>quick-test-default-route '/':<br/>uri: {}<br/>method: {}<body>",
+//         request.uri(),
+//         request.method()
+//     ));
+// }
 
 async fn manual_test_show_request(request: HttpRequest) -> impl Responder {
     return HttpResponse::Ok().body(request_as_html(&request));
@@ -234,22 +292,5 @@ async fn manual_test_connect() -> impl Responder {
             "Testing connect to Autonomi..\
            ERROR: failed to get peers",
         );
-    };
-}
-
-pub async fn register_name(dweb_name: &str, history_address_str: &str) {
-    if history_address_str != "" {
-        if let Ok(history_address) =
-            dweb::helpers::convert::str_to_history_address(history_address_str)
-        {
-            match dweb::web::name::dwebname_register(dweb_name, history_address).await {
-                Ok(_) => {
-                    println!("Registered built-in DWEB-NAME: {dweb_name} -> {history_address_str}")
-                }
-                Err(e) => {
-                    println!("DEBUG: failed to register built-in DWEB-NAME '{dweb_name}' - {e}")
-                }
-            }
-        };
     };
 }

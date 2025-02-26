@@ -31,6 +31,10 @@ use ant_protocol::storage::PointerAddress;
 
 use dweb::helpers::convert::*;
 use dweb::trove::HistoryAddress;
+use dweb::web::LOCALHOST_STR;
+
+use crate::services::SERVER_LOCALDNS_MAIN_PORT_STR;
+use crate::services::SERVER_QUICK_MAIN_PORT_STR;
 
 // TODO add example to each CLI subcommand
 
@@ -110,13 +114,13 @@ fn greater_than_0(s: &str) -> Result<u64, String> {
 pub enum Subcommands {
     /// Start a server to allow you to view Autonomi websites in a web browser
     Serve {
-        /// Optional port number on which to listen for local requests
-        #[clap(value_name = "PORT", default_value = DEFAULT_HTTP_PORT_STR, value_parser = parse_port_number)]
-        port: u16,
-
         /// Optional host on which to listen for local requests
-        #[clap(value_name = "HOST", default_value = LOCALHOST, value_parser = parse_host)]
+        #[clap(value_name = "HOST", default_value = LOCALHOST_STR, value_parser = parse_host)]
         host: String,
+        /// Optional port number on which to listen for local requests
+        /// This is hidden to simplify the CLI by using the default
+        #[clap(value_name = "PORT", hide = true, value_parser = parse_port_number, default_value = SERVER_LOCALDNS_MAIN_PORT_STR)]
+        port: u16,
     },
 
     /// Open a browser with the awesome website of awesome Autonomi websites
@@ -302,22 +306,63 @@ pub enum Subcommands {
         files_args: FilesArgs,
     },
 
-    /// Open a browser to view a website on Autonomi - not yet implemented
-    #[clap(hide = true)]
+    /// TODO Open a browser to view a website on Autonomi - not yet implemented
     Browse {
-        /// A name which will be registered for this session as part of the URL hostname for this site
-        #[clap(value_name = "DWEB-NAME", value_parser = dweb::web::name::validate_dweb_name)]
+        /// The name of a website published using the wallet on this device
+        #[clap(name = "DWEB-NAME", short = 'n', value_parser = dweb::web::name::validate_dweb_name)]
         dweb_name: String,
-
         /// The address of a history on Autonomi
         /// TODO this can be optional if it was published using our secret key and the given dweb_name
         /// TODO consider UX as this could be confusing (maybe a separate option to enable this --use-my-secret)
         #[clap(name = "HISTORY-ADDRESS", value_parser = str_to_history_address)]
-        history_address: Option<HistoryAddress>,
-        // /// The address of some a directory uploaded to Autonomi
+        history_address: HistoryAddress,
+        // /// The address of a directory uploaded to Autonomi
         // history_address: conflicts_with("archive_address")
         // #[clap(value_name = "ARCHIVE-ADDRESS", value_parser = str_to_xor_name)]
         // archive_address: Option<XorName>,  only if I support feature("fixed-dweb-hosts")
+        //
+        /// Optional port number on which to listen for local requests
+        /// This is hidden to simplify the CLI by using the default
+        #[clap(value_name = "PORT", hide = true, value_parser = parse_port_number, default_value = SERVER_LOCALDNS_MAIN_PORT_STR)]
+        port: u16,
+    },
+
+    /// Open a browser to view a website on Autonomi without additional setup.
+    /// You must have already started a server using 'dweb serve-quick' before
+    /// trying 'dweb browse-quick.
+    /// Example:
+    ///     dweb browse-quick awesome
+    #[allow(non_camel_case_types)]
+    Browse_quick {
+        /// The address to browse, must be either a recognised DWEB-NAME, HISTORY-ADDRESS or ARCHIVE-ADDRESS
+        /// For now the only recognised name is 'awesome'
+        /// TODO this can be optional if it was published using our secret key and the given dweb_name
+        /// TODO consider UX as this could be confusing (maybe a separate option to enable this --use-my-secret)
+        #[clap(value_name = "ADDRESS-OR-NAME")]
+        address_or_name: String,
+        /// The version of a History to select (if providing For a DWEB-NAME or HISTORY-ADDRESS).
+        /// If not present the most recent version is assumed.
+        #[clap(name = "VERSION")]
+        version: Option<u32>,
+        /// An optional remote path to open in the browser
+        #[clap(name = "REMOTE-PATH")]
+        remote_path: Option<String>,
+        /// The localhost port that will serve the request
+        /// This is hidden to simplify the CLI by using the default
+        #[clap(value_name = "PORT", hide = true, value_parser = parse_port_number, default_value = SERVER_QUICK_MAIN_PORT_STR)]
+        port: u16,
+    },
+
+    /// Start a server to allow you to view Autonomi websites without additional setup
+    /// Once the server is running, type 'dweb browse-quick' in a new termnal to open
+    /// an Autonomi website in your default web browser.
+    #[clap(hide = true)] // TODO hide until implemented
+    #[allow(non_camel_case_types)]
+    Serve_quick {
+        /// The port number on which to listen for local requests
+        /// This is hidden to simplify the CLI by using the default
+        #[clap(value_name = "PORT", hide = true, value_parser = parse_port_number, default_value = SERVER_QUICK_MAIN_PORT_STR, )]
+        port: u16,
     },
 }
 

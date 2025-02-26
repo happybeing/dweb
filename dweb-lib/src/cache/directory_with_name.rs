@@ -38,19 +38,22 @@ const VERSIONS_CAPACITY: u32 = 1000; // When exceeded, particular versions will 
 // contains a 16-bit disambibuator based on the HISTORY-ADDRESS, the chances of a clash
 // are negligible.
 
-/// DIRECTORY_VERSIONS is a cache of DirectoryVersion, the metadata needed to
-/// access a specific version of a DirectoryTree corrsponding to a DwebHost string.
+/// A cache of DirectoryVersionWithName, the metadata needed to access a specific version
+/// of a DirectoryTree corrsponding to a DwebHost string.
 ///
 /// Key:     DwebHost.dweb_host_string, ie [vVERSION.]DWEB-NAME.www-dweb.au
 ///
-/// Entry:   DirectoryVersion
+/// Entry:   DirectoryVersionWithName
 ///
 // TODO use Mutex here because LazyLock.get_mut() is a Nightly Rust feature (01/2025)
-pub static DIRECTORY_VERSIONS: LazyLock<Mutex<LruMap<String, DirectoryVersion>>> =
+pub static DIRECTORY_VERSIONS_WITH_NAME: LazyLock<Mutex<LruMap<String, DirectoryVersionWithName>>> =
     LazyLock::new(|| {
-        Mutex::<LruMap<String, DirectoryVersion>>::new(LruMap::<String, DirectoryVersion>::new(
-            ByLength::new(VERSIONS_CAPACITY),
-        ))
+        Mutex::<LruMap<String, DirectoryVersionWithName>>::new(LruMap::<
+            String,
+            DirectoryVersionWithName,
+        >::new(ByLength::new(
+            VERSIONS_CAPACITY,
+        )))
     });
 
 /// HISTORY_NAMES is a cache which acts like local DNS, providing a lookup of DWEB-NAME
@@ -71,7 +74,7 @@ pub static HISTORY_NAMES: LazyLock<Mutex<LruMap<String, HistoryAddress>>> = Lazy
 });
 
 #[derive(Clone)]
-pub struct DirectoryVersion {
+pub struct DirectoryVersionWithName {
     /// The 'v[VERSION].DWEB-NAME.www-dweb.au' part of a dweb URL (see dweb::web::name)
     dweb_host_string: String,
     /// Address of a History<trove::DirectoryTree> on Autonomi (saves lookup based on DWEB-NAME.www-dweb.au)
@@ -87,14 +90,14 @@ pub struct DirectoryVersion {
     is_fixed_webname: bool,
 }
 
-impl DirectoryVersion {
+impl DirectoryVersionWithName {
     pub fn new(
         web_name: &DwebHost,
         history_address: HistoryAddress,
         archive_address: ArchiveAddress,
         directory_tree: Option<DirectoryTree>,
-    ) -> DirectoryVersion {
-        DirectoryVersion {
+    ) -> DirectoryVersionWithName {
+        DirectoryVersionWithName {
             dweb_host_string: web_name.dweb_host_string.clone(),
             history_address,
             version: web_name.version,

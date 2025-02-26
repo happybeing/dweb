@@ -20,7 +20,7 @@ use actix_web::{
 };
 use qstring::QString;
 
-use dweb::cache::directory_version::HISTORY_NAMES;
+use dweb::cache::directory_with_name::HISTORY_NAMES;
 use dweb::helpers::convert::str_to_history_address;
 use dweb::web::fetch::response_redirect;
 
@@ -91,6 +91,7 @@ pub async fn api_dwebname_register(
                 return response_redirect(
                     &req,
                     &(dweb_name.clone() + "." + DWEB_SERVICE_WWW),
+                    None,
                     None,
                 );
             };

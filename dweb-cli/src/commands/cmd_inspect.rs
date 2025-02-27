@@ -24,7 +24,6 @@ use ant_protocol::storage::{GraphEntry, GraphEntryAddress, Pointer, PointerAddre
 use autonomi::client::key_derivation::{DerivationIndex, MainPubkey};
 use blsttc::PublicKey;
 
-use dweb::autonomi::access::network::NetworkPeers;
 use dweb::client::AutonomiClient;
 use dweb::helpers::convert::str_to_xor_name;
 use dweb::helpers::graph_entry::graph_entry_get;

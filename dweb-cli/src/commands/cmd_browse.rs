@@ -17,23 +17,27 @@
 
 use std::u16;
 
-use dweb::cache::spawn::is_main_server_quick_running;
-use dweb::client::AutonomiClient;
+use dweb::cache::spawn::is_main_server_with_ports_running;
 use dweb::helpers::convert::address_tuple_from_address_or_name;
-use dweb::trove::HistoryAddress;
-use dweb::web::LOCALHOST_STR;
 
 /// Open a browser to view a website on Autonomi.
-/// A 'dweb serve' must be running and a local DNS has been set up.
-pub(crate) fn handle_browse(
-    dweb_name: String,
-    history_address: HistoryAddress,
-    // _archive_address: Option<XorName>, // Only if I support feature("fixed-dweb-hosts")
-) {
-    let url = format!(
-        "http://api-dweb.au:8080/dweb/v0/dwebname/register/{dweb_name}/{}",
-        history_address
-    );
+///
+/// A 'with names' server must be running and a local DNS has been set up.
+/// (Start the server with 'dweb serve --use-domains')
+pub(crate) fn handle_browse_with_names(dweb_name: String, address_name_or_link: &String) {
+    let (history_address, archive_address) =
+        address_tuple_from_address_or_name(&address_name_or_link);
+
+    let register_url = format!("http://api-dweb.au:8080/dweb/v0/dwebname/register/{dweb_name}/");
+
+    let url = if history_address.is_some() {
+        format!("{register_url}{}", history_address.unwrap().to_hex())
+    } else if archive_address.is_some() {
+        format!("{register_url}{:x}", archive_address.unwrap())
+    } else {
+        format!("http://{dweb_name}.www-dweb.au:8080")
+    };
+
     println!("DEBUG url: {url}");
     let _ = open::that(url);
 }
@@ -41,19 +45,14 @@ pub(crate) fn handle_browse(
 /// Open a browser to view a website on Autonomi.
 /// Requires a 'dweb server-quick' to be running which avoids the need for a local DNS to have been set up.
 /// Note: the server-quick spawns a server for each directory/website being accessed, so ports will run out if the servers are never killed.
-pub(crate) fn handle_browse_quick(
-    address_or_name: &String,
+pub(crate) fn handle_browse_with_ports(
+    address_name_or_link: &String,
     version: Option<u32>,
     remote_path: Option<String>,
+    host: &String,
     port: Option<u16>,
 ) {
-    // let (history_address, archive_address) = address_tuple_from_address_or_name(&address_or_name);
-    // if history_address.is_none() && archive_address.is_none() {
-    //     println!("Error: the ADDRESS supplied is not a recognised DWEB-NAME, HISTORY-ADDRESS or ARCHIVE-ADDRESS");
-    //     return;
-    // }
-
-    if !is_main_server_quick_running() {
+    if !is_main_server_with_ports_running() {
         println!("Please  start the serve-quick server before using 'dweb browse-quick'");
         println!("For help, type 'dweb serve-quick --help");
         return;
@@ -61,7 +60,7 @@ pub(crate) fn handle_browse_quick(
 
     // If the main server is running it will handle the URL and spawn a new server one is not already running
 
-    let port = port.unwrap_or(crate::services::SERVER_QUICK_MAIN_PORT);
+    let port = port.unwrap_or(crate::services::SERVER_PORTS_MAIN_PORT);
     let version = if version.is_some() {
         &format!("{}", version.unwrap())
     } else {
@@ -73,9 +72,9 @@ pub(crate) fn handle_browse_quick(
     }
 
     // open a browser on a localhost URL at that port
-    let route = format!("/dweb-link/v{version}/{address_or_name}/{remote_path}");
+    let route = format!("/dweb-link/v{version}/{address_name_or_link}/{remote_path}");
 
-    let url = format!("http://{LOCALHOST_STR}:{port}{route}");
+    let url = format!("http://{host}:{port}{route}");
     println!("DEBUG url: {url}");
 
     let _ = open::that(url);

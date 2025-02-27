@@ -15,19 +15,88 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-use color_eyre::{eyre::eyre, Report, Result};
+use color_eyre::{eyre::eyre, Result};
 
 use dweb::autonomi::access::network::NetworkPeers;
 use dweb::client::AutonomiClient;
 use dweb::storage::{publish_or_update_files, report_content_published_or_updated};
 
 use crate::cli_options::{Opt, Subcommands};
+use crate::services::{SERVER_NAMES_MAIN_PORT, SERVER_PORTS_MAIN_PORT};
 
 // Returns true if command complete, false to start the browser
 pub async fn cli_commands(opt: Opt) -> Result<bool> {
     let peers = dweb::autonomi::access::network::get_peers(opt.peers);
 
     match opt.cmd {
+        Some(Subcommands::Serve {
+            use_domains,
+            host,
+            port,
+        }) => {
+            let (client, is_local_network) = connect_and_announce(peers.await?, true).await;
+
+            if !use_domains {
+                // Start the main server (for port based browsing), which will handle /dweb-link URLs  opened by 'dweb open'
+                let port = port.unwrap_or(SERVER_PORTS_MAIN_PORT);
+                match crate::services::ports::serve_with_ports(
+                    &client,
+                    None,
+                    host,
+                    Some(port),
+                    false,
+                    is_local_network,
+                )
+                .await
+                {
+                    Ok(_) => return Ok(true),
+                    Err(e) => {
+                        println!("{e:?}");
+                        return Err(eyre!(e));
+                    }
+                }
+            } else {
+                let port = port.unwrap_or(SERVER_NAMES_MAIN_PORT);
+                // Start the server (for name based browsing), which will handle /dweb-link URLs  opened by 'dweb open --use-domains'
+                match crate::services::names::serve_with_names(client, host, port, is_local_network)
+                    .await
+                {
+                    Ok(_) => return Ok(true),
+                    Err(e) => {
+                        println!("{e:?}");
+                        return Err(eyre!(e));
+                    }
+                }
+            }
+        }
+
+        // TODO consider detecting if the relevant server is running and if not starting automatically
+        Some(Subcommands::Open {
+            address_name_or_link,
+            version,
+            remote_path,
+            host,
+            port,
+            use_domains,
+            dweb_name,
+        }) => {
+            if !use_domains {
+                let port = port.unwrap_or(SERVER_PORTS_MAIN_PORT);
+                crate::commands::cmd_browse::handle_browse_with_ports(
+                    &address_name_or_link,
+                    version,
+                    remote_path,
+                    &host,
+                    Some(port),
+                );
+            } else {
+                crate::commands::cmd_browse::handle_browse_with_names(
+                    dweb_name.unwrap(),
+                    &address_name_or_link,
+                );
+            }
+        }
+
         Some(Subcommands::Estimate { files_root }) => {
             let (client, _) = connect_and_announce(peers.await?, true).await;
             match client.client.file_cost(&files_root).await {
@@ -35,6 +104,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                 Err(e) => println!("Unable to estimate cost: {e}"),
             }
         }
+
         Some(Subcommands::Publish_new {
             files_root,
             name,
@@ -156,11 +226,8 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
 
         Some(Subcommands::Inspect_pointer { pointer_address }) => {
             let (client, _) = connect_and_announce(peers.await?, true).await;
-            match crate::commands::cmd_inspect::handle_inspect_pointer(
-                client,
-                pointer_address,
-            )
-            .await
+            match crate::commands::cmd_inspect::handle_inspect_pointer(client, pointer_address)
+                .await
             {
                 Ok(()) => return Ok(true),
                 Err(e) => {
@@ -199,80 +266,21 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             println!("TODO: implement subcommand 'download'");
         }
 
-        Some(Subcommands::Awesome {}) => {
-            let site_address = if peers.await?.is_local() {
-                crate::generated_rs::builtins_local::AWESOME_SITE_HISTORY_LOCAL
-            } else {
-                crate::generated_rs::builtins_public::AWESOME_SITE_HISTORY_PUBLIC
-            };
+        // Some(Subcommands::Awesome {}) => {
+        //     let site_address = if peers.await?.is_local() {
+        //         crate::generated_rs::builtins_local::AWESOME_SITE_HISTORY_LOCAL
+        //     } else {
+        //         crate::generated_rs::builtins_public::AWESOME_SITE_HISTORY_PUBLIC
+        //     };
 
-            // TODO replace components with const strings in format():
-            let url = format!(
-                "http://api-dweb.au:8080/dweb/v0/dwebname/register/awesome/{}",
-                site_address
-            );
-            println!("DEBUG url: {url}");
-            let _ = open::that(url);
-        }
-
-        // TODO consider detecting if a serve is running and if not starting automatically
-        Some(Subcommands::Browse {
-            dweb_name,
-            history_address,
-            port: u16,
-        }) => {
-            crate::commands::cmd_browse::handle_browse(
-                dweb_name,
-                history_address,
-                // archive_address  // Only if I support feature("fixed-dweb-hosts")
-            );
-        }
-
-        // TODO consider detecting if serve-quick is running and if not starting automatically
-        Some(Subcommands::Browse_quick {
-            address_or_name,
-            version,
-            remote_path,
-            port,
-        }) => {
-            crate::commands::cmd_browse::handle_browse_quick(
-                &address_or_name,
-                version,
-                remote_path,
-                Some(port),
-            );
-        }
-
-        Some(Subcommands::Serve { host, port }) => {
-            let (client, is_local_network) = connect_and_announce(peers.await?, true).await;
-            match crate::services::serve_localdns(client, host, port, is_local_network).await {
-                Ok(_) => return Ok(true),
-                Err(e) => {
-                    println!("{e:?}");
-                    return Err(eyre!(e));
-                }
-            }
-        }
-
-        Some(Subcommands::Serve_quick { port }) => {
-            let (client, is_local_network) = connect_and_announce(peers.await?, true).await;
-            // Starts the main quick server, which will handle /dweb-link URLs  opened by Browse_quick
-            match crate::services_quick::serve_quick(
-                &client,
-                None,
-                Some(port),
-                false,
-                is_local_network,
-            )
-            .await
-            {
-                Ok(_) => return Ok(true),
-                Err(e) => {
-                    println!("{e:?}");
-                    return Err(eyre!(e));
-                }
-            }
-        }
+        //     // TODO replace components with const strings in format():
+        //     let url = format!(
+        //         "http://api-dweb.au:8080/dweb/v0/dwebname/register/awesome/{}",
+        //         site_address
+        //     );
+        //     println!("DEBUG url: {url}");
+        //     let _ = open::that(url);
+        // }
 
         // Default is not to return, but open the browser by continuing
         None {} => {

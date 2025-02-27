@@ -15,36 +15,98 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-pub(crate) mod names;
-pub(crate) mod ports;
+mod api;
+mod app;
+mod www;
+
+// use color_eyre::Result;
+use std::io;
+use std::time::Duration;
 
 use crate::cli_options::Opt;
 use actix_web::{
-    get, http::StatusCode, post, web, web::Data, HttpRequest, HttpResponse, Responder,
+    dev::Service, get, http::StatusCode, middleware::Logger, post, web, web::Data, App,
+    HttpRequest, HttpResponse, HttpServer, Responder,
 };
 use clap::Parser;
 
+use dweb::client::AutonomiClient;
 use dweb::helpers::convert::str_to_xor_name;
 use dweb::web::fetch::response_with_body;
 
-pub const CONNECTION_TIMEOUT: u64 = 75;
-
-pub const DWEB_SERVICE_WWW: &str = "www-dweb.au";
-pub const DWEB_SERVICE_API: &str = "api-dweb.au";
-pub const DWEB_SERVICE_APP: &str = "app-dweb.au";
-
-// We have two server options, both can be running simultaneously on different ports
-pub(crate) const SERVER_NAMES_MAIN_PORT: u16 = 8081;
-pub(crate) const SERVER_NAMES_MAIN_PORT_STR: &str = "8081";
-
-// A random port we expect to be free (see: https://stackoverflow.com/questions/10476987/best-tcp-port-number-range-for-internal-applications)
-// This default must be used by *both* 'dweb serve-quick' and 'dweb browse-quick'
-// so if it is overridden on the command line, it must be overridden for both commands.
-pub(crate) const SERVER_PORTS_MAIN_PORT: u16 = 8080;
-pub(crate) const SERVER_PORTS_MAIN_PORT_STR: &str = "8080";
+use crate::generated_rs::register_builtin_names;
+use crate::services::{CONNECTION_TIMEOUT, DWEB_SERVICE_API, DWEB_SERVICE_APP};
 
 #[cfg(feature = "development")]
 const DWEB_SERVICE_DEBUG: &str = "debug-dweb.au";
+
+pub async fn serve_with_names(
+    client: AutonomiClient,
+    host: String,
+    port: u16,
+    is_local_network: bool,
+) -> io::Result<()> {
+    register_builtin_names(is_local_network);
+    // TODO control using CLI? (this enables Autonomi and HttpRequest logging to terminal)
+    // env_logger::init_from_env(Env::default().default_filter_or("info"));
+
+    println!(
+        "Starting a dweb server for names (which requires a local DNS), listening on {host}:{port}"
+    );
+    HttpServer::new(move || {
+        App::new()
+            // Macro logging using env_logger for both actix and libs such as Autonomi
+            .wrap(Logger::default())
+            // Log Requests and Responses to terminal
+            .wrap_fn(|req, srv| {
+                println!("DEBUG HttpRequest : {} {}", req.head().method, req.path());
+                let fut = srv.call(req);
+                async {
+                    let res = fut.await?;
+
+                    let reason = res.response().head().reason();
+                    let reason = if !reason.is_empty() {
+                        if res.response().head().reason() != "OK" {
+                            &format!(" ({})", res.response().head().reason())
+                        } else {
+                            ""
+                        }
+                    } else {
+                        ""
+                    };
+                    println!("DEBUG HttpResponse: {} {}", res.status(), reason);
+
+                    Ok(res)
+                }
+            }) // <SERVICE>-dweb.au routes
+            // TODO add routes for SERVICE: solid, rclone etc.
+            .service(api::dweb_v0::init_service(DWEB_SERVICE_API))
+            .service(app::test::init_service(DWEB_SERVICE_APP))
+            //
+            // <ARCHIVE-ADDRESS>|[vN].<HISTORY-ADDRESS>.www-dweb.au services must be
+            // after above routes or will consume them too!
+            .service(www::test::init_service())
+            .service(www::www::init_service())
+            .service(www::debug::init_service())
+            //
+            // TODO: (eventually!) remove these basic test routes
+            .service(hello)
+            .service(echo)
+            .service(test_fetch_file)
+            .route("/hey", web::get().to(manual_hello))
+            .route(
+                "/test-show-request",
+                web::get().to(manual_test_show_request),
+            )
+            .route("/test-connect", web::get().to(manual_test_connect))
+            .app_data(Data::new(client.clone()))
+            .default_service(web::get().to(manual_test_default_route))
+    })
+    .keep_alive(Duration::from_secs(CONNECTION_TIMEOUT))
+    .bind((host.as_str(), port))?
+    .run()
+    .await
+}
 
 // impl Guard for HttpRequest {
 //     fn check(&self, req: &GuardContext) -> bool {
@@ -159,22 +221,5 @@ async fn manual_test_connect() -> impl Responder {
             "Testing connect to Autonomi..\
            ERROR: failed to get peers",
         );
-    };
-}
-
-pub fn register_name(dweb_name: &str, history_address_str: &str) {
-    if history_address_str != "" {
-        if let Ok(history_address) =
-            dweb::helpers::convert::str_to_history_address(history_address_str)
-        {
-            match dweb::web::name::dwebname_register(dweb_name, history_address) {
-                Ok(_) => {
-                    println!("Registered built-in DWEB-NAME: {dweb_name} -> {history_address_str}")
-                }
-                Err(e) => {
-                    println!("DEBUG: failed to register built-in DWEB-NAME '{dweb_name}' - {e}")
-                }
-            }
-        };
     };
 }

@@ -22,7 +22,6 @@ mod www;
 use std::io;
 use std::time::Duration;
 
-use actix_web::dev::Server;
 use actix_web::{
     dev::Service, get, http::StatusCode, middleware::Logger, post, web, web::Data, App,
     HttpRequest, HttpResponse, HttpServer, Responder,
@@ -33,11 +32,9 @@ use dweb::cache::directory_with_port::{self, DirectoryVersionWithPort};
 use dweb::client::AutonomiClient;
 use dweb::helpers::convert::str_to_xor_name;
 use dweb::web::fetch::response_with_body;
-use dweb::web::name::validate_dweb_name;
 
 use crate::cli_options::Opt;
 use crate::generated_rs::register_builtin_names;
-use crate::services::register_name;
 
 // const DWEB_SERVICE_WWW: &str = "www-dweb.au";
 // const DWEB_SERVICE_API: &str = "api-dweb.au";
@@ -63,16 +60,18 @@ const DWEB_SERVICE_DEBUG: &str = "debug-dweb.au";
 /// Via any URL handler of a /dweb-link URL, and behave as above to look for a server and if no DirectoryVersionsWithPort
 ///     is found, call serve_quick() to spawn a new one. Then redirect the link.
 ///
-pub async fn serve_quick(
+pub async fn serve_with_ports(
     client: &AutonomiClient,
     directory_version_with_port: Option<DirectoryVersionWithPort>,
-    // Port when spawning the main server (ie spawn_server false)
+    // Host if set from the CLI.
+    host: String,
+    // Port when spawning the main server (ie spawn_server false). Can be set from the CLI.
     port: Option<u16>,
     // Either spawn a thread for the server and return, or do server.await
     spawn_server: bool,
     is_local_network: bool,
 ) -> io::Result<()> {
-    register_builtin_names(is_local_network).await;
+    register_builtin_names(is_local_network);
     let directory_version_with_port_copy = directory_version_with_port.clone();
     let directory_version_with_port = directory_version_with_port;
 
@@ -141,7 +140,6 @@ pub async fn serve_quick(
     })
     .keep_alive(Duration::from_secs(crate::services::CONNECTION_TIMEOUT));
 
-    let host = dweb::web::LOCALHOST_STR;
     if spawn_server {
         // TODO keep a map of struct {handle, port, history address, version, archive address}
         // TODO main server uses this to kill all spawned servers when it shuts down
@@ -155,10 +153,10 @@ pub async fn serve_quick(
             Some(directory_version_with_port_copy) => directory_version_with_port_copy,
         };
 
-        let server = server.bind((host, directory_version.port))?.run();
+        let server = server.bind((host.clone(), directory_version.port))?.run();
         actix_web::rt::spawn(server);
         println!(
-            "DEBUG spawned server quick on port: {} for version {:?} at {:?} -> {}",
+            "Started a dweb server listening on {host}:{} for version {:?} at {:?} -> {}",
             directory_version.port,
             directory_version.version,
             directory_version.history_address,

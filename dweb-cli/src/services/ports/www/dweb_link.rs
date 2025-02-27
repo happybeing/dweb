@@ -29,7 +29,7 @@ use dweb::web::fetch::response_redirect;
 use dweb::web::name::validate_dweb_name;
 use dweb::web::LOCALHOST_STR;
 
-use crate::services_quick::{register_name, serve_quick};
+use crate::services::ports::serve_with_ports;
 
 pub fn init_service() -> impl HttpServiceFactory {
     actix_web::web::scope("/dweb-link").service(dweb_link)
@@ -38,7 +38,7 @@ pub fn init_service() -> impl HttpServiceFactory {
 // dweb_link parses the parameters manually to allow the version portion
 // to be ommitted, and support easier manual construction:
 //
-// url: http://127.0.0.1:<PORT>/[v{version}/]{address_or_name}{remote_path}
+// url: http://127.0.0.1:<PORT>/dweb-open/[v{version}/]{address_or_name}{remote_path}
 //
 #[get("/{params:.*}")]
 pub async fn dweb_link(
@@ -96,9 +96,10 @@ pub async fn dweb_link(
                 }
             };
 
-            if serve_quick(
+            if serve_with_ports(
                 &client,
                 Some(directory_version.clone()),
+                dweb::web::LOCALHOST_STR.to_string(),
                 None,
                 true,
                 *is_local_network.into_inner().as_ref(),

@@ -62,7 +62,7 @@
 use color_eyre::eyre::{eyre, Result};
 
 use crate::cache::directory_with_name::HISTORY_NAMES;
-use crate::trove::HistoryAddress;
+use crate::trove::{History, HistoryAddress};
 
 // Domain name and subdomain constraints based on IETF RFC1035 with links to relevant sections:
 pub const MAX_SUBDOMAIN_LEN: usize = 63; //  S2.3.4 Size limits (https://datatracker.ietf.org/doc/html/rfc1035#section-2.3.4)
@@ -356,7 +356,7 @@ pub fn decode_dweb_host(dweb_host: &str) -> Result<DwebHost> {
 /// Following the first two alphabetic characters are a number of alphanumeric characters which may
 /// be separated by single hyphens, up to a total length for the memorable part of MEMORABLE_PART_LEN.
 ///
-pub fn validate_dweb_name(dweb_name: &str) -> Result<()> {
+pub fn validate_dweb_name(dweb_name: &str) -> Result<String> {
     if dweb_name.len() < 2
         || !dweb_name.as_bytes()[0].is_ascii_alphabetic()
         || !dweb_name.as_bytes()[1].is_ascii_alphabetic()
@@ -383,11 +383,11 @@ pub fn validate_dweb_name(dweb_name: &str) -> Result<()> {
         return Err(eyre!("DWEB-NAME cannot contain '--'"));
     }
 
-    Ok(())
+    Ok(dweb_name.to_string())
 }
 
 /// Register a DWEB-NAME programmatically so it can be used in the browser address bar
-pub async fn dwebname_register(dweb_name: &str, history_address: HistoryAddress) -> Result<()> {
+pub fn dwebname_register(dweb_name: &str, history_address: HistoryAddress) -> Result<()> {
     match validate_dweb_name(&dweb_name) {
         Ok(_) => (),
         Err(e) => {
@@ -401,10 +401,12 @@ pub async fn dwebname_register(dweb_name: &str, history_address: HistoryAddress)
             if cached_history_address.is_some() {
                 let cached_history_address = cached_history_address.unwrap();
                 if history_address != *cached_history_address {
-                    return Err(eyre!(
+                    let msg = format!(
                         "DWEB-NAME '{dweb_name}' already in use for HISTORY-ADDRESS '{}'",
                         cached_history_address.to_hex()
-                    ));
+                    );
+                    println!("{msg}");
+                    return Err(eyre!(msg));
                 }
                 // println!("DWEB-NAME '{dweb_name}' already registered for {history_address_string}");
             } else {
@@ -420,6 +422,33 @@ pub async fn dwebname_register(dweb_name: &str, history_address: HistoryAddress)
     };
 
     Ok(())
+}
+
+pub struct RecognisedName {
+    pub key: String,
+    pub history_address: HistoryAddress,
+}
+
+/// Return a Vec with one entry per recognised name in the form of RecognisedName struct
+// TODO provide ways to sort this
+pub fn recognised_dwebnames() -> Result<Vec<RecognisedName>> {
+    let mut names_vec = Vec::<RecognisedName>::new();
+
+    match &mut HISTORY_NAMES.lock() {
+        Ok(lock) => {
+            for cached_item in lock.iter() {
+                names_vec.push(RecognisedName {
+                    key: cached_item.0.to_string(),
+                    history_address: cached_item.1.clone(),
+                });
+            }
+        }
+        Err(e) => {
+            return Err(eyre!("Failed to access dweb name cache - {e}"));
+        }
+    }
+
+    Ok(names_vec)
 }
 
 #[test]

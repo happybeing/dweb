@@ -39,22 +39,22 @@ use crate::generated_rs::register_builtin_names;
 #[cfg(feature = "development")]
 const DWEB_SERVICE_DEBUG: &str = "debug-dweb.au";
 
-/// serve_quick may be called as follows:
+/// serve_with_ports may be called as follows:
 ///
 /// Note: The presence of DirectoryVersionWithPort indicates a server on the port for a directory/website.
 ///
-/// Via CLI 'dweb server-quick': start (NOT spawn) the main 'quick' server on the supplied port with
+/// Via CLI 'dweb serve': start (NOT spawn) the main 'with ports' server on the supplied port with
 ///     DirectoryVersionsWithPort as None this server stays alive until killed on the command line. Its job is to:
-///       1) respond to /dweb-link URLs (e.g. when opened by 'dweb browse-quick') by looking up the directory
-///     version and if no server is running, call serve_quick() to start one before redirecting the link;
+///       1) respond to /dweb-open URLs (e.g. when opened by 'dweb open') by looking up the directory
+///     version and if no server is running, call serve_with_ports() to start one before redirecting the link;
 ///       2) manage DirectoryVersionsWithPort servers by killing them when it shuts down and supporting a web API
 ///     for listing and killing other DirectoryVersionsWithPort servers.
 ///
-/// Via dweb browse-quick: when it creates and opens a /dweb-link URL on the main server port and no DirectoryVersionWithPort
+/// Via dweb open: when it uses the server API to open an Autonomi link on the main server port and no DirectoryVersionWithPort
 ///     has been found.
 ///
-/// Via any URL handler of a /dweb-link URL, and behave as above to look for a server and if no DirectoryVersionsWithPort
-///     is found, call serve_quick() to spawn a new one. Then redirect the link.
+/// Via any URL handler of a /dweb-open URL, and behave as above to look for a server and if no DirectoryVersionsWithPort
+///     is found, call serve_with_ports() to spawn a new one. Then redirect the link.
 ///
 pub async fn serve_with_ports(
     client: &AutonomiClient,
@@ -82,7 +82,7 @@ pub async fn serve_with_ports(
             // Log Requests and Responses to terminal
             .wrap_fn(|req, srv| {
                 println!(
-                    "DEBUG serve quick HttpRequest : {} {}",
+                    "DEBUG serve with ports HttpRequest : {} {}",
                     req.head().method,
                     req.path()
                 );
@@ -101,7 +101,7 @@ pub async fn serve_with_ports(
                         ""
                     };
                     println!(
-                        "DEBUG serve quick HttpResponse: {} {}",
+                        "DEBUG serve with ports HttpResponse: {} {}",
                         res.status(),
                         reason
                     );
@@ -143,7 +143,7 @@ pub async fn serve_with_ports(
         // TODO maybe provide a command to kill by port or port range
         let directory_version = match directory_version_with_port_copy {
             None => {
-                println!("DEBUG cannot spawn serve_quick when provided directory_version_with_port is None");
+                println!("DEBUG cannot spawn serve_with_ports when provided directory_version_with_port is None");
                 return Ok(());
             }
             Some(directory_version_with_port_copy) => directory_version_with_port_copy,
@@ -163,12 +163,12 @@ pub async fn serve_with_ports(
     } else {
         let port = match port {
             None => {
-                println!("DEBUG cannot bind serve_quick when provided directory_version_with_port is None");
+                println!("DEBUG cannot bind serve_with_ports when provided directory_version_with_port is None");
                 return Ok(());
             }
             Some(port) => port,
         };
-        println!("dweb serve-quick main server listening on {host}:{port}");
+        println!("dweb serve main server listening on {host}:{port}");
         server.bind((host, port))?.run().await
     }
 }

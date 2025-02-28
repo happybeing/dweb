@@ -18,8 +18,8 @@
 
 //! Cache of active per-port directory/website listeners.
 //!
-//! The 'services quick' mode uses a port per directory/website, and
-//! adds a new lister each time a request for data at the address is
+//! The server 'with ports' (default mode) uses a port per directory/website, and
+//! adds a new listener each time a request for data at the address is
 //! received. Redirection of the request to the new port causes the current
 //! and subsequent requests to be served by the correct listener.
 
@@ -230,7 +230,7 @@ pub async fn create_directory_version_with_port(
         Ok(directory_version)
     } else {
         return Err(eyre!(
-            "Unable to spawn a serve-quick server - no free ports available"
+            "Unable to spawn a dweb server - no free ports available"
         ));
     }
 }

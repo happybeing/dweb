@@ -15,7 +15,7 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-pub(crate) mod names;
+pub(crate) mod hosts;
 pub(crate) mod ports;
 
 use crate::cli_options::Opt;

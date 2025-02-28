@@ -20,7 +20,7 @@ use color_eyre::{eyre::eyre, Result};
 use dweb::autonomi::access::network::NetworkPeers;
 use dweb::client::AutonomiClient;
 use dweb::storage::{publish_or_update_files, report_content_published_or_updated};
-use dweb::web::{SERVER_NAMES_MAIN_PORT, SERVER_PORTS_MAIN_PORT};
+use dweb::web::{SERVER_HOSTS_MAIN_PORT, SERVER_PORTS_MAIN_PORT};
 
 use crate::cli_options::{Opt, Subcommands};
 
@@ -37,7 +37,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             let (client, is_local_network) = connect_and_announce(peers.await?, true).await;
 
             if !use_domains {
-                // Start the main server (for port based browsing), which will handle /dweb-link URLs  opened by 'dweb open'
+                // Start the main server (for port based browsing), which will handle /dweb-open URLs  opened by 'dweb open'
                 let port = port.unwrap_or(SERVER_PORTS_MAIN_PORT);
                 match crate::services::ports::serve_with_ports(
                     &client,
@@ -56,9 +56,9 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                     }
                 }
             } else {
-                let port = port.unwrap_or(SERVER_NAMES_MAIN_PORT);
-                // Start the server (for name based browsing), which will handle /dweb-link URLs  opened by 'dweb open --use-domains'
-                match crate::services::names::serve_with_names(client, host, port, is_local_network)
+                let port = port.unwrap_or(SERVER_HOSTS_MAIN_PORT);
+                // Start the server (for name based browsing), which will handle /dweb-open URLs  opened by 'dweb open --use-domains'
+                match crate::services::hosts::serve_with_hosts(client, host, port, is_local_network)
                     .await
                 {
                     Ok(_) => return Ok(true),
@@ -90,7 +90,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                     Some(port),
                 );
             } else {
-                crate::commands::cmd_browse::handle_browse_with_names(
+                crate::commands::cmd_browse::handle_browse_with_hosts(
                     dweb_name.unwrap(),
                     &address_name_or_link,
                 );

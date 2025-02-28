@@ -32,7 +32,7 @@ use dweb::web::LOCALHOST_STR;
 use crate::services::ports::serve_with_ports;
 
 pub fn init_service() -> impl HttpServiceFactory {
-    actix_web::web::scope("/dweb-link").service(dweb_link)
+    actix_web::web::scope("/dweb-open").service(dweb_link)
 }
 
 // dweb_link parses the parameters manually to allow the version portion
@@ -58,7 +58,7 @@ pub async fn dweb_link(
             return make_error_response(
                 None,
                 &mut HttpResponse::BadRequest(),
-                "/dweb-link invalid parameters: {params}",
+                "/dweb-open invalid parameters: {params}",
             )
         }
     };
@@ -91,7 +91,7 @@ pub async fn dweb_link(
                 Err(e) => {
                     return make_error_response(None,
                         &mut HttpResponse::BadGateway(),
-                        &format!("dweb_link() Failed to start a server_quick to serve archive for address: {address_or_name}")
+                        &format!("dweb_link() Failed to start a port server for archive at address: {address_or_name}")
                     );
                 }
             };
@@ -109,7 +109,7 @@ pub async fn dweb_link(
             {
                 return make_error_response(None,
                     &mut HttpResponse::BadGateway(),
-                    &format!("dweb_link() Failed to start a server_quick to serve archive for address: {address_or_name}")
+                    &format!("dweb_link() Failed to start a port server for archive at address: {address_or_name}")
                 );
             }
             directory_version
@@ -154,7 +154,7 @@ pub fn parse_dweb_link_params(params: &String) -> Result<(Option<u32>, String, S
         Err(e) => match parse_version_string(&first) {
             Ok(version) => (version, second, second_rest),
             Err(_) => {
-                let msg = "/dweb-link parameters not valid: '{params}'";
+                let msg = "/dweb-open parameters not valid: '{params}'";
                 println!("DEBUG {msg}");
                 return Err(eyre!(msg));
             }
@@ -201,7 +201,7 @@ fn make_error_response(
     let body = format!(
         "
     <!DOCTYPE html><head></head><body>
-    <h3>/dweb-link handler error</h3>
+    <h3>/dweb-open handler error</h3>
     {status_code} error - <br/>{message}
     </body>"
     );

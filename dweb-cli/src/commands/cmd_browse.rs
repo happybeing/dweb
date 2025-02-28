@@ -22,9 +22,9 @@ use dweb::helpers::convert::address_tuple_from_address_or_name;
 
 /// Open a browser to view a website on Autonomi.
 ///
-/// A 'with names' server must be running and a local DNS has been set up.
+/// A 'with hosts' server must be running and a local DNS has been set up.
 /// (Start the server with 'dweb serve --use-domains')
-pub(crate) fn handle_browse_with_names(dweb_name: String, address_name_or_link: &String) {
+pub(crate) fn handle_browse_with_hosts(dweb_name: String, address_name_or_link: &String) {
     let (history_address, archive_address) =
         address_tuple_from_address_or_name(&address_name_or_link);
 
@@ -43,8 +43,8 @@ pub(crate) fn handle_browse_with_names(dweb_name: String, address_name_or_link: 
 }
 
 /// Open a browser to view a website on Autonomi.
-/// Requires a 'dweb server-quick' to be running which avoids the need for a local DNS to have been set up.
-/// Note: the server-quick spawns a server for each directory/website being accessed, so ports will run out if the servers are never killed.
+/// Requires a 'dweb serve' to be running which avoids the need for a local DNS to have been set up.
+/// Note: the serve spawns a dedicated server per directory/website being accessed, so ports will run out if the servers are never killed.
 pub(crate) fn handle_browse_with_ports(
     address_name_or_link: &String,
     version: Option<u32>,
@@ -53,8 +53,8 @@ pub(crate) fn handle_browse_with_ports(
     port: Option<u16>,
 ) {
     if !is_main_server_with_ports_running() {
-        println!("Please  start the serve-quick server before using 'dweb browse-quick'");
-        println!("For help, type 'dweb serve-quick --help");
+        println!("Please  start the dweb server before using 'dweb open'");
+        println!("For help, type 'dweb serve --help");
         return;
     }
 
@@ -72,7 +72,7 @@ pub(crate) fn handle_browse_with_ports(
     }
 
     // open a browser on a localhost URL at that port
-    let route = format!("/dweb-link/v{version}/{address_name_or_link}/{remote_path}");
+    let route = format!("/dweb-open/v{version}/{address_name_or_link}/{remote_path}");
 
     let url = format!("http://{host}:{port}{route}");
     println!("DEBUG url: {url}");

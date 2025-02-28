@@ -18,7 +18,7 @@
 // TODO implement a lazy static map of handles and basic details of each spawned server
 // TODO when the main server app shuts down it can shut these down (if that is needed?)
 // TODO web API and CLI for listing active ports and what they are serving
-// TODO see TODOs in serve_quick()
+// TODO see TODOs in serve_with_ports()
 
 pub fn is_main_server_with_ports_running() -> bool {
     return true; // TODO look-up the main server in the spawned servers struct

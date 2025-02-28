@@ -41,7 +41,7 @@ use crate::services::CONNECTION_TIMEOUT;
 #[cfg(feature = "development")]
 const DWEB_SERVICE_DEBUG: &str = "debug-dweb.au";
 
-pub async fn serve_with_names(
+pub async fn serve_with_hosts(
     client: AutonomiClient,
     host: String,
     port: u16,

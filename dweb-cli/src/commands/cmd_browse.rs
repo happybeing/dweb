@@ -60,7 +60,7 @@ pub(crate) fn handle_browse_with_ports(
 
     // If the main server is running it will handle the URL and spawn a new server one is not already running
 
-    let port = port.unwrap_or(crate::services::SERVER_PORTS_MAIN_PORT);
+    let port = port.unwrap_or(dweb::web::SERVER_PORTS_MAIN_PORT);
     let version = if version.is_some() {
         &format!("{}", version.unwrap())
     } else {

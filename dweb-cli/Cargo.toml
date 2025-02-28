@@ -86,6 +86,7 @@ qstring = "0.7.2"
 open = "5.3.2"
 hex = "0.4.3"
 blsttc = "8.0.2"
+serde_json = "1.0.139"
 
 [lints]
 workspace = true

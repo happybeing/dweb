@@ -37,7 +37,7 @@ pub fn init_service() -> impl HttpServiceFactory {
                         host
                     };
                     println!("tesing host: {host}");
-                    let service_tail = String::from(".") + crate::services::DWEB_SERVICE_WWW;
+                    let service_tail = String::from(".") + dweb::web::DWEB_SERVICE_WWW;
                     return host.ends_with(&service_tail);
                 }
             }

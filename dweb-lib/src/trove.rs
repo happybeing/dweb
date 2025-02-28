@@ -21,6 +21,7 @@ use std::marker::PhantomData;
 
 use blsttc::PublicKey;
 use color_eyre::eyre::{eyre, Result};
+use serde::{Deserialize, Serialize};
 // use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use xor_name::XorName;
 
@@ -54,7 +55,7 @@ const POINTER_DERIVATION_INDEX: &str = "dweb Pointer derivatation index ";
 /// it is up to the owner to encrypt the data uploaded to the register, if wanted.
 /// Only the owner can update the register with its [`SecretKey`].
 /// The [`SecretKey`] is the only piece of information an owner should keep to access to the register.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct HistoryAddress {
     pub owner: PublicKey,
 }

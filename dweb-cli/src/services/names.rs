@@ -33,9 +33,10 @@ use clap::Parser;
 use dweb::client::AutonomiClient;
 use dweb::helpers::convert::str_to_xor_name;
 use dweb::web::fetch::response_with_body;
+use dweb::web::{DWEB_SERVICE_API, DWEB_SERVICE_APP};
 
 use crate::generated_rs::register_builtin_names;
-use crate::services::{CONNECTION_TIMEOUT, DWEB_SERVICE_API, DWEB_SERVICE_APP};
+use crate::services::CONNECTION_TIMEOUT;
 
 #[cfg(feature = "development")]
 const DWEB_SERVICE_DEBUG: &str = "debug-dweb.au";

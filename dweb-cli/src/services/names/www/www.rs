@@ -30,8 +30,8 @@ use actix_web::{
 };
 use mime;
 
-use crate::services::DWEB_SERVICE_WWW;
 use dweb::web::fetch::{fetch_website_version, response_redirect, response_with_body};
+use dweb::web::DWEB_SERVICE_WWW;
 
 pub fn init_service() -> impl HttpServiceFactory {
     web::resource("/{path:.*}")

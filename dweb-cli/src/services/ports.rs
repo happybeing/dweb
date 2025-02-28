@@ -15,7 +15,7 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-mod api;
+pub mod api;
 mod app;
 mod www;
 
@@ -35,10 +35,6 @@ use dweb::web::fetch::response_with_body;
 
 use crate::cli_options::Opt;
 use crate::generated_rs::register_builtin_names;
-
-// const DWEB_SERVICE_WWW: &str = "www-dweb.au";
-// const DWEB_SERVICE_API: &str = "api-dweb.au";
-// const DWEB_SERVICE_APP: &str = "app-dweb.au";
 
 #[cfg(feature = "development")]
 const DWEB_SERVICE_DEBUG: &str = "debug-dweb.au";
@@ -120,7 +116,7 @@ pub async fn serve_with_ports(
             // <ARCHIVE-ADDRESS>|[vN].<HISTORY-ADDRESS>.www-dweb.au services must be
             // after above routes or will consume them too!
             .service(www::dweb_link::init_service())
-            // .service(www::www::init_service())
+            .service(api::dweb_v0::init_service())
             // .service(www::debug::init_service())
             //
             // TODO: (eventually!) remove these basic test routes

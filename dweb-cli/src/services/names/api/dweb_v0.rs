@@ -23,8 +23,9 @@ use qstring::QString;
 use dweb::cache::directory_with_name::HISTORY_NAMES;
 use dweb::helpers::convert::str_to_history_address;
 use dweb::web::fetch::response_redirect;
+use dweb::web::DWEB_SERVICE_WWW;
 
-use crate::services::DWEB_SERVICE_WWW;
+use crate::services::ports::api::*; // Re-use ports implementations where possible
 
 pub fn init_service(host: &str) -> impl HttpServiceFactory {
     // TODO modify this and the get to accept /{api}/{version}/{operation} etc (see www::init_service())
@@ -36,8 +37,8 @@ pub fn init_service(host: &str) -> impl HttpServiceFactory {
 /// Register a DWEB-NAME and optionally redirect to the Dweb URL for the most recent version
 /// Optional query parameters control the redirection:
 ///   ?redirect=false
-// Test url: http://api-dweb.au:8080/dweb/v0/dwebname/register/smartypants/91ab27dd1dc342f36c9f16fbe4ea725372d46a857677299d0336bb5eff24392da5d4412c36b6925a4b1857cc558f31e4ef4aae8c3170a4e3d6251bbb637a313d31b5b887aa20a3c81fc358981ccf9d19
-#[get("/dwebname/register/{dweb_name}/{history_address}")]
+// Test url: http://api-dweb.au:8080/dweb/v0/name_register/smart-ant/91ab27dd1dc342f36c9f16fbe4ea725372d46a857677299d0336bb5eff24392da5d4412c36b6925a4b1857cc558f31e4ef4aae8c3170a4e3d6251bbb637a313d31b5b887aa20a3c81fc358981ccf9d19
+#[get("/name_register/{dweb_name}/{history_address}")]
 pub async fn api_dwebname_register(
     req: HttpRequest,
     params: web::Path<(String, String)>,

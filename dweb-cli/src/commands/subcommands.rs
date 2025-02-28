@@ -20,9 +20,9 @@ use color_eyre::{eyre::eyre, Result};
 use dweb::autonomi::access::network::NetworkPeers;
 use dweb::client::AutonomiClient;
 use dweb::storage::{publish_or_update_files, report_content_published_or_updated};
+use dweb::web::{SERVER_NAMES_MAIN_PORT, SERVER_PORTS_MAIN_PORT};
 
 use crate::cli_options::{Opt, Subcommands};
-use crate::services::{SERVER_NAMES_MAIN_PORT, SERVER_PORTS_MAIN_PORT};
 
 // Returns true if command complete, false to start the browser
 pub async fn cli_commands(opt: Opt) -> Result<bool> {
@@ -94,6 +94,23 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                     dweb_name.unwrap(),
                     &address_name_or_link,
                 );
+            }
+        }
+
+        Some(Subcommands::Name {
+            dweb_name,
+            history_address,
+        }) => match crate::commands::cmd_name::handle_name_register(dweb_name, history_address)
+            .await
+        {
+            Ok(_) => (),
+            Err(_) => (),
+        },
+
+        Some(Subcommands::List_names {}) => {
+            match crate::commands::cmd_name::handle_name_list().await {
+                Ok(_) => (),
+                Err(_) => (),
             }
         }
 

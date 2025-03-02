@@ -15,9 +15,9 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-pub mod api;
+pub(crate) mod api;
 mod app;
-mod www;
+pub(crate) mod www;
 
 use std::io;
 use std::time::Duration;
@@ -28,7 +28,7 @@ use actix_web::{
 };
 use clap::Parser;
 
-use dweb::cache::directory_with_port::{self, DirectoryVersionWithPort};
+use dweb::cache::directory_with_port::DirectoryVersionWithPort;
 use dweb::client::AutonomiClient;
 use dweb::helpers::convert::str_to_xor_name;
 use dweb::web::fetch::response_with_body;
@@ -173,7 +173,7 @@ pub async fn serve_with_ports(
             }
             Some(port) => port,
         };
-        println!("dweb serve main server listening on {host}:{port}");
+        println!("dweb main server listening on {host}:{port}");
         server.bind((host, port))?.run().await
     }
 }

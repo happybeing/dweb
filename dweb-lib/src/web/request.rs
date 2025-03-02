@@ -29,13 +29,13 @@ use color_eyre::eyre::Result;
 /// recommended that you use the helper function make_serve_with_ports_host() to construct
 /// the host/port part of the URL.
 ///
-pub async fn server_with_ports_request(
+pub async fn main_server_request(
     url_path: &str,
-    host: Option<String>,
+    host: Option<&String>,
     port: Option<u16>,
 ) -> Result<String> {
-    let url_string = make_server_with_ports_url(host, port, url_path);
-    println!("serve_with_ports_request() request: {url_string}");
+    let url_string = make_main_server_url(host, port, url_path);
+    println!("main_server_request() request: {url_string}");
 
     let response: reqwest::Response = reqwest::Client::builder()
         .build()?
@@ -48,12 +48,10 @@ pub async fn server_with_ports_request(
     Ok(body)
 }
 
-pub fn make_server_with_ports_url(
-    host: Option<String>,
-    port: Option<u16>,
-    url_path: &str,
-) -> String {
-    let host = host.unwrap_or(crate::web::LOCALHOST_STR.to_string());
+// Default to 'with ports' server
+pub fn make_main_server_url(host: Option<&String>, port: Option<u16>, url_path: &str) -> String {
+    let default_host = crate::web::LOCALHOST_STR.to_string();
+    let host = host.unwrap_or(&default_host);
     let port = port.unwrap_or(crate::web::SERVER_PORTS_MAIN_PORT);
     format!("http://{host}:{port}{url_path}")
 }

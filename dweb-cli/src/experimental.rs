@@ -30,6 +30,7 @@ use actix_web::{
 };
 use clap::Parser;
 
+use dweb::cache::directory_with_port::DirectoryVersionWithPort;
 use dweb::client::AutonomiClient;
 use dweb::helpers::convert::str_to_xor_name;
 use dweb::web::fetch::response_with_body;
@@ -43,6 +44,7 @@ const DWEB_SERVICE_DEBUG: &str = "debug-dweb.au";
 
 pub async fn serve_with_hosts(
     client: AutonomiClient,
+    directory_version_with_port: Option<DirectoryVersionWithPort>,
     host: String,
     port: u16,
     is_local_network: bool,
@@ -52,7 +54,7 @@ pub async fn serve_with_hosts(
     // env_logger::init_from_env(Env::default().default_filter_or("info"));
 
     println!(
-        "Starting a dweb server for names (which requires a local DNS), listening on {host}:{port}"
+        "Starting an exprimental 'with hosts' dweb server (which requires a local DNS), listening on {host}:{port}"
     );
     HttpServer::new(move || {
         App::new()
@@ -82,6 +84,7 @@ pub async fn serve_with_hosts(
             }) // <SERVICE>-dweb.au routes
             // TODO add routes for SERVICE: solid, rclone etc.
             .service(api::dweb_v0::init_service(DWEB_SERVICE_API))
+            .service(crate::services::www::dweb_open::init_service())
             .service(app::test::init_service(DWEB_SERVICE_APP))
             //
             // <ARCHIVE-ADDRESS>|[vN].<HISTORY-ADDRESS>.www-dweb.au services must be
@@ -101,6 +104,8 @@ pub async fn serve_with_hosts(
             )
             .route("/test-connect", web::get().to(manual_test_connect))
             .app_data(Data::new(client.clone()))
+            .app_data(Data::new(directory_version_with_port.clone()))
+            .app_data(Data::new(is_local_network))
             .default_service(web::get().to(manual_test_default_route))
     })
     .keep_alive(Duration::from_secs(CONNECTION_TIMEOUT))

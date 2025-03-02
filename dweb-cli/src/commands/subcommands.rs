@@ -20,7 +20,7 @@ use color_eyre::{eyre::eyre, Result};
 use dweb::autonomi::access::network::NetworkPeers;
 use dweb::client::AutonomiClient;
 use dweb::storage::{publish_or_update_files, report_content_published_or_updated};
-use dweb::web::{SERVER_HOSTS_MAIN_PORT, SERVER_PORTS_MAIN_PORT};
+use dweb::web::{LOCALHOST_STR, SERVER_HOSTS_MAIN_PORT, SERVER_PORTS_MAIN_PORT};
 
 use crate::cli_options::{Opt, Subcommands};
 
@@ -38,6 +38,8 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
 
             if !experimental {
                 // Start the main server (for port based browsing), which will handle /dweb-open URLs  opened by 'dweb open'
+                let default_host = LOCALHOST_STR.to_string();
+                let host = host.unwrap_or(default_host);
                 let port = port.unwrap_or(SERVER_PORTS_MAIN_PORT);
                 match crate::services::serve_with_ports(
                     &client,
@@ -56,10 +58,18 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                     }
                 }
             } else {
+                // Start the server (for name based browsing), which will handle /dweb-open URLs  opened by 'dweb open --experimental'
+                let default_host = dweb::web::DWEB_SERVICE_API.to_string();
+                let host = host.unwrap_or(default_host);
                 let port = port.unwrap_or(SERVER_HOSTS_MAIN_PORT);
-                // Start the server (for name based browsing), which will handle /dweb-open URLs  opened by 'dweb open --use-domains'
-                match crate::experimental::serve_with_hosts(client, host, port, is_local_network)
-                    .await
+                match crate::experimental::serve_with_hosts(
+                    client,
+                    None,
+                    host,
+                    port,
+                    is_local_network,
+                )
+                .await
                 {
                     Ok(_) => return Ok(true),
                     Err(e) => {
@@ -81,18 +91,26 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             dweb_name,
         }) => {
             if !experimental {
+                let default_host = LOCALHOST_STR.to_string();
+                let host = host.unwrap_or(default_host);
                 let port = port.unwrap_or(SERVER_PORTS_MAIN_PORT);
                 crate::commands::cmd_browse::handle_browse_with_ports(
                     &address_name_or_link,
                     version,
                     remote_path,
-                    &host,
+                    Some(&host),
                     Some(port),
                 );
             } else {
-                crate::commands::cmd_browse::handle_browse_with_hosts(
-                    dweb_name.unwrap(),
+                let default_host = dweb::web::DWEB_SERVICE_API.to_string();
+                let host = host.unwrap_or(default_host);
+                let port = port.unwrap_or(SERVER_HOSTS_MAIN_PORT);
+                crate::commands::cmd_browse::handle_browse_with_ports(
                     &address_name_or_link,
+                    version,
+                    remote_path,
+                    Some(&host),
+                    Some(port),
                 );
             }
         }
@@ -100,17 +118,65 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
         Some(Subcommands::Name {
             dweb_name,
             history_address,
-        }) => match crate::commands::cmd_name::handle_name_register(dweb_name, history_address)
-            .await
-        {
-            Ok(_) => (),
-            Err(_) => (),
-        },
+            host,
+            port,
+            experimental,
+        }) => {
+            if !experimental {
+                let default_host = LOCALHOST_STR.to_string();
+                let host = host.unwrap_or(default_host);
+                let port = port.unwrap_or(SERVER_PORTS_MAIN_PORT);
+                match crate::commands::cmd_name::handle_name_register(
+                    dweb_name,
+                    history_address,
+                    Some(&host),
+                    Some(port),
+                )
+                .await
+                {
+                    Ok(_) => (),
+                    Err(_) => (),
+                };
+            } else {
+                let default_host = dweb::web::DWEB_SERVICE_API.to_string();
+                let host = host.unwrap_or(default_host);
+                let port = port.unwrap_or(SERVER_HOSTS_MAIN_PORT);
+                match crate::commands::cmd_name::handle_name_register(
+                    dweb_name,
+                    history_address,
+                    Some(&host),
+                    Some(port),
+                )
+                .await
+                {
+                    Ok(_) => (),
+                    Err(_) => (),
+                };
+            }
+        }
 
-        Some(Subcommands::List_names {}) => {
-            match crate::commands::cmd_name::handle_name_list().await {
-                Ok(_) => (),
-                Err(_) => (),
+        Some(Subcommands::List_names {
+            experimental,
+            host,
+            port,
+        }) => {
+            if !experimental {
+                let default_host = LOCALHOST_STR.to_string();
+                let host = host.unwrap_or(default_host);
+                let port = port.unwrap_or(SERVER_PORTS_MAIN_PORT);
+                match crate::commands::cmd_name::handle_list_names(Some(&host), Some(port)).await {
+                    Ok(_) => (),
+                    Err(_) => (),
+                }
+            } else {
+                let default_host = dweb::web::DWEB_SERVICE_API.to_string();
+                let host = host.unwrap_or(default_host);
+                let port = port.unwrap_or(SERVER_HOSTS_MAIN_PORT);
+                println!("host: {host} port: {port}");
+                match crate::commands::cmd_name::handle_list_names(Some(&host), Some(port)).await {
+                    Ok(_) => (),
+                    Err(_) => (),
+                };
             }
         }
 

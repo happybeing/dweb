@@ -22,8 +22,10 @@ use dweb::trove::HistoryAddress;
 pub(crate) async fn handle_name_register(
     dweb_name: String,
     history_address: HistoryAddress,
+    host: Option<&String>,
+    port: Option<u16>,
 ) -> Result<()> {
-    dweb::api::name_register(&dweb_name, history_address, None, None).await
+    dweb::api::name_register(&dweb_name, history_address, host, port).await
 }
 
 /// Open a browser to view a website on Autonomi.
@@ -31,8 +33,8 @@ pub(crate) async fn handle_name_register(
 /// Requires a 'dweb serve' to be running which avoids the need for a local DNS to have been set up.
 ///
 /// Note: 'dweb' serve' spawns a server for each directory/website being accessed, so ports will run out if the servers are never killed. However, you can release all ports by restarting the server.
-pub(crate) async fn handle_name_list() -> Result<()> {
-    match dweb::api::names_list(None, None).await {
+pub(crate) async fn handle_list_names(host: Option<&String>, port: Option<u16>) -> Result<()> {
+    match dweb::api::names_list(host, port).await {
         Ok(names_vec) => {
             for recognised_name in names_vec.iter() {
                 println!(

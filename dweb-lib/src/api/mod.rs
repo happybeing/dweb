@@ -24,7 +24,7 @@ use serde_json::value::Value;
 ///! TODO keep this and the with ports APIs in sync
 use crate::trove::HistoryAddress;
 use crate::web::name::RecognisedName;
-use crate::web::request::server_with_ports_request;
+use crate::web::request::main_server_request;
 
 /// The dweb::api is a native Rust API that handles http interaction with the dweb server.
 ///
@@ -46,7 +46,7 @@ pub const DWEB_API_ROUTE: &str = DWEB_API_ROUTE_V0;
 pub async fn name_register(
     dweb_name: &str,
     history_address: HistoryAddress,
-    host: Option<String>,
+    host: Option<&String>,
     port: Option<u16>,
 ) -> Result<()> {
     let url_path = format!(
@@ -54,16 +54,16 @@ pub async fn name_register(
         history_address.to_hex()
     );
 
-    match server_with_ports_request(&url_path, host, port).await {
+    match main_server_request(&url_path, host, port).await {
         Ok(_json_value) => Ok(()),
         Err(e) => Err(eyre!(Into::<Error>::into(e))),
     }
 }
 
 /// Query the server for a list of recognised names
-pub async fn names_list(host: Option<String>, port: Option<u16>) -> Result<Vec<RecognisedName>> {
+pub async fn names_list(host: Option<&String>, port: Option<u16>) -> Result<Vec<RecognisedName>> {
     let url_path = format!("{DWEB_API_ROUTE}/name_list");
-    match server_with_ports_request(&url_path, host, port).await {
+    match main_server_request(&url_path, host, port).await {
         Ok(json) => {
             let vec: Vec<RecognisedName> = serde_json::from_str(&json)?;
             Ok(vec)

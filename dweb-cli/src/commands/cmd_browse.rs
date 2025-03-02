@@ -19,23 +19,61 @@ use std::u16;
 
 use dweb::cache::spawn::is_main_server_with_ports_running;
 use dweb::helpers::convert::address_tuple_from_address_or_name;
+use dweb::web::{DWEB_SERVICE_API, LOCALHOST_STR};
 
 /// Open a browser to view a website on Autonomi.
 ///
 /// A 'with hosts' server must be running and a local DNS has been set up.
-/// (Start the server with 'dweb serve --use-domains')
-pub(crate) fn handle_browse_with_hosts(dweb_name: String, address_name_or_link: &String) {
+/// (Start the server with 'dweb serve --experimental')
+//
+// TODO support --register-as?
+pub(crate) fn handle_browse_with_hosts(
+    dweb_name: Option<String>,
+    address_name_or_link: &String,
+    version: Option<u32>,
+    remote_path: Option<String>,
+    host: Option<&String>,
+    port: Option<u16>,
+) {
+    let default_host = DWEB_SERVICE_API.to_string();
+    let host = host.unwrap_or(&default_host);
+    let port = port.unwrap_or(dweb::web::SERVER_HOSTS_MAIN_PORT);
+    let version = if version.is_some() {
+        &format!("{}", version.unwrap())
+    } else {
+        ""
+    };
+    let mut remote_path = remote_path.unwrap_or(String::from(""));
+    if !remote_path.is_empty() && !remote_path.starts_with("/") {
+        remote_path = format!("/{remote_path}");
+    }
+
+    // open a browser on a localhost URL at that port
+    let route = format!("/dweb-open/v{version}/{address_name_or_link}/{remote_path}");
+
+    let url = format!("http://{host}:{port}{route}");
+    println!("DEBUG url: {url}");
+
+    let _ = open::that(url);
+}
+
+pub(crate) fn old_handle_browse_with_hosts(
+    dweb_name: String,
+    address_name_or_link: &String,
+    host: Option<&String>,
+    port: Option<u16>,
+) {
     let (history_address, archive_address) =
         address_tuple_from_address_or_name(&address_name_or_link);
 
-    let register_url = format!("http://api-dweb.au:8080/dweb/v0/dwebname/register/{dweb_name}/");
+    let register_url = format!("http://api-dweb.au:8081/dweb/v0/dwebname/register/{dweb_name}/");
 
     let url = if history_address.is_some() {
         format!("{register_url}{}", history_address.unwrap().to_hex())
     } else if archive_address.is_some() {
         format!("{register_url}{:x}", archive_address.unwrap())
     } else {
-        format!("http://{dweb_name}.www-dweb.au:8080")
+        format!("http://{dweb_name}.www-dweb.au:8081")
     };
 
     println!("DEBUG url: {url}");
@@ -45,11 +83,13 @@ pub(crate) fn handle_browse_with_hosts(dweb_name: String, address_name_or_link: 
 /// Open a browser to view a website on Autonomi.
 /// Requires a 'dweb serve' to be running which avoids the need for a local DNS to have been set up.
 /// Note: the serve spawns a dedicated server per directory/website being accessed, so ports will run out if the servers are never killed.
+//
+// TODO support --register-as or leave that only for --experimental?
 pub(crate) fn handle_browse_with_ports(
     address_name_or_link: &String,
     version: Option<u32>,
     remote_path: Option<String>,
-    host: &String,
+    host: Option<&String>,
     port: Option<u16>,
 ) {
     if !is_main_server_with_ports_running() {
@@ -60,6 +100,8 @@ pub(crate) fn handle_browse_with_ports(
 
     // If the main server is running it will handle the URL and spawn a new server one is not already running
 
+    let default_host = LOCALHOST_STR.to_string();
+    let host = host.unwrap_or(&default_host);
     let port = port.unwrap_or(dweb::web::SERVER_PORTS_MAIN_PORT);
     let version = if version.is_some() {
         &format!("{}", version.unwrap())

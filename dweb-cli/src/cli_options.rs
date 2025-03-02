@@ -124,8 +124,8 @@ pub enum Subcommands {
         experimental: bool,
         /// Optional host that will serve the request. Defaults to "127.0.0.1"
         /// This is only needed when not using defaults, so hidden to de-clutter the CLI help
-        #[clap(hide = true, long, value_name = "HOST", value_parser = parse_host, default_value = LOCALHOST_STR)]
-        host: String,
+        #[clap(hide = true, long, value_name = "HOST", value_parser = parse_host)]
+        host: Option<String>,
         /// The port that will serve the request (on localhost by default)
         /// This is only needed when not using defaults, so hidden to de-clutter the CLI help
         #[clap(hide = true, long, value_name = "PORT", value_parser = parse_port_number)]
@@ -187,22 +187,17 @@ pub enum Subcommands {
         remote_path: Option<String>,
         /// The host that will serve the request. Defaults to "127.0.0.1"
         /// This is only needed when not using defaults, so hidden to de-clutter the CLI help
-        #[clap(hide = true, long, value_name = "HOST", value_parser = parse_host, default_value = LOCALHOST_STR)]
-        host: String,
+        #[clap(hide = true, long, value_name = "HOST", value_parser = parse_host)]
+        host: Option<String>,
         /// The port that will serve the request (on localhost by default)
         /// This is only needed when not using defaults, so hidden to de-clutter the CLI help
         #[clap(hide = true, long, value_name = "PORT", value_parser = parse_port_number)]
         port: Option<u16>,
-        /// Use the names server rather than the default ports based server. May need to use --port to select
+        /// Use the 'with hosts' server rather than the ports based server. May need to use --port to select
         /// the relevant port for that server (e.g. --port 8081).
         ///
-        /// Assumes the server was started with '--use-names' and that a local DNS has been set up.
-        #[clap(
-            hide = true,
-            long = "use-domains",
-            default_value = "false",
-            requires("dweb_name")
-        )]
+        /// Assumes the server was started with '--experimental' and that a local DNS has been set up.
+        #[clap(hide = true, long, default_value = "false")]
         experimental: bool,
         ///
         #[clap(long = "register-as", value_name = "DWEB-NAME", hide = true)]
@@ -227,10 +222,40 @@ pub enum Subcommands {
         /// The address of a history on Autonomi
         #[clap(name = "HISTORY-ADDRESS", value_parser = str_to_history_address)]
         history_address: HistoryAddress,
+        /// The host that will serve the request. Defaults to "127.0.0.1"
+        /// This is only needed when not using defaults, so hidden to de-clutter the CLI help
+        #[clap(hide = true, long, value_name = "HOST", value_parser = parse_host)]
+        host: Option<String>,
+        /// The port that will serve the request (on localhost by default)
+        /// This is only needed when not using defaults, so hidden to de-clutter the CLI help
+        #[clap(hide = true, long, value_name = "PORT", value_parser = parse_port_number)]
+        port: Option<u16>,
+        /// Use the 'with hosts' server rather than the ports based server. May need to use --port to select
+        /// the relevant port for that server (e.g. --port 8081).
+        ///
+        /// Assumes the server was started with '--experimental' and that a local DNS has been set up.
+        #[clap(hide = true, long, default_value = "false")]
+        experimental: bool,
     },
 
     /// List all names currently recognised by the dweb server.
-    List_names {},
+    #[allow(non_camel_case_types)]
+    List_names {
+        /// The host that will serve the request. Defaults to "127.0.0.1"
+        /// This is only needed when not using defaults, so hidden to de-clutter the CLI help
+        #[clap(hide = true, long, value_name = "HOST", value_parser = parse_host)]
+        host: Option<String>,
+        /// The port that will serve the request (on localhost by default)
+        /// This is only needed when not using defaults, so hidden to de-clutter the CLI help
+        #[clap(hide = true, long, value_name = "PORT", value_parser = parse_port_number)]
+        port: Option<u16>,
+        /// Use the 'with hosts' server rather than the ports based server. May need to use --port to select
+        /// the relevant port for that server (e.g. --port 8081).
+        ///
+        /// Assumes the server was started with '--experimental' and that a local DNS has been set up.
+        #[clap(hide = true, long, default_value = "false")]
+        experimental: bool,
+    },
 
     // TODO add an example or two to each command section
     /// Estimate the cost of publishing or updating a website

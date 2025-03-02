@@ -116,10 +116,12 @@ pub enum Subcommands {
     ///
     /// See 'dweb open --help' to learn how to view other Autonomi websites.
     Serve {
-        /// Start a 'name' rather than 'port' based server. Requires a local DNS to be redirecting '*-dweb.au' to 127.0.0.1
+        /// Experimental feature.
+        ///
+        /// Start a 'host' rather than 'port' based server. Requires a local DNS to be redirecting '*-dweb.au' to 127.0.0.1
         /// This is only needed when not using defaults, so hidden to de-clutter the CLI help
-        #[clap(hide = true, long = "use-domains", default_value = "false")]
-        use_domains: bool,
+        #[clap(hide = true, long = "experimental", default_value = "false")]
+        experimental: bool,
         /// Optional host that will serve the request. Defaults to "127.0.0.1"
         /// This is only needed when not using defaults, so hidden to de-clutter the CLI help
         #[clap(hide = true, long, value_name = "HOST", value_parser = parse_host, default_value = LOCALHOST_STR)]
@@ -201,7 +203,7 @@ pub enum Subcommands {
             default_value = "false",
             requires("dweb_name")
         )]
-        use_domains: bool,
+        experimental: bool,
         ///
         #[clap(long = "register-as", value_name = "DWEB-NAME", hide = true)]
         dweb_name: Option<String>,

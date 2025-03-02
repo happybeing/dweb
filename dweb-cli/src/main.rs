@@ -20,6 +20,7 @@ extern crate tracing;
 
 mod cli_options;
 mod commands;
+mod experimental;
 mod generated_rs;
 mod helpers;
 mod services;

@@ -29,19 +29,19 @@ use dweb::web::fetch::response_redirect;
 use dweb::web::name::validate_dweb_name;
 use dweb::web::LOCALHOST_STR;
 
-use crate::services::ports::serve_with_ports;
+use crate::services::serve_with_ports;
 
 pub fn init_service() -> impl HttpServiceFactory {
-    actix_web::web::scope("/dweb-open").service(dweb_link)
+    actix_web::web::scope("/dweb-open").service(dweb_open)
 }
 
-// dweb_link parses the parameters manually to allow the version portion
+// dweb_open parses the parameters manually to allow the version portion
 // to be ommitted, and support easier manual construction:
 //
-// url: http://127.0.0.1:<PORT>/dweb-open/[v{version}/]{address_or_name}{remote_path}
+// url: http://127.0.0.1:8080/dweb-open/[v{version}/]{address_or_name}{remote_path}
 //
 #[get("/{params:.*}")]
-pub async fn dweb_link(
+pub async fn dweb_open(
     request: HttpRequest,
     // params: web::Path<(String, String, String)>,
     params: web::Path<String>,
@@ -49,10 +49,10 @@ pub async fn dweb_link(
     our_directory_version: Data<Option<DirectoryVersionWithPort>>,
     is_local_network: Data<bool>,
 ) -> HttpResponse {
-    println!("DEBUG dweb_link()...");
+    println!("DEBUG dweb_open()...");
 
     let params = params.into_inner();
-    let (version, address_or_name, remote_path) = match parse_dweb_link_params(&params) {
+    let (version, address_or_name, remote_path) = match parse_dweb_open_params(&params) {
         Ok(params) => params,
         Err(e) => {
             return make_error_response(
@@ -91,7 +91,7 @@ pub async fn dweb_link(
                 Err(e) => {
                     return make_error_response(None,
                         &mut HttpResponse::BadGateway(),
-                        &format!("dweb_link() Failed to start a port server for archive at address: {address_or_name}")
+                        &format!("dweb_open() Failed to start a port server for archive at address: {address_or_name}")
                     );
                 }
             };
@@ -109,7 +109,7 @@ pub async fn dweb_link(
             {
                 return make_error_response(None,
                     &mut HttpResponse::BadGateway(),
-                    &format!("dweb_link() Failed to start a port server for archive at address: {address_or_name}")
+                    &format!("dweb_open() Failed to start a port server for archive at address: {address_or_name}")
                 );
             }
             directory_version
@@ -134,9 +134,9 @@ pub async fn dweb_link(
 /// Parse the path part of a DWEB-LINK URL, which in full is:
 ///
 /// url: http://127.0.0.1:<PORT>/[v{version}/]{address_or_name}{remote_path}
-pub fn parse_dweb_link_params(params: &String) -> Result<(Option<u32>, String, String)> {
+pub fn parse_dweb_open_params(params: &String) -> Result<(Option<u32>, String, String)> {
     // Parse params manually so we can support with and without version
-    println!("DEBUG parse_dweb_link_params() {params}");
+    println!("DEBUG parse_dweb_open_params() {params}");
 
     // We have two or three parameters depending on whether a version is included.
     // So split in a way we can get either combination depending on what we find.

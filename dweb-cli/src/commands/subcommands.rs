@@ -30,16 +30,16 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
 
     match opt.cmd {
         Some(Subcommands::Serve {
-            use_domains,
+            experimental,
             host,
             port,
         }) => {
             let (client, is_local_network) = connect_and_announce(peers.await?, true).await;
 
-            if !use_domains {
+            if !experimental {
                 // Start the main server (for port based browsing), which will handle /dweb-open URLs  opened by 'dweb open'
                 let port = port.unwrap_or(SERVER_PORTS_MAIN_PORT);
-                match crate::services::ports::serve_with_ports(
+                match crate::services::serve_with_ports(
                     &client,
                     None,
                     host,
@@ -58,7 +58,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             } else {
                 let port = port.unwrap_or(SERVER_HOSTS_MAIN_PORT);
                 // Start the server (for name based browsing), which will handle /dweb-open URLs  opened by 'dweb open --use-domains'
-                match crate::services::hosts::serve_with_hosts(client, host, port, is_local_network)
+                match crate::experimental::serve_with_hosts(client, host, port, is_local_network)
                     .await
                 {
                     Ok(_) => return Ok(true),
@@ -77,10 +77,10 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             remote_path,
             host,
             port,
-            use_domains,
+            experimental,
             dweb_name,
         }) => {
-            if !use_domains {
+            if !experimental {
                 let port = port.unwrap_or(SERVER_PORTS_MAIN_PORT);
                 crate::commands::cmd_browse::handle_browse_with_ports(
                     &address_name_or_link,

@@ -15,6 +15,8 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+pub(crate) mod dweb_open;
+
 // use actix_web::{body, get, post, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use actix_web::{
     body,

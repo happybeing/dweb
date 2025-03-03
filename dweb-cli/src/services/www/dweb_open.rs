@@ -66,7 +66,8 @@ pub async fn dweb_open_as(
             return make_error_response(
                 None,
                 &mut HttpResponse::BadRequest(),
-                "/dweb-open invalid parameters: {params}",
+                "/dweb_open_as handler error".to_string(),
+                "/dweb-open_as invalid parameters: {params}",
             )
         }
     };
@@ -104,6 +105,7 @@ pub async fn dweb_open(
             return make_error_response(
                 None,
                 &mut HttpResponse::BadRequest(),
+                "/dweb_open handler error".to_string(),
                 "/dweb-open invalid parameters: {params}",
             )
         }
@@ -134,6 +136,7 @@ pub async fn handle_dweb_open(
         return make_error_response(
             None,
             &mut HttpResponse::BadRequest(),
+            "/dweb_open handler error".to_string(),
             &format!("Unrecognised DWEB-NAME or invalid address: '{address_or_name}'"),
         );
     }
@@ -142,56 +145,60 @@ pub async fn handle_dweb_open(
 
     // Look for an existing handler
     // As we've already parsed address_or_name, an error return only means there isn't a handler for this yet
-    let directory_version = match lookup_directory_version_with_port(&address_or_name, version) {
-        Ok(directory_version) => directory_version,
-        Err(_) => {
-            // Create a new DirectoryVersionWithPort and spawn a handler for it
-            let directory_version = match create_directory_version_with_port(
-                &client,
-                &address_or_name,
-                version,
-            )
-            .await
-            {
-                Ok(directory_version) => directory_version,
-                Err(e) => {
-                    return make_error_response(None,
-                        &mut HttpResponse::BadGateway(),
-                        &format!("handle_dweb_open() Failed to start a port server for archive at address: {address_or_name}")
-                    );
-                }
-            };
+    let directory_version =
+        match lookup_directory_version_with_port(&address_or_name, version) {
+            Ok(directory_version) => directory_version,
+            Err(_) => {
+                // Create a new DirectoryVersionWithPort and spawn a handler for it
+                let directory_version =
+                    match create_directory_version_with_port(&client, &address_or_name, version)
+                        .await
+                    {
+                        Ok(directory_version) => directory_version,
+                        Err(e) => {
+                            return make_error_response(
+                                None,
+                                &mut HttpResponse::BadGateway(),
+                                "/dweb_open handler error".to_string(),
+                                &format!("{e}. Address: {address_or_name}"),
+                            );
+                        }
+                    };
 
-            if serve_with_ports(
-                &client,
-                Some(directory_version.clone()),
-                dweb::web::LOCALHOST_STR.to_string(),
-                None,
-                true,
-                *is_local_network.into_inner().as_ref(),
-            )
-            .await
-            .is_err()
-            {
-                return make_error_response(None,
-                    &mut HttpResponse::BadGateway(),
-                    &format!("handle_dweb_open() Failed to start a port server for archive at address: {address_or_name}")
-                );
-            };
+                match serve_with_ports(
+                    &client,
+                    Some(directory_version.clone()),
+                    dweb::web::LOCALHOST_STR.to_string(),
+                    None,
+                    true,
+                    *is_local_network.into_inner().as_ref(),
+                )
+                .await
+                {
+                    Ok(_) => (),
+                    Err(e) => {
+                        return make_error_response(
+                            None,
+                            &mut HttpResponse::BadGateway(),
+                            "/dweb_open handler error".to_string(),
+                            &format!("{e}. Address: {address_or_name}"),
+                        )
+                    }
+                };
 
-            // Register a valid 'as_name' unless:
-            // - the as_name given is AS_NAME_NONE ('anonymous')
-            // - the address was an Archive
-            if !as_name.is_empty() && as_name != AS_NAME_NONE {
-                if let Some(history_address) = directory_version.history_address {
-                    // Using default port here means this won't work for '--experimental'
-                    let _ = name_register(&as_name, history_address, None, None).await;
-                }
-            };
+                // Register a valid 'as_name' unless:
+                // - the as_name given is AS_NAME_NONE ('anonymous')
+                // - the address was an Archive
+                if !as_name.is_empty() && as_name != AS_NAME_NONE {
+                    if let Some(history_address) = directory_version.history_address {
+                        // Using default port here means this won't work for '--experimental'
+                        let _ = name_register(&as_name, history_address, None, None).await;
+                    }
+                };
 
-            directory_version
-        }
-    };
+                directory_version
+            }
+        };
 
     let remote_path = if !remote_path.is_empty() {
         Some(format!("/{remote_path}"))
@@ -268,10 +275,17 @@ pub fn parse_dweb_open_as(params: &String) -> Result<(Option<u32>, String, Strin
     // If it validates as a DWEB-NAME it can't be a version (because they start with two alphabetic characters)
 
     let (version, as_name, address_or_name, remote_path) = match parse_version_string(&first) {
-        Ok(version) => (version, first, second, second_rest),
+        Ok(version) => {
+            println!("BINGO 1");
+            (version, second, third, third_rest)
+        }
         Err(_) => match validate_dweb_name(first) {
-            Ok(_as_name) => (None, first, second, second_rest),
+            Ok(_as_name) => {
+                println!("BINGO 2");
+                (None, first, second, second_rest)
+            }
             Err(_) => {
+                println!("BINGO 3");
                 let msg = format!("/dweb-open-as parameters not valid: '{params}'");
                 println!("DEBUG {msg}");
                 return Err(eyre!(msg));
@@ -313,6 +327,7 @@ pub fn parse_version_string(version_str: &str) -> Result<Option<u32>> {
 fn make_error_response(
     status_code: Option<StatusCode>,
     response_builder: &mut HttpResponseBuilder,
+    heading: String,
     message: &str,
 ) -> HttpResponse {
     let status_code = if let Some(status_code) = status_code {
@@ -324,8 +339,8 @@ fn make_error_response(
     let body = format!(
         "
     <!DOCTYPE html><head></head><body>
-    <h3>/dweb-open handler error</h3>
-    {status_code} error - <br/>{message}
+    <h3>{heading}</h3>
+    {status_code} {message}
     </body>"
     );
 

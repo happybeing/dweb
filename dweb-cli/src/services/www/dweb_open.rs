@@ -145,26 +145,16 @@ pub async fn handle_dweb_open(
 
     // Look for an existing handler
     // As we've already parsed address_or_name, an error return only means there isn't a handler for this yet
-    let directory_version =
-        match lookup_directory_version_with_port(&address_or_name, version) {
-            Ok(directory_version) => directory_version,
-            Err(_) => {
-                // Create a new DirectoryVersionWithPort and spawn a handler for it
-                let directory_version =
-                    match create_directory_version_with_port(&client, &address_or_name, version)
-                        .await
-                    {
-                        Ok(directory_version) => directory_version,
-                        Err(e) => {
-                            return make_error_response(
-                                None,
-                                &mut HttpResponse::BadGateway(),
-                                "/dweb_open handler error".to_string(),
-                                &format!("{e}. Address: {address_or_name}"),
-                            );
-                        }
-                    };
-
+    let directory_version = match lookup_or_create_directory_version_with_port(
+        &client,
+        &address_or_name,
+        version,
+    )
+    .await
+    {
+        Ok((directory_version, from_cache)) => {
+            if !from_cache {
+                // Not in the cache so spawn a server to handle it
                 match serve_with_ports(
                     &client,
                     Some(directory_version.clone()),
@@ -195,10 +185,18 @@ pub async fn handle_dweb_open(
                         let _ = name_register(&as_name, history_address, None, None).await;
                     }
                 };
-
-                directory_version
-            }
-        };
+            };
+            directory_version
+        }
+        Err(e) => {
+            return make_error_response(
+                None,
+                &mut HttpResponse::BadGateway(),
+                "/dweb_open handler error".to_string(),
+                &format!("{e}. Address: {address_or_name}"),
+            )
+        }
+    };
 
     let remote_path = if !remote_path.is_empty() {
         Some(format!("/{remote_path}"))

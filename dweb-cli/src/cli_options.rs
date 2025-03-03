@@ -142,37 +142,21 @@ pub enum Subcommands {
     /// dweb open awesome
     #[allow(non_camel_case_types)]
     Open {
-        /// The website you wish to open. This must be a recognised DWEB-NAME, HISTORY-ADDRESS, ARCHIVE-ADDRESS
-        /// or a DWEB-OPEN link. You can obtain addresses from others and if you publish your own website can
-        /// share the address with others too.
+        /// The website (or directory) you wish to open. This must be a HISTORY-ADDRESS, ARCHIVE-ADDRESS, a
+        /// recognised DWEB-NAME or a DWEB-LINK. You can obtain addresses from others and if you publish
+        /// your own website can share the address with others too.
         ///
-        /// A HISTORY-ADDRESS is a long string which looks like this:
+        /// DWEB-NAME is a memorable name you can use to open a website like this: 'dweb open awesome'. You
+        /// can add your own names using 'dweb name' or 'dweb open --as-name', but for now these will be
+        /// forgotten if you re-start the server.
         ///
-        /// a3e9f2dce9c441fbbb3fef505c77fd3069c8c51fd9890d4f8a073897f1f2d11254dabe2047ffdb28cf75444ee327557e
+        /// HISTORY-ADDRESS is a long string which refers to a website history where you can view all versions
+        /// of the website (using --version). It looks like this: a3e9f2dce9c441fbbb3fef505c77fd3069c8c51fd9890d4f8a073897f1f2d11254dabe2047ffdb28cf75444ee327557e
         ///
-        /// An ARCHIVE-ADDRESS is similar but shorter.
+        /// ARCHIVE-ADDRESS is similar but shorter and refers to a single version.
         ///
-        /// A DWEB-OPEN link has the form:
-        ///
-        ///     /dweb-open/[v[<VERSION>/]<ADDRESS-OR-NAME>/<REMOTE-PATH>
-        ///
-        /// Note that the version part can be ommitted, in which case you are just providing the ADDRESS-OR-NAME
-        /// and a REMOTE-PATH (which can be empty).
-        ///
-        /// Examples:
-        ///
-        ///     /dweb-open/awesome
-        ///
-        ///     /dweb-open/a3e9f2dce9c441fbbb3fef505c77fd3069c8c51fd9890d4f8a073897f1f2d11254dabe2047ffdb28cf75444ee327557e
-        ///
-        ///     /dweb-open/v1/a3e9f2dce9c441fbbb3fef505c77fd3069c8c51fd9890d4f8a073897f1f2d11254dabe2047ffdb28cf75444ee327557e
-        ///
-        /// NOTES:
-        ///     1) For now the only recognised DWEB-NAME is 'awesome'. A naming system will be added later. See also 'dweb name --help'.
-        ///
-        ///     2) If pasted into a browser, the full address would be a URL, such as:
-        ///
-        ///        http://127.0.0.1:8080/dweb-open/[v[<VERSION>/]<ADDRESS-OR-NAME>/<REMOTE-PATH>
+        /// DWEB-LINK is used in websites when linking to other websites on Autonomi. For details see the
+        /// documentation on github about building websites.
         ///
         /// TODO replace the above address with something interesting
         ///
@@ -199,9 +183,9 @@ pub enum Subcommands {
         /// Assumes the server was started with '--experimental' and that a local DNS has been set up.
         #[clap(hide = true, long, default_value = "false")]
         experimental: bool,
-        ///
-        #[clap(long = "register-as", value_name = "DWEB-NAME", hide = true)]
-        dweb_name: Option<String>,
+        /// Register a name for the website being opened
+        #[clap(long = "as-name", short = 'a', value_name = "DWEB-NAME", value_parser = validate_dweb_name)]
+        as_name: Option<String>,
     },
 
     /// Provide a memorable name for a directory or website.

@@ -61,7 +61,7 @@ pub async fn name_register(
 }
 
 /// Query the server for a list of recognised names
-pub async fn names_list(host: Option<&String>, port: Option<u16>) -> Result<Vec<RecognisedName>> {
+pub async fn name_list(host: Option<&String>, port: Option<u16>) -> Result<Vec<RecognisedName>> {
     let url_path = format!("{DWEB_API_ROUTE}/name_list");
     match main_server_request(&url_path, host, port).await {
         Ok(json) => {

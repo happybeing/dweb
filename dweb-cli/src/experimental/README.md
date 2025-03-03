@@ -6,9 +6,24 @@ An alternative to a local DNS would be to have the dweb server act as a proxy fo
 
 So in order to avoid the need for additional setup, the 'hosts' based approach has been replaced with a 'ports' based solution (a server on a different port per website).
 
-For now, dweb retains the earlier 'hosts' solution under control of the `--experimental` command line option for relevant subcommands (e.g. `dweb serve --experimantal` and `dweb open --experimantal awesome`).
+For now, dweb retains the earlier 'hosts' solution under control of the `--experimental` command line option for relevant subcommands.
 
-But first you will need to carry out additional setup as described below.
+## Example Use
+Before proceeding you will need to carry out additional setup as described under 'Hosts / Experimental Setup'.
+
+Once you have the local DNS setup, start the experimental (with hosts) server:
+
+```
+dweb serve --experimental
+```
+
+View a website, and notice the address bar shows a human readable domain (unlike the regular server which shows '127.0.0.1'):
+
+```
+dweb open --experimental awesome
+```
+
+The above 'with hosts' web addresses are similar to `awe`, an earlier demonstration app that showed how a custom browser might work, with direct access to Autonomi. `awe` now uses `dweb` for its implementation and so remains a useful demonstration (see [github.com](https://github.com/happybeing/awe)).
 
 ## Hosts / Experimental Setup
 Below is a draft of the setup documentation for the earlier host based solution, which is still available to be tried out using the `-- experimental` option on relevant dweb CLI subcommands.

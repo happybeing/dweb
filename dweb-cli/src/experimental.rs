@@ -84,7 +84,8 @@ pub async fn serve_with_hosts(
             }) // <SERVICE>-dweb.au routes
             // TODO add routes for SERVICE: solid, rclone etc.
             .service(api::dweb_v0::init_service(DWEB_SERVICE_API))
-            .service(crate::services::www::dweb_open::init_service())
+            .service(crate::services::www::dweb_open::init_dweb_open())
+            .service(crate::services::www::dweb_open::init_dweb_open_as())
             .service(app::test::init_service(DWEB_SERVICE_APP))
             //
             // <ARCHIVE-ADDRESS>|[vN].<HISTORY-ADDRESS>.www-dweb.au services must be

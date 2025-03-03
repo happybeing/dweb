@@ -34,7 +34,7 @@ pub(crate) async fn handle_name_register(
 ///
 /// Note: 'dweb' serve' spawns a server for each directory/website being accessed, so ports will run out if the servers are never killed. However, you can release all ports by restarting the server.
 pub(crate) async fn handle_list_names(host: Option<&String>, port: Option<u16>) -> Result<()> {
-    match dweb::api::names_list(host, port).await {
+    match dweb::api::name_list(host, port).await {
         Ok(names_vec) => {
             for recognised_name in names_vec.iter() {
                 println!(

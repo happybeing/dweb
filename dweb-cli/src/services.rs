@@ -120,7 +120,8 @@ pub async fn serve_with_ports(
             //
             // <ARCHIVE-ADDRESS>|[vN].<HISTORY-ADDRESS>.www-dweb.au services must be
             // after above routes or will consume them too!
-            .service(www::dweb_open::init_service())
+            .service(www::dweb_open::init_dweb_open())
+            .service(www::dweb_open::init_dweb_open_as())
             .service(api::dweb_v0::init_service())
             // .service(www::debug::init_service())
             //

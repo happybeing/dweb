@@ -466,11 +466,10 @@ pub fn response_redirect(
     println!("DEBUG port     : {port_str}");
 
     let mut redirect_url = String::from(scheme) + "://" + host;
+    redirect_url = redirect_url + port_str;
     if let Some(path) = path {
         redirect_url = redirect_url + &path;
     }
-
-    redirect_url = redirect_url + port_str;
 
     #[cfg(feature = "development")]
     println!("DEBUG response_redirect() redirecting to {redirect_url}");

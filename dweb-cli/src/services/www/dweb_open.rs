@@ -23,22 +23,68 @@ use actix_web::{
 };
 use color_eyre::eyre::{eyre, Result};
 
+use dweb::api::name_register;
 use dweb::cache::directory_with_port::*;
 use dweb::helpers::convert::address_tuple_from_address_or_name;
 use dweb::web::fetch::response_redirect;
 use dweb::web::name::validate_dweb_name;
 use dweb::web::LOCALHOST_STR;
+use hex::decode;
 
 use crate::services::serve_with_ports;
 
-pub fn init_service() -> impl HttpServiceFactory {
+pub fn init_dweb_open() -> impl HttpServiceFactory {
     actix_web::web::scope("/dweb-open").service(dweb_open)
+}
+
+pub fn init_dweb_open_as() -> impl HttpServiceFactory {
+    actix_web::web::scope("/dweb-open-as").service(dweb_open_as)
+}
+
+const AS_NAME_NONE: &str = "anonymous";
+
+// dweb_open parses the parameters manually to allow the version portion
+// to be ommitted, and support easier manual construction:
+//
+// url: http://127.0.0.1:8080/dweb-open/[v{version}/][{as_name}/]{address_or_name}{remote_path}
+//
+#[get("/{params:.*}")]
+pub async fn dweb_open_as(
+    request: HttpRequest,
+    // params: web::Path<(String, String, String)>,
+    params: web::Path<String>,
+    client: Data<dweb::client::AutonomiClient>,
+    our_directory_version: Data<Option<DirectoryVersionWithPort>>,
+    is_local_network: Data<bool>,
+) -> HttpResponse {
+    println!("DEBUG dweb_open_as()...");
+
+    let params = params.into_inner();
+    let decoded_params = match parse_dweb_open_as(&params) {
+        Ok(params) => params,
+        Err(e) => {
+            return make_error_response(
+                None,
+                &mut HttpResponse::BadRequest(),
+                "/dweb-open invalid parameters: {params}",
+            )
+        }
+    };
+
+    handle_dweb_open(
+        &request,
+        client,
+        our_directory_version,
+        is_local_network,
+        &decoded_params,
+    )
+    .await
 }
 
 // dweb_open parses the parameters manually to allow the version portion
 // to be ommitted, and support easier manual construction:
 //
-// url: http://127.0.0.1:8080/dweb-open/[v{version}/]{address_or_name}{remote_path}
+// url: http://127.0.0.1:8080/dweb-open/[v{version}/][{as_name}/]{address_or_name}{remote_path}
 //
 #[get("/{params:.*}")]
 pub async fn dweb_open(
@@ -52,7 +98,7 @@ pub async fn dweb_open(
     println!("DEBUG dweb_open()...");
 
     let params = params.into_inner();
-    let (version, address_or_name, remote_path) = match parse_dweb_open_params(&params) {
+    let decoded_params = match parse_dweb_open(&params) {
         Ok(params) => params,
         Err(e) => {
             return make_error_response(
@@ -62,6 +108,26 @@ pub async fn dweb_open(
             )
         }
     };
+
+    handle_dweb_open(
+        &request,
+        client,
+        our_directory_version,
+        is_local_network,
+        &decoded_params,
+    )
+    .await
+}
+
+pub async fn handle_dweb_open(
+    request: &HttpRequest,
+    client: Data<dweb::client::AutonomiClient>,
+    our_directory_version: Data<Option<DirectoryVersionWithPort>>,
+    is_local_network: Data<bool>,
+    decoded_params: &(Option<u32>, String, String, String),
+) -> HttpResponse {
+    let (version, as_name, address_or_name, remote_path) = decoded_params;
+    let version = version.clone();
 
     let (history_address, archive_address) = address_tuple_from_address_or_name(&address_or_name);
     if history_address.is_none() && archive_address.is_none() {
@@ -91,7 +157,7 @@ pub async fn dweb_open(
                 Err(e) => {
                     return make_error_response(None,
                         &mut HttpResponse::BadGateway(),
-                        &format!("dweb_open() Failed to start a port server for archive at address: {address_or_name}")
+                        &format!("handle_dweb_open() Failed to start a port server for archive at address: {address_or_name}")
                     );
                 }
             };
@@ -109,9 +175,20 @@ pub async fn dweb_open(
             {
                 return make_error_response(None,
                     &mut HttpResponse::BadGateway(),
-                    &format!("dweb_open() Failed to start a port server for archive at address: {address_or_name}")
+                    &format!("handle_dweb_open() Failed to start a port server for archive at address: {address_or_name}")
                 );
-            }
+            };
+
+            // Register a valid 'as_name' unless:
+            // - the as_name given is AS_NAME_NONE ('anonymous')
+            // - the address was an Archive
+            if !as_name.is_empty() && as_name != AS_NAME_NONE {
+                if let Some(history_address) = directory_version.history_address {
+                    // Using default port here means this won't work for '--experimental'
+                    let _ = name_register(&as_name, history_address, None, None).await;
+                }
+            };
+
             directory_version
         }
     };
@@ -131,38 +208,84 @@ pub async fn dweb_open(
     )
 }
 
-/// Parse the path part of a DWEB-LINK URL, which in full is:
+/// Parse the path part of a dweb-open URL, which in full is:
 ///
 /// url: http://127.0.0.1:<PORT>/[v{version}/]{address_or_name}{remote_path}
-pub fn parse_dweb_open_params(params: &String) -> Result<(Option<u32>, String, String)> {
+pub fn parse_dweb_open(params: &String) -> Result<(Option<u32>, String, String, String)> {
     // Parse params manually so we can support with and without version
     println!("DEBUG parse_dweb_open_params() {params}");
 
     // We have two or three parameters depending on whether a version is included.
     // So split in a way we can get either combination depending on what we find.
-    let (first, rest) = params.split_once('/').unwrap_or(("", &params));
+    let (first, rest) = params.split_once('/').unwrap_or((&params, ""));
     let first_rest = String::from(rest);
-    let (second, rest) = first_rest.split_once('/').unwrap_or(("", &first_rest));
+    let (second, rest) = first_rest.split_once('/').unwrap_or((&first_rest, ""));
     let second_rest = String::from(rest);
 
     println!("1:{first} 2: {second} r: {rest}");
 
     // If it validates as a DWEB-NAME it can't be a version (because they start with two alphabetic characters)
 
-    let (version, address_or_name, remote_path) = match validate_dweb_name(&first) {
-        Ok(_) => (None, first, first_rest),
-        Err(e) => match parse_version_string(&first) {
-            Ok(version) => (version, second, second_rest),
+    let (version, address_or_name, remote_path) = match parse_version_string(&first) {
+        Ok(version) => (version, second, second_rest),
+        Err(_) => (None, first, first_rest),
+    };
+
+    println!("version:{version:?} as_name: {AS_NAME_NONE}, address_or_name: {address_or_name} remote_path: {remote_path}");
+    Ok((
+        version,
+        AS_NAME_NONE.to_string(),
+        address_or_name.to_string(),
+        remote_path,
+    ))
+}
+
+/// Parse the path part of a /dweb-open-as URL, which in full is:
+///
+/// url: http://127.0.0.1:<PORT>/[v{version}/]/{as_name}/{address_or_name}{remote_path}
+///
+/// Note:
+///     version is an optional integer (u32)
+///     as_name must either be a DWEB-NAME to register, or 'anomymous'
+///     address_or_name is the site to visit
+///     remote_path is the resource to load from the site
+///
+pub fn parse_dweb_open_as(params: &String) -> Result<(Option<u32>, String, String, String)> {
+    // Parse params manually so we can support with and without version
+    println!("DEBUG parse_dweb_open_as() {params}");
+
+    // We have two or three parameters depending on whether a version is included.
+    // So split in a way we can get either combination depending on what we find.
+    let (first, rest) = params.split_once('/').unwrap_or((&params, ""));
+    let first_rest = String::from(rest);
+    let (second, rest) = first_rest.split_once('/').unwrap_or((&first_rest, ""));
+    let second_rest = String::from(rest);
+    let (third, rest) = second_rest.split_once('/').unwrap_or((&second_rest, ""));
+    let third_rest = String::from(rest);
+
+    println!("1:{first} 2: {second}  3: {third} r: {rest}");
+
+    // If it validates as a DWEB-NAME it can't be a version (because they start with two alphabetic characters)
+
+    let (version, as_name, address_or_name, remote_path) = match parse_version_string(&first) {
+        Ok(version) => (version, first, second, second_rest),
+        Err(_) => match validate_dweb_name(first) {
+            Ok(_as_name) => (None, first, second, second_rest),
             Err(_) => {
-                let msg = "/dweb-open parameters not valid: '{params}'";
+                let msg = format!("/dweb-open-as parameters not valid: '{params}'");
                 println!("DEBUG {msg}");
                 return Err(eyre!(msg));
             }
         },
     };
 
-    println!("version:{version:?} address_or_name: {address_or_name} remote_path: {remote_path}");
-    Ok((version, address_or_name.to_string(), remote_path))
+    println!("version:{version:?} as_name: {as_name} address_or_name: {address_or_name} remote_path: {remote_path}");
+    Ok((
+        version,
+        as_name.to_string(),
+        address_or_name.to_string(),
+        remote_path,
+    ))
 }
 
 /// Parse a string and if valid return an Option<u32>

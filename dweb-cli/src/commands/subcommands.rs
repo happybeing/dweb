@@ -84,11 +84,11 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
         Some(Subcommands::Open {
             address_name_or_link,
             version,
+            as_name,
             remote_path,
             host,
             port,
             experimental,
-            dweb_name,
         }) => {
             if !experimental {
                 let default_host = LOCALHOST_STR.to_string();
@@ -97,6 +97,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                 crate::commands::cmd_browse::handle_browse_with_ports(
                     &address_name_or_link,
                     version,
+                    as_name,
                     remote_path,
                     Some(&host),
                     Some(port),
@@ -108,6 +109,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                 crate::commands::cmd_browse::handle_browse_with_ports(
                     &address_name_or_link,
                     version,
+                    as_name,
                     remote_path,
                     Some(&host),
                     Some(port),

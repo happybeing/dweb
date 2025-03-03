@@ -164,7 +164,7 @@ pub fn report_content_published_or_updated(
         println!("- For help use 'awe --help'\n");
     } else {
         println!("\nNOTE:\n- To update this content use:\n\n    dweb publish-update --name \"{name}\" --files-root {files_root:?}\n");
-        println!("- To browse the content use:\n\n    dweb --name {name}\n");
+        println!("- To browse the content (after starting the server with 'dweb serve'):\n\n    dweb open {files_history}\n\n");
         println!("- For help use 'dweb --help'\n");
     }
 }

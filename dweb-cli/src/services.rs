@@ -122,6 +122,8 @@ pub async fn serve_with_ports(
             // after above routes or will consume them too!
             .service(www::dweb_open::init_dweb_open())
             .service(www::dweb_open::init_dweb_open_as())
+            .service(www::dweb_info::init_dweb_info())
+            .service(www::dweb_version::init_dweb_version())
             .service(api::dweb_v0::init_service())
             // .service(www::debug::init_service())
             //

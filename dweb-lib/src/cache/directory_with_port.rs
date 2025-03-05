@@ -23,6 +23,7 @@
 //! received. Redirection of the request to the new port causes the current
 //! and subsequent requests to be served by the correct listener.
 
+use std::fmt::{self, Display, Formatter};
 use std::sync::{LazyLock, Mutex};
 
 use color_eyre::eyre::{eyre, Result};
@@ -85,6 +86,17 @@ pub struct DirectoryVersionWithPort {
 
     #[cfg(feature = "fixed-dweb-hosts")]
     is_fixed_webname: bool,
+}
+
+impl Display for DirectoryVersionWithPort {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        write!(formatter, "DirectoryVersionWithPort\n             port: {}\n  history_address: {}\n          version: {}\n  archive_address: {}",
+            self.port,
+            if self.history_address.is_some() { self.history_address.unwrap().to_hex() } else { "None".to_string() },
+            if self.version.is_some() { self.version.unwrap() } else { 0 },
+            self.archive_address.to_string(),
+        )
+    }
 }
 
 impl DirectoryVersionWithPort {

@@ -15,11 +15,7 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-// use actix_web::{body, get, post, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
-use actix_web::{
-    dev::HttpServiceFactory, get, http::StatusCode, web, web::Data, HttpRequest, HttpResponse,
-    HttpResponseBuilder,
-};
+use actix_web::{dev::HttpServiceFactory, get, web, web::Data, HttpRequest, HttpResponse};
 use color_eyre::eyre::{eyre, Result};
 
 use dweb::api::name_register;
@@ -30,6 +26,8 @@ use dweb::web::name::validate_dweb_name;
 use dweb::web::LOCALHOST_STR;
 
 use crate::services::serve_with_ports;
+
+use super::make_error_response;
 
 pub fn init_dweb_open() -> impl HttpServiceFactory {
     actix_web::web::scope("/dweb-open").service(dweb_open)
@@ -44,12 +42,11 @@ const AS_NAME_NONE: &str = "anonymous";
 // dweb_open parses the parameters manually to allow the version portion
 // to be ommitted, and support easier manual construction:
 //
-// url: http://127.0.0.1:8080/dweb-open/[v{version}/][{as_name}/]{address_or_name}{remote_path}
+// url: http://127.0.0.1:<PORT>/dweb-open/[v{version}/][{as_name}/]{address_or_name}{remote_path}
 //
 #[get("/{params:.*}")]
 pub async fn dweb_open_as(
     request: HttpRequest,
-    // params: web::Path<(String, String, String)>,
     params: web::Path<String>,
     client: Data<dweb::client::AutonomiClient>,
     our_directory_version: Data<Option<DirectoryVersionWithPort>>,
@@ -60,7 +57,7 @@ pub async fn dweb_open_as(
     let params = params.into_inner();
     let decoded_params = match parse_dweb_open_as(&params) {
         Ok(params) => params,
-        Err(ant_bootstrape) => {
+        Err(_ant_bootstrape) => {
             return make_error_response(
                 None,
                 &mut HttpResponse::BadRequest(),
@@ -83,7 +80,7 @@ pub async fn dweb_open_as(
 // dweb_open parses the parameters manually to allow the version portion
 // to be ommitted, and support easier manual construction:
 //
-// url: http://127.0.0.1:8080/dweb-open/[v{version}/][{as_name}/]{address_or_name}{remote_path}
+// url: http://127.0.0.1:<PORT>/dweb-open/[v{version}/][{as_name}/]{address_or_name}{remote_path}
 //
 #[get("/{params:.*}")]
 pub async fn dweb_open(
@@ -122,7 +119,7 @@ pub async fn dweb_open(
 pub async fn handle_dweb_open(
     request: &HttpRequest,
     client: Data<dweb::client::AutonomiClient>,
-    our_directory_version: Data<Option<DirectoryVersionWithPort>>,
+    _our_directory_version: Data<Option<DirectoryVersionWithPort>>,
     is_local_network: Data<bool>,
     decoded_params: &(Option<u32>, String, String, String),
 ) -> HttpResponse {
@@ -318,27 +315,4 @@ pub fn parse_version_string(version_str: &str) -> Result<Option<u32>> {
     } else {
         Err(eyre!("invalid version: '{version_str}'"))
     }
-}
-
-fn make_error_response(
-    status_code: Option<StatusCode>,
-    response_builder: &mut HttpResponseBuilder,
-    heading: String,
-    message: &str,
-) -> HttpResponse {
-    let status_code = if let Some(status_code) = status_code {
-        &format!("{status_code}")
-    } else {
-        ""
-    };
-
-    let body = format!(
-        "
-    <!DOCTYPE html><head></head><body>
-    <h3>{heading}</h3>
-    {status_code} {message}
-    </body>"
-    );
-
-    response_builder.body(body)
 }

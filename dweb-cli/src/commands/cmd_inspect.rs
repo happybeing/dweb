@@ -14,18 +14,17 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+use blsttc::PublicKey;
 use chrono::offset::Utc;
 use chrono::DateTime;
 use color_eyre::{eyre::eyre, Result};
 use std::time::{Duration, UNIX_EPOCH};
-use xor_name::XorName;
 
 use ant_protocol::storage::{GraphEntry, GraphEntryAddress, Pointer, PointerAddress};
 use autonomi::client::key_derivation::{DerivationIndex, MainPubkey};
-use blsttc::PublicKey;
+use autonomi::files::archive_public::ArchiveAddress;
 
 use dweb::client::AutonomiClient;
-use dweb::helpers::convert::str_to_xor_name;
 use dweb::helpers::graph_entry::graph_entry_get;
 use dweb::trove::History;
 use dweb::trove::{directory_tree::DirectoryTree, HistoryAddress};
@@ -102,9 +101,10 @@ pub async fn handle_inspect_history(
                 Some(&history),
             )
             .await?;
-            let archive_address = str_to_xor_name(&hex::encode(entry_iter.content))?;
+            let archive_address_hex = hex::encode(entry_iter.content);
+            let archive_address = ArchiveAddress::from_hex(&archive_address_hex)?;
             if include_files {
-                println!("    entry {index} - fetching content at {archive_address:x}");
+                println!("    entry {index} - fetching content at {archive_address_hex}");
                 match DirectoryTree::from_archive_address(&client, archive_address).await {
                     Ok(directory) => {
                         let _ = print_files("      ", &directory, &files_args);
@@ -136,7 +136,10 @@ fn print_history(
 ) {
     println!("history address  : {}", history.history_address().to_hex());
 
-    let mut type_string = format!("{}", hex::encode(History::<DirectoryTree>::trove_type()));
+    let mut type_string = format!(
+        "{}",
+        hex::encode(History::<DirectoryTree>::trove_type().xorname())
+    );
 
     let mut pointer_string = if let Ok(pointer_address) =
         History::<DirectoryTree>::pointer_address_from_history_address(history.history_address())
@@ -295,7 +298,7 @@ async fn graph_entry_print_parents(
         let mut xor_string = if history.is_none() {
             public_key.to_hex()
         } else {
-            GraphEntryAddress::from_owner(*public_key).to_hex()
+            GraphEntryAddress::new(*public_key).to_hex()
         };
 
         if shorten_hex_strings {
@@ -325,7 +328,7 @@ fn graph_entry_print_descendents(
                 MainPubkey::from(history.as_ref().unwrap().history_address().owner)
                     .derive_key(&next_derivation)
                     .into();
-            let child = GraphEntryAddress::from_owner(next_entry_pk);
+            let child = GraphEntryAddress::new(next_entry_pk);
             child.to_hex()
         };
 
@@ -375,10 +378,10 @@ fn print_files(indent: &str, directory: &DirectoryTree, files_args: &FilesArgs) 
                     let size = metadata.size;
                     let extra = metadata.extra.clone().unwrap_or(String::from(""));
                     println!(
-                        "{indent}{xor_name:x} c({created}) m({modified}) \"{path_string}{file_name}\" {size} bytes and JSON: \"{extra}\"",
+                        "{indent}{} c({created}) m({modified}) \"{path_string}{file_name}\" {size} bytes and JSON: \"{extra}\"", xor_name.to_hex()
                     );
                 } else {
-                    println!("{indent}{xor_name:x} \"{path_string}{file_name}\"");
+                    println!("{indent}{} \"{path_string}{file_name}\"", xor_name.to_hex());
                 }
             }
         }
@@ -419,10 +422,10 @@ fn print_total_size(indent: &str, total_bytes: u64) -> Result<()> {
 /// Implement 'inspect-files' subcommand
 pub async fn handle_inspect_files(
     client: AutonomiClient,
-    archive_address: XorName,
+    archive_address: ArchiveAddress,
     files_args: FilesArgs,
 ) -> Result<()> {
-    println!("fetching directory at {archive_address:x}");
+    println!("fetching directory at {}", archive_address.to_hex());
     match DirectoryTree::from_archive_address(&client, archive_address).await {
         Ok(directory) => {
             let _ = print_files("", &directory, &files_args);

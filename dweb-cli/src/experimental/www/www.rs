@@ -17,18 +17,15 @@
 
 // use actix_web::{body, get, post, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use actix_web::{
-    body,
-    dev::{HttpServiceFactory, ServiceRequest, ServiceResponse},
-    get, guard,
+    dev::HttpServiceFactory,
+    guard,
     http::{
-        header::{self, HeaderValue},
+        header::{self},
         StatusCode,
     },
-    post,
     web::{self, Data},
-    App, Error, HttpRequest, HttpResponse, HttpResponseBuilder, HttpServer, Responder,
+    HttpRequest, HttpResponse,
 };
-use mime;
 
 use dweb::web::fetch::{fetch_website_version, response_redirect, response_with_body};
 use dweb::web::DWEB_SERVICE_WWW;

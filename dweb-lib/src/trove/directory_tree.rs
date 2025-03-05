@@ -17,19 +17,19 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use actix_web::web::Json;
-use autonomi::files::archive_public::ArchiveAddr;
 use bytes::Bytes;
 use color_eyre::eyre::{eyre, Result};
 use http::status::StatusCode;
 use mime_guess;
-use xor_name::XorName as FileAddress;
 
+use autonomi::client::data::DataAddress;
 use autonomi::client::files::archive_public::PublicArchive;
 use autonomi::client::files::Metadata as FileMetadata;
+use autonomi::files::archive_public::ArchiveAddress;
 
 use crate::client::AutonomiClient;
-use crate::trove::{str_to_xor_name, History, HistoryAddress, Trove};
+use crate::helpers::convert::str_to_data_address;
+use crate::trove::{History, Trove};
 
 // The Trove type for a DirectoryTree
 const FILE_TREE_TYPE: &str = "ee383f084cffaab845617b1c43ffaee8b5c17e8fbbb3ad3d379c96b5b844f24e";
@@ -177,8 +177,8 @@ pub struct DirectoryTree {
 }
 
 impl Trove<DirectoryTree> for DirectoryTree {
-    fn trove_type() -> FileAddress {
-        FileAddress::from_content(FILE_TREE_TYPE.as_bytes())
+    fn trove_type() -> DataAddress {
+        DataAddress::from_hex(FILE_TREE_TYPE).unwrap() // An error here is a bug that should be fixed
     }
 
     fn to_bytes(directory_tree: &DirectoryTree) -> Result<Bytes> {
@@ -217,9 +217,12 @@ impl DirectoryTree {
     // TODO was directory_tree_download()
     pub async fn from_archive_address(
         client: &AutonomiClient,
-        archive_address: ArchiveAddr,
+        archive_address: ArchiveAddress,
     ) -> Result<DirectoryTree> {
-        println!("DEBUG directory_tree_download() at {archive_address:x}");
+        println!(
+            "DEBUG directory_tree_download() at {}",
+            archive_address.to_hex()
+        );
         match client.client.archive_get_public(&archive_address).await {
             Ok(archive) => {
                 println!(
@@ -278,7 +281,7 @@ impl DirectoryTree {
         history: &mut History<DirectoryTree>,
         resource_path: &String,
         version: Option<u32>,
-    ) -> Result<(FileAddress, Option<String>), StatusCode> {
+    ) -> Result<(DataAddress, Option<String>), StatusCode> {
         if !history.fetch_version_trove(version).await.is_none() {
             if history.cached_version.is_some()
                 && history.cached_version.as_ref().unwrap().trove.is_some()
@@ -301,7 +304,7 @@ impl DirectoryTree {
     pub fn lookup_web_resource(
         &self,
         resource_path: &String,
-    ) -> Result<(FileAddress, Option<String>), StatusCode> {
+    ) -> Result<(DataAddress, Option<String>), StatusCode> {
         let last_separator_result = resource_path.rfind(PATH_SEPARATOR);
         if last_separator_result.is_none() {
             return Err(StatusCode::BAD_REQUEST);
@@ -364,7 +367,7 @@ impl DirectoryTree {
                 println!("FAILED to find resource for path: '{original_resource_path}' in:");
                 println!("{:?}", self.directory_map.paths_to_files_map);
                 if original_resource_path == "/favicon.ico" {
-                    if let Ok(address) = str_to_xor_name(ADDRESS_DEFAULT_FAVICON) {
+                    if let Ok(address) = str_to_data_address(ADDRESS_DEFAULT_FAVICON) {
                         return Ok((address, None));
                     }
                 }
@@ -375,8 +378,8 @@ impl DirectoryTree {
 
     fn lookup_name_in_vec(
         name: &String,
-        resources_vec: &Vec<(String, FileAddress, FileMetadata)>,
-    ) -> Option<FileAddress> {
+        resources_vec: &Vec<(String, DataAddress, FileMetadata)>,
+    ) -> Option<DataAddress> {
         println!("DEBUG lookup_name_in_vec({name})");
         for (resource_name, xor_name, _metadata) in resources_vec {
             if resource_name.eq(name) {
@@ -392,7 +395,7 @@ impl DirectoryTree {
 ///   (filename: String, archive_address: XorName, metadata: FileMetadata)
 #[derive(Clone)]
 pub struct DirectoryTreePathMap {
-    pub paths_to_files_map: HashMap<String, Vec<(String, FileAddress, FileMetadata)>>,
+    pub paths_to_files_map: HashMap<String, Vec<(String, DataAddress, FileMetadata)>>,
 }
 
 // TODO replace OS path separator with '/' when storing web paths
@@ -400,7 +403,7 @@ pub struct DirectoryTreePathMap {
 impl DirectoryTreePathMap {
     pub fn new() -> DirectoryTreePathMap {
         DirectoryTreePathMap {
-            paths_to_files_map: HashMap::<String, Vec<(String, FileAddress, FileMetadata)>>::new(),
+            paths_to_files_map: HashMap::<String, Vec<(String, DataAddress, FileMetadata)>>::new(),
         }
     }
 
@@ -428,7 +431,7 @@ impl DirectoryTreePathMap {
     pub fn add_content_to_map(
         &mut self,
         resource_website_path: &String,
-        xor_name: FileAddress,
+        xor_name: DataAddress,
         metadata: FileMetadata,
     ) -> Result<()> {
         // println!("DEBUG add_content_to_map() path '{resource_website_path}'");
@@ -485,7 +488,7 @@ pub fn osstr_to_string(file_name: &std::ffi::OsStr) -> Option<String> {
 //     resource_path: &String,
 //     history_address: HistoryAddress,
 //     version: Option<u32>,
-// ) -> Result<(FileAddress, Option<String>), StatusCode> {
+// ) -> Result<(DataAddress, Option<String>), StatusCode> {
 //     println!("DEBUG lookup_resource_for_website_version() version {version:?}");
 //     println!("DEBUG history_address: {}", history_address.to_hex());
 //     println!("DEBUG resource_path    : {resource_path}");

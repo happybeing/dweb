@@ -17,13 +17,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 use std::path::PathBuf;
 use std::sync::LazyLock;
 
+use autonomi::files::archive_public::ArchiveAddress;
 use autonomi::GraphEntryAddress;
 use clap::Args;
 use clap::Parser;
 use clap::Subcommand;
 use color_eyre::{eyre::eyre, Result};
 use core::time::Duration;
-use xor_name::XorName;
 
 use ant_bootstrap::PeersArgs;
 use ant_logging::{LogFormat, LogOutputDest};
@@ -31,7 +31,7 @@ use ant_protocol::storage::PointerAddress;
 
 use dweb::helpers::convert::*;
 use dweb::trove::HistoryAddress;
-use dweb::web::{name::validate_dweb_name, LOCALHOST_STR};
+use dweb::web::name::validate_dweb_name;
 
 // TODO add example to each CLI subcommand
 
@@ -414,8 +414,8 @@ pub enum Subcommands {
     #[allow(non_camel_case_types)]
     Inspect_files {
         /// The address of some a directory uploaded to Autonomi
-        #[clap(value_name = "ARCHIVE-ADDRESS", value_parser = str_to_xor_name)]
-        archive_address: XorName,
+        #[clap(value_name = "ARCHIVE-ADDRESS", value_parser = str_to_archive_address)]
+        archive_address: ArchiveAddress,
 
         #[command(flatten)]
         files_args: FilesArgs,

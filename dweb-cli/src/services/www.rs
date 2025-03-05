@@ -17,23 +17,10 @@
 
 pub(crate) mod dweb_open;
 
-// use actix_web::{body, get, post, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
-use actix_web::{
-    body,
-    dev::{HttpServiceFactory, ServiceRequest, ServiceResponse},
-    get, guard,
-    http::{
-        header::{self, HeaderValue},
-        StatusCode,
-    },
-    post,
-    web::{self, Data},
-    App, Error, HttpRequest, HttpResponse, HttpResponseBuilder, HttpServer, Responder,
-};
-use mime;
+use actix_web::{http::StatusCode, web::Data, HttpRequest, HttpResponse};
 
 use dweb::cache::directory_with_port::DirectoryVersionWithPort;
-use dweb::web::fetch::{fetch_website_version, response_redirect, response_with_body};
+use dweb::web::fetch::response_with_body;
 
 /// Handle Autonomi www requests of the form:
 ///     http://localhost:<PORT>/here/is/a/path.html

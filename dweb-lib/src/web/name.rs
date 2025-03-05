@@ -156,7 +156,7 @@ pub fn make_version_part(version: u32) -> String {
 }
 
 #[cfg(feature = "fixed-dweb-hosts")]
-use xor_name::XorName as ArchiveAddress;
+use autonomi::client::files::archive_public::ArchiveAddress;
 
 pub fn make_fixed_dweb_name(
     memorable_part: &String,
@@ -203,7 +203,7 @@ pub fn make_fixed_dweb_name(
         ));
     }
 
-    let directory_part = format!("{archive_address:x}");
+    let directory_part = format!("{}", archive_address.to_hex());
     let web_name = memorable_part[..MEMORABLE_PART_LEN].to_string()
         + FIXED_WEBNAME_SEPARATOR
         + "-"

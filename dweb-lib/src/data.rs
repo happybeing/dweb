@@ -15,9 +15,9 @@ You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+use autonomi::client::data::DataAddress;
 use bytes::Bytes;
 use color_eyre::Result;
-use xor_name::XorName as FileAddress;
 
 use autonomi::client::GetError;
 
@@ -26,7 +26,7 @@ use crate::client::AutonomiClient;
 /// TODO: move to dweb::data or similar?
 pub async fn autonomi_get_file_public(
     client: &AutonomiClient,
-    file_address: &FileAddress,
+    file_address: &DataAddress,
 ) -> Result<Bytes, GetError> {
     println!("DEBUG autonomi_get_file_public()");
     println!("DEBUG calling client.data_get_public()");

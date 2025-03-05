@@ -28,7 +28,7 @@ use std::sync::{LazyLock, Mutex};
 use color_eyre::eyre::{eyre, Result};
 use schnellru::{ByLength, LruMap};
 
-use xor_name::XorName as ArchiveAddress;
+use autonomi::client::files::archive_public::ArchiveAddress;
 
 use crate::{
     cache::directory_with_name::HISTORY_NAMES,
@@ -48,7 +48,7 @@ const WITH_PORT_CAPACITY: u32 = u16::MAX as u32; // When exceeded, port servers 
 ///
 
 pub fn key_for_directory_versions_with_port(archive_address: ArchiveAddress) -> String {
-    format!("{:x}", archive_address).to_ascii_lowercase()
+    format!("{}", archive_address.to_hex()).to_ascii_lowercase()
 }
 
 // pub fn directory_versions_with_port_key(address: &str, version: Option<u32>) -> String {

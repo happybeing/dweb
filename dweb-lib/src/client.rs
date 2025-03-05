@@ -23,13 +23,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 //!
 use bytes::Bytes;
 use color_eyre::Result;
-use xor_name::XorName as FileAddress;
 
-use crate::autonomi::access::network::NetworkPeers;
+use autonomi::client::data::DataAddress;
 use autonomi::client::{payment::PaymentOption, Client, GetError};
 use autonomi::{Network, Wallet};
 
 use crate::autonomi::access::keys::load_evm_wallet_from_env;
+use crate::autonomi::access::network::NetworkPeers;
 
 #[derive(Clone)]
 pub struct AutonomiClient {
@@ -81,7 +81,7 @@ impl AutonomiClient {
         PaymentOption::from(&self.wallet)
     }
 
-    pub async fn data_get_public(&self, address: FileAddress) -> Result<Bytes, GetError> {
+    pub async fn data_get_public(&self, address: DataAddress) -> Result<Bytes, GetError> {
         self.client.data_get_public(&address).await
     }
 }

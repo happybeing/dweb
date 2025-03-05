@@ -16,14 +16,7 @@
 */
 
 // use actix_web::{body, get, post, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
-use actix_web::{
-    body, dev::HttpServiceFactory, dev::ServiceRequest, dev::ServiceResponse, get, guard,
-    http::header, post, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder,
-};
-
-use dweb::helpers::convert::awe_str_to_history_address;
-
-use crate::services::request_as_html;
+use actix_web::{dev::HttpServiceFactory, guard, web, HttpRequest, HttpResponse};
 
 #[cfg(feature = "development")]
 pub fn init_service() -> impl HttpServiceFactory {
@@ -52,7 +45,7 @@ pub fn init_service() -> impl HttpServiceFactory {
 pub fn init_service() -> impl HttpServiceFactory {
     web::resource("/{path:.*}")
         .route(web::get().to(debug_handler))
-        .guard(guard::fn_guard(|ctx| false))
+        .guard(guard::fn_guard(|_ctx| false))
 }
 
 /// Handle Autonomi www requests of the form:
@@ -66,7 +59,7 @@ pub fn init_service() -> impl HttpServiceFactory {
 /// WWW service - handler for Autonomi websites
 ///
 #[cfg(not(feature = "development"))]
-pub async fn debug_handler(request: HttpRequest, path: web::Path<String>) -> HttpResponse {
+pub async fn debug_handler(_request: HttpRequest, _path: web::Path<String>) -> HttpResponse {
     HttpResponse::Ok().body("debug_handler() - should never be called for release builds")
 }
 

@@ -23,7 +23,7 @@ use std::sync::{LazyLock, Mutex};
 
 use schnellru::{ByLength, LruMap};
 
-use xor_name::XorName as ArchiveAddress;
+use autonomi::client::files::archive_public::ArchiveAddress;
 
 use crate::trove::{directory_tree::DirectoryTree, HistoryAddress};
 use crate::web::name::DwebHost;

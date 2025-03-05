@@ -15,10 +15,13 @@ You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-use ant_protocol::storage::PointerAddress;
-use autonomi::GraphEntryAddress;
 use color_eyre::eyre::{eyre, Result};
 use xor_name::XorName;
+
+use ant_protocol::storage::PointerAddress;
+use autonomi::client::data::DataAddress;
+use autonomi::client::files::archive_public::ArchiveAddress;
+use autonomi::GraphEntryAddress;
 
 use crate::cache::directory_with_name::HISTORY_NAMES;
 use crate::trove::HistoryAddress;
@@ -35,16 +38,16 @@ pub fn str_to_history_address(str: &str) -> Result<HistoryAddress> {
 
 /// Parse a hex HistoryAddress
 pub fn str_to_graph_entry_address(str: &str) -> Result<GraphEntryAddress> {
-    match str_to_xor_name(str) {
-        Ok(xor_name) => Ok(GraphEntryAddress::new(xor_name)),
+    match GraphEntryAddress::from_hex(str) {
+        Ok(graphentry_address) => Ok(graphentry_address),
         Err(e) => Err(eyre!("Invalid graph entry address string '{str}':\n{e:?}")),
     }
 }
 
 /// Parse a hex PointerAddress
 pub fn str_to_pointer_address(str: &str) -> Result<PointerAddress> {
-    match str_to_xor_name(str) {
-        Ok(xor_name) => Ok(PointerAddress::new(xor_name)),
+    match PointerAddress::from_hex(str) {
+        Ok(pointer_address) => Ok(pointer_address),
         Err(e) => Err(eyre!("Invalid pointer address string '{str}':\n{e:?}")),
     }
 }
@@ -65,14 +68,42 @@ pub fn str_to_xor_name(str: &str) -> Result<XorName> {
     }
 }
 
+pub fn str_to_archive_address(str: &str) -> Result<DataAddress> {
+    let str = if str.ends_with('/') {
+        &str[0..str.len() - 1]
+    } else {
+        str
+    };
+
+    match ArchiveAddress::from_hex(str) {
+        Ok(archive_address) => Ok(archive_address),
+        Err(e) => Err(eyre!("ArchiveAddress not valid due to {e:?}")),
+    }
+}
+
+pub fn str_to_data_address(str: &str) -> Result<DataAddress> {
+    let str = if str.ends_with('/') {
+        &str[0..str.len() - 1]
+    } else {
+        str
+    };
+
+    match DataAddress::from_hex(str) {
+        Ok(data_address) => Ok(data_address),
+        Err(e) => Err(eyre!("DataAddress not valid due to {e:?}")),
+    }
+}
+
 /// Parse a string which is a recognised HISTORY-ADDRESS or ARCHIVE-ADDRESS
 /// See also
-pub fn address_tuple_from_address(address: &str) -> (Option<HistoryAddress>, Option<XorName>) {
+pub fn address_tuple_from_address(
+    address: &str,
+) -> (Option<HistoryAddress>, Option<ArchiveAddress>) {
     if let Ok(address) = str_to_history_address(address) {
         return (Some(address), None);
     }
 
-    if let Ok(address) = str_to_xor_name(address) {
+    if let Ok(address) = ArchiveAddress::from_hex(address) {
         return (None, Some(address));
     }
 
@@ -83,12 +114,12 @@ pub fn address_tuple_from_address(address: &str) -> (Option<HistoryAddress>, Opt
 /// For now the only recognised DWEB-NAME is 'awesome'
 pub fn address_tuple_from_address_or_name(
     address_or_name: &str,
-) -> (Option<HistoryAddress>, Option<XorName>) {
+) -> (Option<HistoryAddress>, Option<ArchiveAddress>) {
     if let Ok(address) = str_to_history_address(address_or_name) {
         return (Some(address), None);
     }
 
-    if let Ok(address) = str_to_xor_name(address_or_name) {
+    if let Ok(address) = ArchiveAddress::from_hex(address_or_name) {
         return (None, Some(address));
     }
 
@@ -171,6 +202,26 @@ pub fn awe_str_to_pointer_address(str: &str) -> Result<PointerAddress> {
     match str_to_pointer_address(str) {
         Ok(pointer_address) => Ok(pointer_address),
         Err(e) => Err(eyre!("Invalid pointer address string '{str}':\n{e:?}")),
+    }
+}
+
+pub fn awe_str_to_data_address(str: &str) -> Result<DataAddress> {
+    let str = if str.starts_with(AWE_PROTOCOL_DIRECTORY) {
+        &str[AWE_PROTOCOL_DIRECTORY.len()..]
+    } else if str.starts_with(AWE_PROTOCOL_FILE) {
+        &str[AWE_PROTOCOL_FILE.len()..]
+    } else {
+        &str
+    };
+    let str = if str.ends_with('/') {
+        &str[0..str.len() - 1]
+    } else {
+        str
+    };
+
+    match DataAddress::from_hex(str) {
+        Ok(data_address) => Ok(data_address),
+        Err(e) => Err(eyre!("DataAddress not valid due to {e:?}")),
     }
 }
 

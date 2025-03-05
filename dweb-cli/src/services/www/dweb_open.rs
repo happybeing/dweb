@@ -17,9 +17,8 @@
 
 // use actix_web::{body, get, post, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use actix_web::{
-    body, dev::HttpServiceFactory, dev::ServiceRequest, dev::ServiceResponse, get, guard,
-    http::header, http::StatusCode, post, web, web::Data, App, Error, HttpRequest, HttpResponse,
-    HttpResponseBuilder, HttpServer, Responder,
+    dev::HttpServiceFactory, get, http::StatusCode, web, web::Data, HttpRequest, HttpResponse,
+    HttpResponseBuilder,
 };
 use color_eyre::eyre::{eyre, Result};
 
@@ -29,7 +28,6 @@ use dweb::helpers::convert::address_tuple_from_address_or_name;
 use dweb::web::fetch::response_redirect;
 use dweb::web::name::validate_dweb_name;
 use dweb::web::LOCALHOST_STR;
-use hex::decode;
 
 use crate::services::serve_with_ports;
 
@@ -62,7 +60,7 @@ pub async fn dweb_open_as(
     let params = params.into_inner();
     let decoded_params = match parse_dweb_open_as(&params) {
         Ok(params) => params,
-        Err(e) => {
+        Err(ant_bootstrape) => {
             return make_error_response(
                 None,
                 &mut HttpResponse::BadRequest(),
@@ -101,7 +99,7 @@ pub async fn dweb_open(
     let params = params.into_inner();
     let decoded_params = match parse_dweb_open(&params) {
         Ok(params) => params,
-        Err(e) => {
+        Err(_e) => {
             return make_error_response(
                 None,
                 &mut HttpResponse::BadRequest(),

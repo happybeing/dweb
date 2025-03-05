@@ -18,7 +18,6 @@
 use std::u16;
 
 use dweb::cache::spawn::is_main_server_with_ports_running;
-use dweb::helpers::convert::address_tuple_from_address_or_name;
 use dweb::web::{DWEB_SERVICE_API, LOCALHOST_STR};
 
 /// Open a browser to view a website on Autonomi.
@@ -54,29 +53,6 @@ pub(crate) fn handle_browse_with_hosts(
     let url = format!("http://{host}:{port}{route}");
     println!("DEBUG url: {url}");
 
-    let _ = open::that(url);
-}
-
-pub(crate) fn old_handle_browse_with_hosts(
-    dweb_name: String,
-    address_name_or_link: &String,
-    host: Option<&String>,
-    port: Option<u16>,
-) {
-    let (history_address, archive_address) =
-        address_tuple_from_address_or_name(&address_name_or_link);
-
-    let register_url = format!("http://api-dweb.au:8081/dweb/v0/dwebname/register/{dweb_name}/");
-
-    let url = if history_address.is_some() {
-        format!("{register_url}{}", history_address.unwrap().to_hex())
-    } else if archive_address.is_some() {
-        format!("{register_url}{:x}", archive_address.unwrap())
-    } else {
-        format!("http://{dweb_name}.www-dweb.au:8081")
-    };
-
-    println!("DEBUG url: {url}");
     let _ = open::that(url);
 }
 

@@ -16,15 +16,12 @@
 */
 
 use actix_web::{
-    dev::HttpServiceFactory, get, guard, web, web::Data, HttpRequest, HttpResponse, Responder,
+    dev::HttpServiceFactory, get, web, web::Data, HttpRequest, HttpResponse, Responder,
 };
-use color_eyre::eyre::Result;
-use qstring::QString;
 // use serde::{Deserialize, Serialize};
 
 use dweb::cache::directory_with_name::HISTORY_NAMES;
 use dweb::helpers::convert::str_to_history_address;
-use dweb::web::fetch::response_redirect;
 
 use dweb::api::DWEB_API_ROUTE;
 

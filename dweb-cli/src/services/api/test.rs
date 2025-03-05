@@ -16,10 +16,7 @@
 */
 
 // use actix_web::{body, get, post, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
-use actix_web::{
-    body, dev::HttpServiceFactory, get, guard, post, web, App, HttpRequest, HttpResponse,
-    HttpServer, Responder,
-};
+use actix_web::{dev::HttpServiceFactory, get, guard, web, HttpResponse, Responder};
 
 pub fn init_service(host: &str) -> impl HttpServiceFactory {
     actix_web::web::scope("/test") // TODO modify this and the get to accept /{api}/{version}/{operation} etc (see www::init_service())

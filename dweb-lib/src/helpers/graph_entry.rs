@@ -15,15 +15,16 @@ You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-use autonomi::graph;
+use autonomi::files::archive_public::ArchiveAddress;
 use blsttc::PublicKey;
 use color_eyre::{eyre::eyre, Result};
-use xor_name::XorName;
 
 use autonomi::client::key_derivation::{DerivationIndex, MainSecretKey};
 use autonomi::client::vault::VaultSecretKey as SecretKey;
 use autonomi::client::Client;
 use autonomi::{graph::GraphError, GraphEntry, GraphEntryAddress};
+
+use crate::trove::HistoryValue;
 
 /// Print a summary for a GraphEntry. If main_owner.is_some() the output
 /// will use this to show the addresses of parent and descendents instead
@@ -48,7 +49,7 @@ pub fn debug_print_graph_entry(
             &graph_entry.parents[0].to_hex() // PublicKey
         } else {
             let parent_public_key = graph_entry.parents[0];
-            let address = GraphEntryAddress::from_owner(parent_public_key);
+            let address = GraphEntryAddress::new(parent_public_key);
             &address.to_hex()
         }
     } else {
@@ -66,7 +67,7 @@ pub fn debug_print_graph_entry(
                 .public_key();
 
             // let descendent_public_key = graph_entry.descendants[0].0;
-            let address = GraphEntryAddress::from_owner(descendent_public_key.into());
+            let address = GraphEntryAddress::new(descendent_public_key.into());
             &address.to_hex()
         }
     } else {
@@ -152,7 +153,7 @@ pub async fn create_graph_entry(
     history_secret_key: &SecretKey,
     parent_entry: Option<&GraphEntry>,
     new_derivation: &DerivationIndex,
-    new_value: XorName,
+    new_value: ArchiveAddress,
 ) -> Result<GraphEntry> {
     println!("DEBUG create_graph_entry()");
 
@@ -163,7 +164,6 @@ pub async fn create_graph_entry(
         vec![]
     };
 
-    let content: [u8; 32] = new_value.to_vec().as_slice().try_into()?;
     let entry_secret_key: SecretKey = if parent_entry.is_none() {
         history_secret_key.clone().into()
     } else {
@@ -190,10 +190,11 @@ pub async fn create_graph_entry(
     } else {
         ""
     };
-    println!("DEBUG creating GraphEntry::new(\n       owner      : {}\n       parents    : [{}]\n       content    : {:x}\n       descendents: [{}])",
-        entry_secret_key.public_key().to_hex(), parents_str, new_value, descendants[0].0.to_hex() );
+    println!("DEBUG creating GraphEntry::new(\n       owner      : {}\n       parents    : [{}]\n       content    : {}\n       descendents: [{}])",
+        entry_secret_key.public_key().to_hex(), parents_str, new_value.to_hex(), descendants[0].0.to_hex() );
 
-    let next_entry = GraphEntry::new(&entry_secret_key, parents, content, descendants);
+    let new_value: HistoryValue = new_value.xorname().0;
+    let next_entry = GraphEntry::new(&entry_secret_key, parents, new_value, descendants);
     debug_print_graph_entry(
         "returning created next_entry",
         &next_entry,
@@ -237,7 +238,7 @@ pub async fn get_graph_entry_and_next_derivation_index(
 
 /// Get the derivation index of the first descendent
 pub fn get_derivation_from_graph_entry(entry: &GraphEntry) -> Result<DerivationIndex> {
-    let graph_entry_addr = GraphEntryAddress::from_owner(entry.owner);
+    let graph_entry_addr = GraphEntryAddress::new(entry.owner);
     let d = match entry.descendants.as_slice() {
         [d] => d.1,
         // TODO maybe just use first descendent rather than error?

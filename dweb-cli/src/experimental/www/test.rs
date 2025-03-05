@@ -16,10 +16,7 @@
 */
 
 // use actix_web::{body, get, post, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
-use actix_web::{
-    body, dev::HttpServiceFactory, dev::ServiceRequest, dev::ServiceResponse, get, guard,
-    http::header, post, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder,
-};
+use actix_web::{dev::HttpServiceFactory, guard, http::header, web, HttpRequest, HttpResponse};
 
 use crate::services::request_as_html;
 

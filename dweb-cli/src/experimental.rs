@@ -32,7 +32,7 @@ use clap::Parser;
 
 use dweb::cache::directory_with_port::DirectoryVersionWithPort;
 use dweb::client::AutonomiClient;
-use dweb::helpers::convert::str_to_xor_name;
+use dweb::helpers::convert::str_to_data_address;
 use dweb::web::fetch::response_with_body;
 use dweb::web::{DWEB_SERVICE_API, DWEB_SERVICE_APP};
 
@@ -191,7 +191,7 @@ async fn test_fetch_file(
 ) -> impl Responder {
     println!("test_fetch_file()...");
 
-    let file_address = match str_to_xor_name(datamap_address.as_str()) {
+    let file_address = match str_to_data_address(datamap_address.as_str()) {
         Ok(file_address) => file_address,
         Err(e) => {
             return response_with_body(

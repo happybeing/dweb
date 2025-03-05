@@ -16,8 +16,6 @@
 */
 
 use color_eyre::eyre::{eyre, Error, Result};
-use serde_json::value::Value;
-// use serde_json::Value;
 
 ///! A Rust interface to dweb server APIs
 ///!

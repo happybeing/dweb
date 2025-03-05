@@ -18,9 +18,9 @@ use blsttc::SecretKey;
 use color_eyre::eyre::{eyre, Result};
 use std::path::PathBuf;
 use walkdir::WalkDir;
-use xor_name::XorName;
 
 use autonomi::client::files::archive_public::PublicArchive;
+use autonomi::files::archive_public::ArchiveAddress;
 use autonomi::AttoTokens;
 
 use crate::client::AutonomiClient;
@@ -175,16 +175,19 @@ pub async fn publish_files(
     client: &AutonomiClient,
     files_root: &PathBuf,
     dweb_settings: Option<PathBuf>,
-) -> Result<(AttoTokens, XorName)> {
+) -> Result<(AttoTokens, ArchiveAddress)> {
     println!("DEBUG publish_files() files_root '{files_root:?}'");
     match publish_content(client, files_root, dweb_settings).await {
         Ok((cost, archive)) => match client
             .client
-            .archive_put_public(&archive, &client.wallet)
+            .archive_put_public(&archive, client.payment_option())
             .await
         {
             Ok((cost, archive_address)) => {
-                println!("ARCHIVE ADDRESS:\n{archive_address:x}\nCost: {cost} ANT");
+                println!(
+                    "ARCHIVE ADDRESS:\n{}\nCost: {cost} ANT",
+                    archive_address.to_hex()
+                );
                 Ok((cost, archive_address))
             }
             Err(e) => Err(eyre!(
@@ -217,7 +220,7 @@ pub async fn publish_content(
     println!("Uploading files from: {files_root:?}");
     let (cost, mut archive) = match client
         .client
-        .dir_upload_public(files_root.clone(), &client.wallet)
+        .dir_content_upload_public(files_root.clone(), client.payment_option())
         .await
     {
         Ok((cost, archive)) => (cost, archive),
@@ -231,7 +234,7 @@ pub async fn publish_content(
 
         match client
             .client
-            .file_upload_public(dweb_path.clone(), &client.wallet)
+            .file_content_upload_public(dweb_path.clone(), client.payment_option())
             .await
         {
             Ok((cost, upload_address)) => {
@@ -257,7 +260,7 @@ pub async fn publish_content(
 
     println!("CONTENT UPLOADED:");
     for (path, datamap_chunk, _metadata) in archive.iter() {
-        println!("{:x} {path:?}", datamap_chunk);
+        println!("{} {path:?}", datamap_chunk.to_hex());
     }
     println!("Cost: {cost} ANT");
 

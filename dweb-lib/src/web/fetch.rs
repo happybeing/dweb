@@ -22,7 +22,8 @@ use actix_web::{
 use color_eyre::eyre::{eyre, Result};
 use mime;
 use url::Url;
-use xor_name::XorName as ArchiveAddress;
+
+use autonomi::client::files::archive_public::ArchiveAddress;
 
 use crate::client::AutonomiClient;
 use crate::trove::History;
@@ -283,7 +284,7 @@ pub async fn fetch_website_version(
 /// Get a DirectoryTree from the network using the address and if a history, the optional version
 pub async fn get_directory_tree_for_address_string(
     client: &AutonomiClient,
-    // The hex representation of either a HistoryAddress or an ArchiveAddress (XorName)
+    // The hex representation of either a HistoryAddress or an ArchiveAddress
     address: &String,
     // Optional version when the address is a HistoryAddress
     version: Option<u32>,

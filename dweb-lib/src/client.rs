@@ -26,6 +26,7 @@ use color_eyre::Result;
 
 use autonomi::client::data::DataAddress;
 use autonomi::client::{payment::PaymentOption, Client, GetError};
+use autonomi::TransactionConfig;
 use autonomi::{Network, Wallet};
 
 use crate::autonomi::access::keys::load_evm_wallet_from_env;
@@ -56,11 +57,14 @@ impl AutonomiClient {
     /// The EMV network can be overridden by setting the EVM_NETWORK environment
     /// variable. For example, setting this to 'arbitrum-sepolia' selects the
     /// Artbitrum test network.
-    pub async fn initialise_and_connect(peers: NetworkPeers) -> Result<AutonomiClient> {
+    pub async fn initialise_and_connect(
+        peers: NetworkPeers,
+        max_fee_per_gas: Option<u128>,
+    ) -> Result<AutonomiClient> {
         println!("Dweb Autonomi client initialising...");
         let client = crate::autonomi::actions::connect_to_network(peers).await?;
 
-        let wallet = match load_evm_wallet_from_env(&client.evm_network()) {
+        let mut wallet = match load_evm_wallet_from_env(&client.evm_network()) {
             Ok(wallet) => wallet,
             Err(_e) => {
                 let client = client.clone();
@@ -68,6 +72,11 @@ impl AutonomiClient {
                 Wallet::new_with_random_wallet(client.evm_network().clone())
             }
         };
+
+        if let Some(max_fee_per_gas) = max_fee_per_gas {
+            wallet.set_transaction_config(TransactionConfig::new(max_fee_per_gas));
+            println!("Max fee per gas set to: {}", max_fee_per_gas);
+        }
 
         let client = client.clone();
         Ok(AutonomiClient {

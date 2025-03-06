@@ -273,6 +273,9 @@ pub enum Subcommands {
         /// Disable the AWV check when publishing a new website to allow for init of a new Autonomi network (during beta)
         #[clap(long, name = "is-new-network", hide = true, default_value = "false")]
         is_new_network: bool,
+        /// Override default 'max fee per gas' limit.
+        #[clap(long, short = 'x')]
+        max_fee_per_gas: Option<u128>,
     },
 
     /// Update a previously published directory or website and preserve older versions on Autonomi.
@@ -295,6 +298,9 @@ pub enum Subcommands {
         /// You can either specify a path here or include the settings in <FILES-ROOT>/.dweb/dweb-settings.json
         #[clap(long = "dweb-settings", short = 'c', value_name = "JSON-FILE")]
         dweb_settings: Option<PathBuf>,
+        /// Override default 'max fee per gas' limit.
+        #[clap(long, short = 'x')]
+        max_fee_per_gas: Option<u128>,
     },
 
     /// Download a file or directory. TODO: not yet implemented

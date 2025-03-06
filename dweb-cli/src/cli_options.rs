@@ -338,8 +338,10 @@ pub enum Subcommands {
     #[allow(non_camel_case_types)]
     Inspect_history {
         /// The address of a history on Autonomi
-        #[clap(name = "HISTORY-ADDRESS", value_parser = str_to_history_address)]
-        history_address: HistoryAddress,
+        /// TODO add ability to query the server so this can be HISTORY-ADDRESS-OR-NAME
+        /// TODO note that to use recognised names (DWEB-NAME) the server must be running
+        #[clap(name = "HISTORY-ADDRESS")]
+        address_or_name: String,
 
         /// Print a summary of the history including type (the value of entry 0) and number of entries
         #[clap(long = "full", short = 'f', default_value = "false")]

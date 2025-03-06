@@ -25,16 +25,17 @@ use autonomi::client::key_derivation::{DerivationIndex, MainPubkey};
 use autonomi::files::archive_public::ArchiveAddress;
 
 use dweb::client::AutonomiClient;
+use dweb::helpers::convert::address_tuple_from_address_or_name;
 use dweb::helpers::graph_entry::graph_entry_get;
+use dweb::trove::directory_tree::DirectoryTree;
 use dweb::trove::History;
-use dweb::trove::{directory_tree::DirectoryTree, HistoryAddress};
 
 use crate::cli_options::{EntriesRange, FilesArgs};
 
 /// Implement 'inspect-history' subcommand
 pub async fn handle_inspect_history(
     client: AutonomiClient,
-    history_address: HistoryAddress,
+    address_or_name: &String,
     print_history_full: bool,
     entries_range: Option<EntriesRange>,
     include_files: bool,
@@ -42,6 +43,15 @@ pub async fn handle_inspect_history(
     shorten_hex_strings: bool,
     files_args: FilesArgs,
 ) -> Result<()> {
+    let history_address = match address_tuple_from_address_or_name(address_or_name) {
+        (Some(history_address), _) => history_address,
+        (None, _) => {
+            let msg = format!("Not a valid HISTORY-ADDRESS or recognised name: {address_or_name}");
+            println!("{msg}");
+            return Err(eyre!(msg));
+        }
+    };
+
     let mut history = match History::<DirectoryTree>::from_history_address(
         client.clone(),
         history_address,

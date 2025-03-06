@@ -258,7 +258,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
         }
 
         Some(Subcommands::Inspect_history {
-            history_address,
+            address_or_name,
             print_history_full,
             entries_range,
             shorten_hex_strings,
@@ -269,7 +269,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             let (client, _) = connect_and_announce(peers.await?, true).await;
             match crate::commands::cmd_inspect::handle_inspect_history(
                 client,
-                history_address,
+                &address_or_name,
                 print_history_full,
                 entries_range,
                 include_files,

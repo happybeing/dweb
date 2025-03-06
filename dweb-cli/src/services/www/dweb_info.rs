@@ -15,9 +15,7 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-use actix_web::{
-    dev::HttpServiceFactory, get, web, web::Data, HttpRequest, HttpResponse, Responder,
-};
+use actix_web::{dev::HttpServiceFactory, get, web::Data, HttpRequest, HttpResponse, Responder};
 use qstring::QString;
 
 use dweb::cache::directory_with_port::*;
@@ -69,7 +67,7 @@ pub async fn dweb_info(
 
     let (pointer_max_version, graph_max_version) =
         if let Some(history_address) = directory_version.history_address {
-            let mut pointer_max_version;
+            let pointer_max_version;
             let mut graph_max_version = "not checked".to_string();
             let client = client.as_ref().clone();
             match History::<DirectoryTree>::from_history_address(

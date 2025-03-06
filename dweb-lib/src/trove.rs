@@ -545,11 +545,9 @@ impl<T: Trove<T> + Clone> History<T> {
 
     /// Get the main secret key for all histories belonging to an owner
     fn history_main_secret_key(owner_secret_key: SecretKey) -> SecretKey {
-        // For release use the trove type:
+        // If I need to wipe the History<DirectoryTree> address space clean, tweak
+        // and re-upload the awv site type use the new value for FILE_TREE_TYPE
         let derivation_index: [u8; 32] = Self::trove_type().xorname().to_vec().try_into().unwrap();
-        // TODO DEBUG For testing until the scripts are uploading to the Arbitrum One network reliably
-        // TODO use this, and change it to wipe the slate clean
-        let derivation_index: [u8; 32] = [0; 32]; // Modify each time I need to start afresh
         MainSecretKey::new(owner_secret_key.clone())
             .derive_key(&DerivationIndex::from_bytes(derivation_index))
             .into()

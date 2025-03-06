@@ -42,7 +42,7 @@ const AS_NAME_NONE: &str = "anonymous";
 // dweb_open parses the parameters manually to allow the version portion
 // to be ommitted, and support easier manual construction:
 //
-// url: http://127.0.0.1:<PORT>/dweb-open/[v{version}/][{as_name}/]{address_or_name}{remote_path}
+// url: http://127.0.0.1:<PORT>/dweb-open-as/v<VERSION>/<DWEB-NAME>/<ADDRESS-OR-NAME><REMOTE-PATH>
 //
 #[get("/{params:.*}")]
 pub async fn dweb_open_as(
@@ -80,7 +80,7 @@ pub async fn dweb_open_as(
 // dweb_open parses the parameters manually to allow the version portion
 // to be ommitted, and support easier manual construction:
 //
-// url: http://127.0.0.1:<PORT>/dweb-open/[v{version}/][{as_name}/]{address_or_name}{remote_path}
+// url: http://127.0.0.1:<PORT>/dweb-open-as/[v<VERSION>/]<ADDRESS-OR-NAME><REMOTE-PATH>
 //
 #[get("/{params:.*}")]
 pub async fn dweb_open(

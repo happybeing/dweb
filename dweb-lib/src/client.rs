@@ -31,15 +31,14 @@ use autonomi::{Network, Wallet};
 
 use crate::autonomi::access::keys::load_evm_wallet_from_env;
 use crate::autonomi::access::network::NetworkPeers;
+use crate::tokens::ShowCost;
 
 #[derive(Clone)]
 pub struct AutonomiClient {
     pub client: Client,
     pub network: Network,
     pub wallet: Wallet, // Must be loaded and funded for writing to the network
-
-                        // Can't do this because bls::SecretKey doesn't imp Copy which causes problems in use:
-                        // pub secret_key: Option<SecretKey>, // Needed when creating owned or private data
+    pub show_cost: ShowCost,
 }
 
 impl AutonomiClient {
@@ -59,6 +58,7 @@ impl AutonomiClient {
     /// Artbitrum test network.
     pub async fn initialise_and_connect(
         peers: NetworkPeers,
+        show_cost: Option<ShowCost>,
         max_fee_per_gas: Option<u128>,
     ) -> Result<AutonomiClient> {
         println!("Dweb Autonomi client initialising...");
@@ -77,12 +77,13 @@ impl AutonomiClient {
             wallet.set_transaction_config(TransactionConfig::new(max_fee_per_gas));
             println!("Max fee per gas set to: {}", max_fee_per_gas);
         }
-
+        let show_cost = show_cost.unwrap_or(ShowCost::None);
         let client = client.clone();
         Ok(AutonomiClient {
             client: client.clone(),
             network: client.evm_network().clone(),
             wallet,
+            show_cost,
         })
     }
 

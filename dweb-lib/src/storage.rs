@@ -155,7 +155,7 @@ pub fn report_content_published_or_updated(
     };
 
     println!(
-        "\n{type_str} {action_str} (version {version}). Cost {cost} ANT.\nAll versions available at HISTORY-ADDRESS:\n{}\nDWEBNAME:\n{name}",
+        "\n{type_str} {action_str} (version {version}).\nAll versions available at HISTORY-ADDRESS:\n{}\nDWEBNAME:\n{name}",
         &history_address.to_hex()
     );
     if is_awe {
@@ -184,10 +184,10 @@ pub async fn publish_files(
             .await
         {
             Ok((cost, archive_address)) => {
-                println!(
-                    "ARCHIVE ADDRESS:\n{}\nCost: {cost} ANT",
-                    archive_address.to_hex()
-                );
+                // println!(
+                //     "ARCHIVE ADDRESS:\n{}\nCost: {cost} ANT",
+                //     archive_address.to_hex()
+                // );
                 Ok((cost, archive_address))
             }
             Err(e) => Err(eyre!(
@@ -252,17 +252,17 @@ pub async fn publish_content(
         0.into()
     };
 
-    let cost = settings_cost.checked_add(cost).unwrap_or(cost);
-    println!(
-        "publish completed files: {:?}. Cost {cost} ANT",
-        archive.map().len()
-    );
+    // let cost = settings_cost.checked_add(cost).unwrap_or(cost);
+    // println!(
+    //     "publish completed files: {:?}. Cost {cost} ANT",
+    //     archive.map().len()
+    // );
 
     println!("CONTENT UPLOADED:");
     for (path, datamap_chunk, _metadata) in archive.iter() {
         println!("{} {path:?}", datamap_chunk.to_hex());
     }
-    println!("Cost: {cost} ANT");
+    // println!("Cost: {cost} ANT");
 
     Ok((cost, archive))
 }

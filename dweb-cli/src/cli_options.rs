@@ -17,8 +17,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 use std::path::PathBuf;
 use std::sync::LazyLock;
 
-use autonomi::files::archive_public::ArchiveAddress;
-use autonomi::GraphEntryAddress;
 use clap::Args;
 use clap::Parser;
 use clap::Subcommand;
@@ -28,8 +26,11 @@ use core::time::Duration;
 use ant_bootstrap::PeersArgs;
 use ant_logging::{LogFormat, LogOutputDest};
 use ant_protocol::storage::PointerAddress;
+use autonomi::files::archive_public::ArchiveAddress;
+use autonomi::GraphEntryAddress;
 
 use dweb::helpers::convert::*;
+use dweb::tokens::ShowCost;
 use dweb::trove::HistoryAddress;
 use dweb::web::name::validate_dweb_name;
 
@@ -269,13 +270,16 @@ pub enum Subcommands {
         /// You can either specify a path here or include the settings in <FILES-ROOT>/.dweb/dweb-settings.json
         #[clap(long = "dweb-settings", short = 'c', value_name = "JSON-FILE")]
         dweb_settings: Option<PathBuf>,
+        /// Show the cost of dweb API calls after each call in tokens, gas, both or none
+        #[clap(long, default_value = "both")]
+        show_dweb_costs: ShowCost,
+        /// Override default 'max fee per gas' limit (which may be too low at times).
+        #[clap(long, short = 'x')]
+        max_fee_per_gas: Option<u128>,
         //
         /// Disable the AWV check when publishing a new website to allow for init of a new Autonomi network (during beta)
         #[clap(long, name = "is-new-network", hide = true, default_value = "false")]
         is_new_network: bool,
-        /// Override default 'max fee per gas' limit.
-        #[clap(long, short = 'x')]
-        max_fee_per_gas: Option<u128>,
     },
 
     /// Update a previously published directory or website and preserve older versions on Autonomi.
@@ -298,7 +302,10 @@ pub enum Subcommands {
         /// You can either specify a path here or include the settings in <FILES-ROOT>/.dweb/dweb-settings.json
         #[clap(long = "dweb-settings", short = 'c', value_name = "JSON-FILE")]
         dweb_settings: Option<PathBuf>,
-        /// Override default 'max fee per gas' limit.
+        /// Show the cost of dweb API calls after each call in tokens, gas, both or none
+        #[clap(long, default_value = "both")]
+        show_dweb_costs: ShowCost,
+        /// Override default 'max fee per gas' limit (which may be too low at times).
         #[clap(long, short = 'x')]
         max_fee_per_gas: Option<u128>,
     },
@@ -339,6 +346,9 @@ pub enum Subcommands {
         #[command(flatten)]
         files_args: FilesArgs,
     },
+
+    #[allow(non_camel_case_types)]
+    Wallet_info {},
 
     /// Print information about a history of data stored on Autonomi.
     #[allow(non_camel_case_types)]

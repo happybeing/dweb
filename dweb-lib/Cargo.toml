@@ -29,6 +29,7 @@ ant-build-info = { version = "0.1.25" }
 ant-logging = { version = "0.2.47" }
 ant-networking = { version = "0.3.6" }
 ant-protocol = { version = "1.0.1" }
+evmlib = { version = "0.2.0" }
 
 # Generated using: awe-dependencies --branch stable
 #autonomi = { version = "0.3.6" }

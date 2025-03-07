@@ -17,7 +17,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 pub mod directory_tree;
 
-use std::io::Read;
 use std::marker::PhantomData;
 
 use autonomi::files::archive_public::ArchiveAddress;
@@ -37,10 +36,10 @@ use autonomi::GraphEntryAddress;
 
 use crate::client::AutonomiClient;
 use crate::data::autonomi_get_file_public;
-use crate::helpers::convert::str_to_xor_name;
 use crate::helpers::graph_entry::{
-    self, create_graph_entry, get_derivation_from_graph_entry, graph_entry_get,
+    create_graph_entry, get_derivation_from_graph_entry, graph_entry_get,
 };
+use crate::tokens::{show_spend_return_value, Spends};
 
 const LARGEST_VERSION: u32 = u32::MAX;
 
@@ -190,6 +189,7 @@ impl<T: Trove<T> + Clone> History<T> {
                 "History::create_online() failed - cannot use an empty name"
             ));
         }
+        let spends = Spends::new(&client, Some(&"History create online cost: ")).await?;
 
         let history_secret_key =
             Self::history_main_secret_key(owner_secret_key).derive_child(name.as_bytes());
@@ -249,14 +249,22 @@ impl<T: Trove<T> + Clone> History<T> {
                 let total_cost = if let Some(total_cost) = pointer_cost.checked_add(graph_cost) {
                     total_cost
                 } else {
-                    return Err(eyre!("Invalid cost"));
+                    return show_spend_return_value::<Result<(AttoTokens, Self)>>(
+                        &spends,
+                        Err(eyre!("Invalid cost")),
+                    )
+                    .await;
                 };
                 Ok((total_cost, history))
             }
             Err(e) => {
                 let message = format!("History::new() failed to create pointer: {e}");
                 println!("DEBUG {message}");
-                return Err(eyre!(message));
+                return show_spend_return_value::<Result<(AttoTokens, Self)>>(
+                    &spends,
+                    Err(eyre!("Invalid cost")),
+                )
+                .await;
             }
         }
     }
@@ -906,6 +914,7 @@ impl<T: Trove<T> + Clone> History<T> {
         let history_address = HistoryAddress::new(history_secret_key.public_key());
         println!("Updating History at {}", history_address.to_hex());
 
+        let spends = Spends::new(&self.client, Some(&"History update online cost: ")).await?;
         let pointer_address = Self::pointer_address_from_history_address(history_address.clone())?;
         match Self::get_and_verify_pointer(&self.client, &pointer_address).await {
             Ok(old_pointer) => {
@@ -922,7 +931,13 @@ impl<T: Trove<T> + Clone> History<T> {
                     .await
                 {
                     Ok(result) => result,
-                    Err(e) => return Err(eyre!("failed to create next GraphEnry: {e}")),
+                    Err(e) => {
+                        return show_spend_return_value::<Result<(AttoTokens, u32)>>(
+                            &spends,
+                            Err(eyre!("failed to create next GraphEnry: {e}")),
+                        )
+                        .await;
+                    }
                 };
 
                 println!("Pointer retrieved with counter {}", old_pointer.counter());
@@ -950,18 +965,26 @@ impl<T: Trove<T> + Clone> History<T> {
                     Ok((pointer_cost, _pointer_address)) => {
                         self.pointer_counter = new_pointer.counter();
                         self.pointer_target = match new_pointer.target() {
-                            PointerTarget::GraphEntryAddress(pointer_target) => Some(*pointer_target),
+                            PointerTarget::GraphEntryAddress(pointer_target) => {
+                                Some(*pointer_target)
+                            }
                             other => {
-                                return Err(eyre!(
+                                return show_spend_return_value::<Result<(AttoTokens, u32)>>(&spends, Err(eyre!(
                                 "History::update_online() pointer target is not a GraphEntry - this is probably a bug. Target: {other:?}"
-                            ))
+                            )),
+                        )
+                        .await;
                             }
                         };
                         let total_cost = pointer_cost.checked_add(graph_cost);
                         if total_cost.is_none() {
                             return Err(eyre!("Invalid cost"));
                         }
-                        return Ok((total_cost.unwrap(), new_pointer.counter()));
+                        return show_spend_return_value::<Result<(AttoTokens, u32)>>(
+                            &spends,
+                            Ok((total_cost.unwrap(), new_pointer.counter())),
+                        )
+                        .await;
                     }
                     Err(e) => {
                         return Err(eyre!("Failed to add a trove to history: {e:?}"));

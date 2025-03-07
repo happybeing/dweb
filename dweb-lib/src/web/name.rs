@@ -158,6 +158,7 @@ pub fn make_version_part(version: u32) -> String {
 #[cfg(feature = "fixed-dweb-hosts")]
 use autonomi::client::files::archive_public::ArchiveAddress;
 
+#[cfg(feature = "fixed-dweb-hosts")]
 pub fn make_fixed_dweb_name(
     memorable_part: &String,
     archive_address: ArchiveAddress,

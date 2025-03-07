@@ -66,20 +66,20 @@ dweb open awesome
 If you know the xor address of a website you can browse it like this:
 
 ```
-dweb open 881caa320b98b5b791a7ecbff8f5c0ef3123701f61bd13d3d5b6f94863ddbc7471b23966b18d04143db699e2d9c89d92
+dweb open 8650c4284430522a638a6fa37dd3e8d610c65b300f89f0199a95a1a9eab0455287f8c8d137fad390654bd9f19b868a5c
 ```
 The above is the long string is the address of the awesome website, so change part to the address of the site you wish to view.
 
 To open a website and give it a name:
 ```
-dweb open -as-name toast 881caa320b98b5b791a7ecbff8f5c0ef3123701f61bd13d3d5b6f94863ddbc7471b23966b18d04143db699e2d9c89d92
+dweb open -as-name toast b89dbdad3297bde6539723b63f92a508bccf6ba6b0956b9f2aad6d139260d41c36256b3fa3a8394c9ec990d5e45e6c71
 ```
 You can also just name sites yourself and then use those names with 'dweb open':
 ```
 $ dweb name toast b2691ea46cd73dc07b1c5f74803b3b99cb83e6a308d026c00cb683d37cde619fe2c55778be67ea8d5c2d1e3b2a95bb83
 $ dweb list-names
-awesome                                  881caa320b98b5b791a7ecbff8f5c0ef3123701f61bd13d3d5b6f94863ddbc7471b23966b18d04143db699e2d9c89d92
-toast                                    b2691ea46cd73dc07b1c5f74803b3b99cb83e6a308d026c00cb683d37cde619fe2c55778be67ea8d5c2d1e3b2a95bb83
+awesome                                  8650c4284430522a638a6fa37dd3e8d610c65b300f89f0199a95a1a9eab0455287f8c8d137fad390654bd9f19b868a5c
+toast                                    b89dbdad3297bde6539723b63f92a508bccf6ba6b0956b9f2aad6d139260d41c36256b3fa3a8394c9ec990d5e45e6c71
 ```
 Then:
 ```
@@ -116,9 +116,9 @@ When you press the ENTER key this will display a page about the current website,
 
 ```
 /dweb-info for History
-HistoryAddress: 9188ec4c126c2fdcaceaf4a50ab18e28446b992ef1c5061789ed7af7e844343e71786cb3f69c10d6e98d6e018235709d
+HistoryAddress: 8650c4284430522a638a6fa37dd3e8d610c65b300f89f0199a95a1a9eab0455287f8c8d137fad390654bd9f19b868a5c
 ArchiveAddress:
-cbcb65ae945a056b0592286f2364de46c23337c467bffd2f46e11cf2a6604aad
+515e9480edbecc277cef03ac6d8748afe3cbad8d09efaf8d0e603fcd7f8b21c0
 Current version: most recent
 
 Max version from pointer: 5
@@ -221,12 +221,12 @@ Don't include the `http://127.0.0.1:44827` part.
 
 The part you want might look like this:
 ```
-/dweb-open/v/9188ec4c126c2fdcaceaf4a50ab18e28446b992ef1c5061789ed7af7e844343e71786cb3f69c10d6e98d6e018235709d
+/dweb-open/v/8650c4284430522a638a6fa37dd3e8d610c65b300f89f0199a95a1a9eab0455287f8c8d137fad390654bd9f19b868a5c
 ```
 
 And in HTML:
 ```html
-<a href='/dweb-open/v/9188ec4c126c2fdcaceaf4a50ab18e28446b992ef1c5061789ed7af7e844343e71786cb3f69c10d6e98d6e018235709d'>click me</a>
+<a href='/dweb-open/v/8650c4284430522a638a6fa37dd3e8d610c65b300f89f0199a95a1a9eab0455287f8c8d137fad390654bd9f19b868a5c'>click me</a>
 ```
 
 ### Browse your Website on Autonomi
@@ -240,14 +240,14 @@ You only have to do this once after reboot:
 
 As long as the server is running, in another terminal I can view my blog using:
 ```
-dweb open 881caa320b98b5b791a7ecbff8f5c0ef3123701f61bd13d3d5b6f94863ddbc7471b23966b18d04143db699e2d9c89d92
+dweb open 8650c4284430522a638a6fa37dd3e8d610c65b300f89f0199a95a1a9eab0455287f8c8d137fad390654bd9f19b868a5c
 ```
 
 The above command is printed to the terminal whenever you publish or update your website, so make a note of it when you want to view or share with others.
 
 That's a bit cumbersome, so you can give any website a 'dweb name' like this:
 ```
-dweb open --as-name toast 881caa320b98b5b791a7ecbff8f5c0ef3123701f61bd13d3d5b6f94863ddbc7471b23966b18d04143db699e2d9c89d92
+dweb open --as-name toast 8650c4284430522a638a6fa37dd3e8d610c65b300f89f0199a95a1a9eab0455287f8c8d137fad390654bd9f19b868a5c
 ```
 Or if you just want to set the name without opening it:
 ```

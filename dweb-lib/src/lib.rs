@@ -21,6 +21,7 @@ pub mod client;
 pub mod data;
 pub mod helpers;
 pub mod storage;
+pub mod tokens;
 pub mod trove;
 pub mod web;
 

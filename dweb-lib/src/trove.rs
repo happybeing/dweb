@@ -39,7 +39,7 @@ use crate::data::autonomi_get_file_public;
 use crate::helpers::graph_entry::{
     create_graph_entry, get_derivation_from_graph_entry, graph_entry_get,
 };
-use crate::tokens::{show_spend_return_value, Spends};
+use crate::token::{show_spend_return_value, Spends};
 
 const LARGEST_VERSION: u32 = u32::MAX;
 

@@ -193,7 +193,7 @@ pub async fn fetch_website_version(
         // TODO so that from_history_address() never has to wait while walking the graph, and
         // TODO can know the pointer is up-to-date from the minimum_entry_index
 
-        // TODO this makes every first load take more than 20s.
+        // TODO this avoids issue where pointer is not up-to-date but makes the first load take ~20s
         let (ignore_pointer, minimum_entry_index) = if dweb_host.version.is_some() {
             (false, dweb_host.version.unwrap() + 1)
         } else {

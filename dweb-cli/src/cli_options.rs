@@ -30,7 +30,7 @@ use autonomi::files::archive_public::ArchiveAddress;
 use autonomi::GraphEntryAddress;
 
 use dweb::helpers::convert::*;
-use dweb::tokens::ShowCost;
+use dweb::token::ShowCost;
 use dweb::trove::HistoryAddress;
 use dweb::web::name::validate_dweb_name;
 

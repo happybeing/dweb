@@ -22,7 +22,7 @@ use autonomi::AttoTokens;
 use dweb::autonomi::access::network::NetworkPeers;
 use dweb::client::AutonomiClient;
 use dweb::storage::{publish_or_update_files, report_content_published_or_updated};
-use dweb::tokens::{show_spend_return_value, ShowCost, Spends};
+use dweb::token::{show_spend_return_value, ShowCost, Spends};
 use dweb::trove::HistoryAddress;
 use dweb::web::{LOCALHOST_STR, SERVER_HOSTS_MAIN_PORT, SERVER_PORTS_MAIN_PORT};
 

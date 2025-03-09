@@ -62,7 +62,7 @@
 use color_eyre::eyre::{eyre, Result};
 
 use crate::cache::directory_with_name::HISTORY_NAMES;
-use crate::trove::{History, HistoryAddress};
+use crate::trove::HistoryAddress;
 
 // Domain name and subdomain constraints based on IETF RFC1035 with links to relevant sections:
 pub const MAX_SUBDOMAIN_LEN: usize = 63; //  S2.3.4 Size limits (https://datatracker.ietf.org/doc/html/rfc1035#section-2.3.4)

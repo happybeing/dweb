@@ -134,8 +134,8 @@ pub async fn api_dwebname_list() -> impl Responder {
 
 #[get("/test/unsupported/route")]
 pub async fn api_test_no_route(
-    request: HttpRequest,
-    params: web::Path<(String, String)>,
+    _request: HttpRequest,
+    _params: web::Path<(String, String)>,
     _client_data: Data<dweb::client::AutonomiClient>,
 ) -> impl Responder {
     HttpResponse::Ok().body("dweb serve: ROUTE NOT IMPLEMENTED")

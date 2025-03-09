@@ -27,11 +27,11 @@ use color_eyre::Result;
 use autonomi::client::data::DataAddress;
 use autonomi::client::{payment::PaymentOption, Client, GetError};
 use autonomi::TransactionConfig;
-use autonomi::{Network, Wallet};
+use autonomi::{AttoTokens, Network, Wallet};
 
 use crate::autonomi::access::keys::load_evm_wallet_from_env;
 use crate::autonomi::access::network::NetworkPeers;
-use crate::tokens::ShowCost;
+use crate::token::{Rate, ShowCost};
 
 #[derive(Clone)]
 pub struct AutonomiClient {
@@ -39,6 +39,9 @@ pub struct AutonomiClient {
     pub network: Network,
     pub wallet: Wallet, // Must be loaded and funded for writing to the network
     pub show_cost: ShowCost,
+
+    pub ant_rate: Option<Rate>,
+    pub eth_rate: Option<Rate>,
 }
 
 impl AutonomiClient {
@@ -79,11 +82,15 @@ impl AutonomiClient {
         }
         let show_cost = show_cost.unwrap_or(ShowCost::None);
         let client = client.clone();
+        let ant_rate = Rate::from_environment("ANT".to_string());
+        let eth_rate = Rate::from_environment("ETH".to_string());
         Ok(AutonomiClient {
             client: client.clone(),
             network: client.evm_network().clone(),
             wallet,
             show_cost,
+            ant_rate,
+            eth_rate,
         })
     }
 

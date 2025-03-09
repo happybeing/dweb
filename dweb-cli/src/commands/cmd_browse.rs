@@ -27,7 +27,7 @@ use dweb::web::{DWEB_SERVICE_API, LOCALHOST_STR};
 //
 // TODO support --register-as?
 pub(crate) fn handle_browse_with_hosts(
-    dweb_name: Option<String>,
+    _dweb_name: Option<String>,
     address_name_or_link: &String,
     version: Option<u32>,
     remote_path: Option<String>,

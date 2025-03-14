@@ -39,6 +39,12 @@ The above opens your browser and loads a website from Autonomi containing links 
         - [Web API](#web-api)
         - [Rust API](#rust-api)
     - [Future Features Roadmap](#future-features-roadmap)
+- [Develop a Decentralised Web App](#develop-a-decentralised-web-app)
+    - [Setting Up](#setting-up)
+    - [Create your own dweb App](#create-your-own-dweb-app)
+    - [Develop your App](#develop-your-app)
+    - [Test your App](#test-your-app)
+    - [Build your App](#build-your-app)
 - [Contributing](#contributing)
 - [LICENSE](#license)
 
@@ -317,9 +323,9 @@ For more about future possibilities, see  [Roadmap](https://github.com/happybein
 
 #### Web API
 
-The dweb web API allows a website or desktop application to access dweb and Autonomi APIs over a RESTful interface.
+The dweb web API allows a website or desktop application to access dweb and Autonomi APIs over a RESTful interface. These APIs currently limited but will be expanded to give greater access to the Autonomi APIs and dweb-lib APIs which provide dweb features such as versioned data.
 
-These APIs currently limited but will be expanded to give greater access to the Autonomi APIs and dweb-lib APIs which provide dweb features such as versioned data:
+I welcome requests for specific features and general design of the API.
 
 APIs designed for manual input in the browser address bar:
 - **/dweb-open** - open a website or directory by version (optional), address or name
@@ -330,8 +336,9 @@ APIs designed for manual input in the browser address bar:
 Note: /dweb-open and /dweb-open-as are also used inside a website to link to other websites on Autonomi.
 
 APIs intended for access by apps:
-- **/dweb/v0/name_register** - register a dweb name for an address
-- **/dweb/v0/name_list** - get a list of dweb names registered with the local server
+- **/dweb-0/name-register**     - register a dweb name for an address
+- **/dweb-0/name-list**         - get a list of dweb names registered with the local server
+- **/dweb-0/directory-load**    - given an address or name, returns a directory tree (Archive) in JSON format
 
 #### Rust API
 dweb APIs are also accessible from Rust in dweb-lib. This includes selected HTTP APIs making it easier to access features without handling HTTP requests and responses directly.
@@ -356,6 +363,89 @@ If you have **web front-end skills** there are plenty of things to improve or wr
 - [ ] **autonomi-api** - [tentative] a RESTful HTTP version of part or all of the Autonomi API. It is tentative because Autonomi already support WASM for browser apps which may make this unnecessary.
 
 That's a long list for a one-person project so each area is available for others to contribute to, so if a feature is not implemented yet and you want it faster you might be able to make that happen! See 'Contributing' below.
+
+## Develop a Decentralised Web App
+
+The following instructions assume using the Svelte framework, but any web tooling will do so long as it allows you to create a static website.
+
+### Example dweb Apps
+Several examples are available to show how to build a dweb app:
+- **Names** - list, create and delete memorable names for Autonomi websites. A Svelte app, see [github](https://github.com/happybeing/dweb-app-names)
+- **Fileman** - viewing versioned files on Autonomi by address or name. A Svelte app, see [github](https://github.com/happybeing/dweb-app-fileman)
+
+You can also use **static site generators** if they do what you need rather than building an app from scratch. So you can use Publii for example, to create a WordPress like blog and use dweb to upload it to Autonomi.
+
+The instructions below refer to using Fileman to show how things work.
+
+### Setting Up
+
+Install the following:
+- get Rust  for installing command line apps. See [Get Rust](https://www.rust-lang.org/tools/install)
+- get dweb:
+```
+   cargo install dweb-cli
+   dweb --version
+```
+- get ant (the Autonomi command line interface):
+```
+   cargo install autonomi-cli
+   ant --version
+```
+
+### Create your own dweb App
+
+You may want to clone Fileman and try that out before creating your own app.
+
+For your own project, any web framework or tooling will do so long as you can use it to create a static website. The following shows how to create a web app using Svelte (as used in Fileman). Assuming you already have Node.js, create your Svelte project:
+
+```bash
+# create a new project in the current directory
+npx sv create
+
+# create a new project in my-app
+npx sv create my-app
+```
+
+Once you've created your project (or cloned Fileman), install the dependencies with `npm install` (or `pnpm install` or `yarn`), and then start a development server:
+
+```bash
+npm run dev
+
+# or start the server and open the app in a new browser tab
+npm run dev -- --open
+```
+
+To do anything useful though, you need a network to talk to. See next.
+
+
+### Develop your App
+For details of the **RESTful HTTP API** provided by dweb see [github](https://github.com/happybeing/dweb/blob/main/dweb-cli/README.md#web-api). These APIs are very early stage and suggestions or help with extending and improving them are welcome.
+
+Once you have a local test network and dweb server running, your app will be able to talk to the local Autonomi network using dweb APIs provided by the local dweb server. You can also try this using this example app.
+
+### Test your App
+
+- start a local testnent (see the [Autonomi Developer Docs](https://docs.autonomi.com/developers))
+- start the dweb server with `dweb server --local`
+- open your app (or this one) with `npm run dev -- --open`
+
+You may also want to use either the Autonomi command line app (`ant`) or `dweb` to upload some data to the local network for testing.
+
+Testing your app on the Autonomi public network is exactly the same, except you start the dweb server without using `--local`.
+
+### Build your App
+
+To create a production version of your app:
+
+```bash
+npm run build
+```
+
+You can preview the production build with `npm run preview`.
+
+> Before deploying your dweb-app will need to install an adapter for static site generation. See [Svelte adapters](https://svelte.dev/docs/kit/adapters).
+
+After building this as a static app you can use `dweb` to publish it on your local testnet, and eventually on the public main net. See the dweb [github](https://github.com/happybeing/dweb/blob/main/dweb-cli/README.md#dweb-command-line-app) for more about this.
 
 ## Contributing
 Contributions under the AGPL3.0 license are welcome and any contributions or PRs submitted will be assumed to be offered under that license unless clearly and prominently specified otherwise.

@@ -17,7 +17,7 @@ To get the **dweb** command line app and view a website live on Autonomi:
 cargo install dweb-cli
 dweb open awesome
 ```
-After installing dweb this will open your web browser to show a website stored on Autonomi which contains links to other websites also on Autonomi. If you don't yet have Rust see [xxx].
+After installing dweb this will open your web browser to show a website stored on Autonomi which contains links to other websites also on Autonomi. If you don't yet have Rust see [Get Rust](#get-rust).
 
 In time, to avoid the need to install Rust, downloads will be made available for Windows, Mac OS and Linux.
 

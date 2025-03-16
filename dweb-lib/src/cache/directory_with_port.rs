@@ -1,5 +1,4 @@
 /*
-
  Copyright (c) 2025 Mark Hughes
 
  This program is free software: you can redistribute it and/or modify
@@ -158,8 +157,12 @@ pub async fn lookup_or_create_directory_version_with_port(
         .await
         {
             Ok(mut history) => {
+                let ignore_pointer = false;
                 let version = version.unwrap_or(history.num_versions().unwrap_or(0));
-                let archive_address = match history.get_version_entry_value(version).await {
+                let archive_address = match history
+                    .get_version_entry_value(version, ignore_pointer)
+                    .await
+                {
                     Ok(archive_address) => archive_address,
                     Err(e) => {
                         let msg =

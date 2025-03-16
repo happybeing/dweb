@@ -27,7 +27,7 @@ use color_eyre::Result;
 use autonomi::client::data::DataAddress;
 use autonomi::client::{payment::PaymentOption, Client, GetError};
 use autonomi::TransactionConfig;
-use autonomi::{AttoTokens, Network, Wallet};
+use autonomi::{Network, Wallet};
 
 use crate::autonomi::access::keys::load_evm_wallet_from_env;
 use crate::autonomi::access::network::NetworkPeers;

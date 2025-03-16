@@ -18,6 +18,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 pub mod convert;
 pub mod file;
 pub mod graph_entry;
+pub mod web;
 
 use blsttc::SecretKey;
 

@@ -14,9 +14,10 @@
  You should have received a copy of the GNU Affero General Public License
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+mod app;
 
 pub(crate) mod api;
-mod app;
+pub(crate) mod helpers;
 pub(crate) mod www;
 
 use std::io;
@@ -79,9 +80,15 @@ pub async fn serve_with_ports(
     // TODO control logger using CLI? (this enables Autonomi and HttpRequest logging to terminal)
     // env_logger::init_from_env(Env::default().default_filter_or("info"));
 
+    let is_main_server = !spawn_server;
     let client = client.clone();
     let server = HttpServer::new(move || {
         App::new()
+            .wrap(
+                actix_cors::Cors::default()
+                    .allow_any_origin()
+                    .send_wildcard(),
+            )
             // Macro logging using env_logger for both actix and libs such as Autonomi
             .wrap(Logger::default())
             // Log Requests and Responses to terminal
@@ -124,7 +131,7 @@ pub async fn serve_with_ports(
             .service(www::dweb_open::init_dweb_open_as())
             .service(www::dweb_info::init_dweb_info())
             .service(www::dweb_version::init_dweb_version())
-            .service(api::dweb_v0::init_service())
+            .service(api::v0::init_service())
             // .service(www::debug::init_service())
             //
             // TODO: (eventually!) remove these basic test routes
@@ -140,6 +147,7 @@ pub async fn serve_with_ports(
             .app_data(Data::new(client.clone()))
             .app_data(Data::new(directory_version_with_port.clone()))
             .app_data(Data::new(is_local_network))
+            .app_data(Data::new(is_main_server))
             .default_service(web::get().to(www::www_handler))
     })
     .keep_alive(Duration::from_secs(crate::services::CONNECTION_TIMEOUT));

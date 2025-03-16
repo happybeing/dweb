@@ -17,6 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 pub mod directory_tree;
 
+use core::num;
 use std::marker::PhantomData;
 
 use autonomi::files::archive_public::ArchiveAddress;
@@ -348,7 +349,7 @@ impl<T: Trove<T> + Clone> History<T> {
             // Ignore the pointer because that was specified,
             // or the pointer counter() is behind minimum_entry_index
             history
-                .update_from_graph(&pointer_target, pointer.counter())
+                .update_from_graph_internal(&pointer_target, pointer.counter())
                 .await?;
         } else {
             // Use the pointer even though it may not be up-to-date
@@ -435,7 +436,7 @@ impl<T: Trove<T> + Clone> History<T> {
             // Ignore the pointer because that was specified,
             // or the pointer counter() is behind minimum_entry_index
             history
-                .update_from_graph(&pointer_target, pointer.counter())
+                .update_from_graph_internal(&pointer_target, pointer.counter())
                 .await?;
         } else {
             // Use the pointer even though it may not be up-to-date
@@ -462,17 +463,52 @@ impl<T: Trove<T> + Clone> History<T> {
     /// If the pointer_target is out of date this function scans the graph starting at pointer_target
     /// until it reaches the end and can correctly set the head GraphEntry and num_entries.
     ///
-    /// This will take few seconds because it has to wait for the request for a graph entry to
-    /// not be found on the network.
+    /// This will only happen if the target is out of date, so a maximum of once after the history
+    /// is created. When it does, it will take few seconds because it has to wait for the request
+    /// for a graph entry to not be found on the network.
     ///
     /// Returns the head GraphEntry
-    pub async fn update_from_graph(
+    pub async fn update_from_graph(&mut self) -> Result<GraphEntry> {
+        println!("DEBUG History::update_from_graph()");
+        if self.head_graphentry.is_some() {
+            return Ok(self.head_graphentry.clone().unwrap());
+        }
+
+        // Check the pointer exists to avoid accidental creation (and payment)
+        let pointer_address =
+            Self::pointer_address_from_history_address(self.history_address.clone())?;
+        let pointer = match Self::get_and_verify_pointer(&self.client, &pointer_address).await {
+            Ok(pointer) => pointer,
+            Err(e) => {
+                let msg = format!(
+                    "failed to get pointer network address {} - {e}",
+                    pointer_address.to_hex()
+                );
+                println!("DEBUG History::from_history_address() {msg}");
+                return Err(e.into());
+            }
+        };
+
+        let pointer_target = match pointer.target() {
+            PointerTarget::GraphEntryAddress(pointer_target) => *pointer_target,
+            other => {
+                return Err(eyre!(
+                "History::from_history_address() pointer target is not a GraphEntry - this is probably a bug. Target: {other:?}"
+            ))
+            }
+        };
+
+        self.update_from_graph_internal(&pointer_target, pointer.counter())
+            .await
+    }
+
+    // See update_from_graph() for description
+    async fn update_from_graph_internal(
         &mut self,
         pointer_target: &GraphEntryAddress,
         pointer_counter: u32,
     ) -> Result<GraphEntry> {
-        println!("DEBUG History::update_from_graph()");
-
+        println!("DEBUG History::update_from_graph_internal()");
         if self.head_graphentry.is_some() {
             return Ok(self.head_graphentry.clone().unwrap());
         }
@@ -680,12 +716,32 @@ impl<T: Trove<T> + Clone> History<T> {
     }
 
     /// Get the entry value for the given version.
-    /// The first entry in the history is version 0, but that is reserved so the
-    /// first version in a history is 1 and the last is the number of entries - 1
-    pub async fn get_version_entry_value(&mut self, version: u32) -> Result<ArchiveAddress> {
+    /// The root entry (index 0) is not a valid version so the earliest version
+    /// is version 1, and passing a value of 0 will retrieve the most recent
+    /// version.
+    ///
+    /// Note: when retrieving the most recent entry (version passed as 0) it will
+    /// either assume the Pointer is up-to-date, or if ignore_pointer is true it
+    /// will traverse the graph from the Pointer entry to the end. Doing the latter
+    /// is much slower because it takes time to determine that the next entry does not
+    /// exist (minutes as of March 2025). The ignore pointer option is provided
+    /// because pointers can take an unknown time to be updated.
+    pub async fn get_version_entry_value(
+        &mut self,
+        version: u32,
+        ignore_pointer: bool,
+    ) -> Result<ArchiveAddress> {
         println!("DEBUG History::get_version_entry_value(version: {version})");
-        // self.update_pointer().await?;
+        if ignore_pointer {
+            self.update_from_graph().await?;
+        }
+
         let num_entries = self.num_entries();
+        let version = if version == 0 {
+            num_entries - 1
+        } else {
+            version
+        };
 
         // The first entry is the Trove<T>::trove_type(), and not used so max version is num_entries - 1
         let max_version = if num_entries > 0 { num_entries - 1 } else { 0 };
@@ -1150,7 +1206,8 @@ impl<T: Trove<T> + Clone> History<T> {
                 return Ok(trove_version.trove_address.clone());
             }
         };
-        self.get_version_entry_value(version).await
+        let ignore_pointer = false;
+        self.get_version_entry_value(version, ignore_pointer).await
     }
 }
 

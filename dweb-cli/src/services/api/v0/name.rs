@@ -15,28 +15,16 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-use actix_web::{
-    dev::HttpServiceFactory, get, web, web::Data, HttpRequest, HttpResponse, Responder,
-};
-// use serde::{Deserialize, Serialize};
+use actix_web::{get, web, web::Data, HttpRequest, HttpResponse, Responder};
 
 use dweb::cache::directory_with_name::HISTORY_NAMES;
 use dweb::helpers::convert::str_to_history_address;
-
-use dweb::api::DWEB_API_ROUTE;
-
-pub fn init_service() -> impl HttpServiceFactory {
-    // TODO modify this and the get to accept /{api}/{version}/{operation} etc (see www::init_service())
-    actix_web::web::scope(DWEB_API_ROUTE)
-        .service(api_dwebname_register)
-        .service(api_dwebname_list)
-}
 
 /// Register a DWEB-NAME and optionally redirect to the Dweb URL for the most recent version
 /// Optional query parameters control the redirection:
 ///
 // Test url: http://api-dweb.au:8080/dweb/v0/name_register/smart-ant/91ab27dd1dc342f36c9f16fbe4ea725372d46a857677299d0336bb5eff24392da5d4412c36b6925a4b1857cc558f31e4ef4aae8c3170a4e3d6251bbb637a313d31b5b887aa20a3c81fc358981ccf9d19
-#[get("/name_register/{dweb_name}/{history_address}")]
+#[get("/name-register/{dweb_name}/{history_address}")]
 pub async fn api_dwebname_register(
     request: HttpRequest,
     params: web::Path<(String, String)>,
@@ -66,8 +54,9 @@ pub async fn api_dwebname_register(
     let history_address = match str_to_history_address(&history_address_string) {
         Ok(history_address) => history_address,
         Err(e) => {
-            return HttpResponse::BadRequest()
-                .body(format!("Invalid HISTORY-ADDRESS '{dweb_name}' - {e}"));
+            return HttpResponse::BadRequest().body(format!(
+                "Invalid HISTORY-ADDRESS '{history_address_string}' - {e}"
+            ));
         }
     };
 
@@ -110,7 +99,7 @@ pub async fn api_dwebname_register(
 
 use dweb::web::name::recognised_dwebnames;
 
-#[get("/name_list")]
+#[get("/name-list")]
 pub async fn api_dwebname_list() -> impl Responder {
     println!("DEBUG api_dwebname_list(()...");
     let names_vec = match recognised_dwebnames() {
@@ -130,13 +119,4 @@ pub async fn api_dwebname_list() -> impl Responder {
     };
 
     HttpResponse::Ok().body(body)
-}
-
-#[get("/test/unsupported/route")]
-pub async fn api_test_no_route(
-    _request: HttpRequest,
-    _params: web::Path<(String, String)>,
-    _client_data: Data<dweb::client::AutonomiClient>,
-) -> impl Responder {
-    HttpResponse::Ok().body("dweb serve: ROUTE NOT IMPLEMENTED")
 }

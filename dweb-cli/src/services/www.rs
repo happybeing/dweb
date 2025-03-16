@@ -20,10 +20,12 @@ pub(crate) mod dweb_info;
 pub(crate) mod dweb_open;
 pub(crate) mod dweb_version;
 
-use actix_web::{http::StatusCode, web::Data, HttpRequest, HttpResponse, HttpResponseBuilder};
+use actix_web::{http::StatusCode, web::Data, HttpRequest, HttpResponse};
 
 use dweb::cache::directory_with_port::DirectoryVersionWithPort;
 use dweb::web::fetch::response_with_body;
+
+use super::helpers::*;
 
 /// Handle Autonomi www requests of the form:
 ///     http://localhost:<PORT>/here/is/a/path.html
@@ -40,11 +42,23 @@ use dweb::web::fetch::response_with_body;
 pub async fn www_handler(
     request: HttpRequest,
     // path: web::Path<String>,
+    is_main_server: Data<bool>,
     client: Data<dweb::client::AutonomiClient>,
     our_directory_version: Data<Option<DirectoryVersionWithPort>>,
 ) -> HttpResponse {
     let path = request.path().to_string();
     println!("DEBUG www_handler({path})...");
+
+    // If we're the main server arriving here means no API handler for the route
+    if *is_main_server.into_inner() {
+        return make_error_response(
+            Some(StatusCode::NOT_FOUND),
+            &mut HttpResponse::NotFound(),
+            "main dweb server error".to_string(),
+            &format!("- check the URL is a valid API"),
+        );
+    }
+
     let our_directory_version = if our_directory_version.is_some() {
         our_directory_version.as_ref().clone().unwrap()
     } else {
@@ -105,28 +119,4 @@ pub async fn www_handler(
             );
         }
     };
-}
-
-pub(crate) fn make_error_response(
-    status_code: Option<StatusCode>,
-    response_builder: &mut HttpResponseBuilder,
-    heading: String,
-    message: &str,
-) -> HttpResponse {
-    let status_code = if let Some(status_code) = status_code {
-        &format!("{status_code}")
-    } else {
-        ""
-    };
-
-    let body = format!(
-        "
-    <!DOCTYPE html><head></head><body>
-    <h3>{heading}</h3>
-    {status_code} {message}
-    <br/><br/><a href='_back'>Go back</a>
-    </body>"
-    );
-
-    response_builder.body(body)
 }

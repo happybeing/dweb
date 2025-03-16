@@ -60,9 +60,9 @@ pub async fn handle_inspect_history(
     )
     .await
     {
-        Ok(pointer) => pointer,
+        Ok(history) => history,
         Err(e) => {
-            let message = format!("Failed to get History pointer from network - {e}");
+            let message = format!("Failed to get History from network - {e}");
             println!("{message}");
             return Err(eyre!(message));
         }

@@ -35,8 +35,8 @@ use crate::web::request::main_server_request;
 
 // TODO break this out into modules here and in the with ports server
 
-pub const DWEB_API_ROUTE_V0: &str = "/dweb/v0"; // Route for dweb API v0
-pub const DWEB_API_ROUTE_V0_ANT: &str = "/dweb/v0/ant"; // Route route for
+pub const DWEB_API_ROUTE_V0: &str = "/dweb-0"; // Route for dweb API v0
+pub const DWEB_API_ROUTE_V0_ANT: &str = "/ant-0"; // Route route for autonomi API (dweb v0)
 
 pub const DWEB_API_ROUTE: &str = DWEB_API_ROUTE_V0;
 
@@ -48,7 +48,7 @@ pub async fn name_register(
     port: Option<u16>,
 ) -> Result<()> {
     let url_path = format!(
-        "{DWEB_API_ROUTE}/name_register/{dweb_name}/{}",
+        "{DWEB_API_ROUTE}/name-register/{dweb_name}/{}",
         history_address.to_hex()
     );
 
@@ -60,7 +60,7 @@ pub async fn name_register(
 
 /// Query the server for a list of recognised names
 pub async fn name_list(host: Option<&String>, port: Option<u16>) -> Result<Vec<RecognisedName>> {
-    let url_path = format!("{DWEB_API_ROUTE}/name_list");
+    let url_path = format!("{DWEB_API_ROUTE}/name-list");
     match main_server_request(&url_path, host, port).await {
         Ok(json) => {
             let vec: Vec<RecognisedName> = serde_json::from_str(&json)?;

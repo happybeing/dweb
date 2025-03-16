@@ -39,8 +39,7 @@ pub(crate) async fn handle_list_names(host: Option<&String>, port: Option<u16>) 
             for recognised_name in names_vec.iter() {
                 println!(
                     "{:40} {}",
-                    recognised_name.key,
-                    recognised_name.history_address.to_hex()
+                    recognised_name.key, recognised_name.history_address
                 )
             }
             Ok(())

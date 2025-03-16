@@ -431,7 +431,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize)]
 pub struct RecognisedName {
     pub key: String,
-    pub history_address: HistoryAddress,
+    pub history_address: String,
 }
 
 /// Return a Vec with one entry per recognised name in the form of RecognisedName struct
@@ -444,7 +444,7 @@ pub fn recognised_dwebnames() -> Result<Vec<RecognisedName>> {
             for cached_item in lock.iter() {
                 names_vec.push(RecognisedName {
                     key: cached_item.0.to_string(),
-                    history_address: cached_item.1.clone(),
+                    history_address: cached_item.1.to_hex(),
                 });
             }
         }

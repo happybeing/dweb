@@ -7,7 +7,7 @@
 // permissions and limitations relating to use of the SAFE Network Software.
 
 use crate::commands::SubCmd;
-use ant_bootstrap::PeersArgs;
+use ant_bootstrap::InitialPeersConfig;
 use ant_logging::{LogFormat, LogOutputDest};
 use clap::Parser;
 use color_eyre::Result;
@@ -41,7 +41,7 @@ pub(crate) struct Opt {
     pub log_format: Option<LogFormat>,
 
     #[command(flatten)]
-    pub(crate) peers: PeersArgs,
+    pub(crate) peers: InitialPeersConfig,
 
     /// Available sub commands.
     #[clap(subcommand)]

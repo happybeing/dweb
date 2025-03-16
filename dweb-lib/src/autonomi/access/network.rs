@@ -6,7 +6,7 @@
 // KIND, either express or implied. Please review the Licences for the specific language governing
 // permissions and limitations relating to use of the SAFE Network Software.
 
-use ant_bootstrap::{PeersArgs, ANT_PEERS_ENV};
+use ant_bootstrap::{InitialPeersConfig, ANT_PEERS_ENV};
 use autonomi::Multiaddr;
 use color_eyre::eyre::Context;
 use color_eyre::Result;
@@ -30,7 +30,7 @@ impl NetworkPeers {
     }
 }
 
-pub async fn get_peers(peers: PeersArgs) -> Result<NetworkPeers> {
+pub async fn get_peers(peers: InitialPeersConfig) -> Result<NetworkPeers> {
     let addrs = peers.get_addrs(None, Some(100)).await
         .wrap_err("Please provide valid Network peers to connect to")
         .with_suggestion(|| format!("make sure you've provided network peers using the --peers option or the {ANT_PEERS_ENV} env var"))

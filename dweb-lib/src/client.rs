@@ -26,7 +26,7 @@ use color_eyre::Result;
 
 use autonomi::client::data::DataAddress;
 use autonomi::client::{payment::PaymentOption, Client, GetError};
-use autonomi::TransactionConfig;
+use autonomi::{InitialPeersConfig, TransactionConfig};
 use autonomi::{Network, Wallet};
 
 use crate::autonomi::access::keys::load_evm_wallet_from_env;
@@ -60,7 +60,7 @@ impl AutonomiClient {
     /// variable. For example, setting this to 'arbitrum-sepolia' selects the
     /// Artbitrum test network.
     pub async fn initialise_and_connect(
-        peers: NetworkPeers,
+        peers: InitialPeersConfig,
         show_cost: Option<ShowCost>,
         max_fee_per_gas: Option<u128>,
     ) -> Result<AutonomiClient> {

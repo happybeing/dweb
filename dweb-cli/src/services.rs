@@ -285,22 +285,15 @@ async fn test_fetch_file(
 
 async fn manual_test_connect() -> impl Responder {
     let opt = Opt::parse();
-    if let Ok(peers) = dweb::autonomi::access::network::get_peers(opt.peers).await {
-        if let Ok(_client) = dweb::autonomi::actions::connect_to_network(peers).await {
-            return HttpResponse::Ok().body(
-                "Testing connect to Autonomi..\
-           SUCCESS!",
-            );
-        } else {
-            return HttpResponse::Ok().body(
-                "Testing connect to Autonomi..\
-           ERROR: failed to connect",
-            );
-        };
+    if let Ok(_client) = dweb::autonomi::actions::connect_to_network(opt.peers).await {
+        return HttpResponse::Ok().body(
+            "Testing connect to Autonomi..\
+        SUCCESS!",
+        );
     } else {
         return HttpResponse::Ok().body(
             "Testing connect to Autonomi..\
-           ERROR: failed to get peers",
+        ERROR: failed to connect",
         );
     };
 }

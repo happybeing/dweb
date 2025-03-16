@@ -7,20 +7,18 @@
 // permissions and limitations relating to use of the SAFE Network Software.
 
 use autonomi::client::config::ClientOperatingStrategy;
-use autonomi::{get_evm_network, Client, ClientConfig};
+use autonomi::{get_evm_network, Client, ClientConfig, InitialPeersConfig};
 use color_eyre::eyre::bail;
 use color_eyre::eyre::Result;
 use indicatif::ProgressBar;
 use std::time::Duration;
 
-use crate::autonomi::access::network::NetworkPeers;
-
-pub async fn connect_to_network(peers: NetworkPeers) -> Result<Client> {
-    connect_to_network_with_config(peers, Default::default()).await
+pub async fn connect_to_network(init_peers_config: InitialPeersConfig) -> Result<Client> {
+    connect_to_network_with_config(init_peers_config, Default::default()).await
 }
 
 pub async fn connect_to_network_with_config(
-    peers: NetworkPeers,
+    init_peers_config: InitialPeersConfig,
     operation_config: ClientOperatingStrategy,
 ) -> Result<Client> {
     let progress_bar = ProgressBar::new_spinner();
@@ -29,21 +27,16 @@ pub async fn connect_to_network_with_config(
     let new_style = progress_bar.style().tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈🔗");
     progress_bar.set_style(new_style);
 
-    let local = peers.is_local();
-
-    let peers_opt = if local {
+    if init_peers_config.local {
         progress_bar.set_message("Connecting to a local Autonomi Network...");
-        None
     } else {
         progress_bar.set_message("Connecting to The Autonomi Network...");
-        Some(peers.peers().to_vec())
     };
 
-    let evm_network = get_evm_network(local)?;
+    let evm_network = get_evm_network(init_peers_config.local)?;
 
     let config = ClientConfig {
-        local,
-        peers: peers_opt,
+        init_peers_config,
         evm_network,
         strategy: operation_config,
     };
@@ -52,12 +45,10 @@ pub async fn connect_to_network_with_config(
 
     match res {
         Ok(client) => {
-            // println!("Connected to the Network");
             progress_bar.finish_with_message("Connected to the Network");
             Ok(client)
         }
         Err(e) => {
-            println!("Failed to connect to the network: {e}");
             progress_bar.finish_with_message("Failed to connect to the network");
             bail!("Failed to connect to the network: {e}")
         }

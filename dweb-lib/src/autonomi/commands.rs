@@ -176,34 +176,34 @@ pub async fn handle_subcommand(opt: Opt) -> Result<()> {
 
     match cmd {
         SubCmd::File { command } => match command {
-            FileCmd::Cost { file } => file::cost(&file, peers.await?).await,
-            FileCmd::Upload { file, public } => file::upload(&file, public, peers.await?).await,
+            FileCmd::Cost { file } => file::cost(&file, opt.peers).await,
+            FileCmd::Upload { file, public } => file::upload(&file, public, opt.peers).await,
             FileCmd::Download { addr, dest_file } => {
-                file::download(&addr, &dest_file, peers.await?).await
+                file::download(&addr, &dest_file, opt.peers).await
             }
             FileCmd::List => file::list(),
         },
         SubCmd::Register { command } => match command {
             RegisterCmd::GenerateKey { overwrite } => register::generate_key(overwrite),
-            RegisterCmd::Cost { name } => register::cost(&name, peers.await?).await,
+            RegisterCmd::Cost { name } => register::cost(&name, opt.peers).await,
             RegisterCmd::Create {
                 name,
                 value,
                 public,
-            } => register::create(&name, &value, public, peers.await?).await,
+            } => register::create(&name, &value, public, opt.peers).await,
             RegisterCmd::Edit {
                 address,
                 name,
                 value,
-            } => register::edit(address, name, &value, peers.await?).await,
-            RegisterCmd::Get { address, name } => register::get(address, name, peers.await?).await,
+            } => register::edit(address, name, &value, opt.peers).await,
+            RegisterCmd::Get { address, name } => register::get(address, name, opt.peers).await,
             RegisterCmd::List => register::list(),
         },
         SubCmd::Vault { command } => match command {
-            VaultCmd::Cost => vault::cost(peers.await?).await,
-            VaultCmd::Create => vault::create(peers.await?).await,
-            VaultCmd::Load => vault::load(peers.await?).await,
-            VaultCmd::Sync { force } => vault::sync(peers.await?, force).await,
+            VaultCmd::Cost => vault::cost(opt.peers).await,
+            VaultCmd::Create => vault::create(opt.peers).await,
+            VaultCmd::Load => vault::load(opt.peers).await,
+            VaultCmd::Sync { force } => vault::sync(opt.peers, force).await,
         },
         SubCmd::Wallet { command } => match command {
             WalletCmd::Create {

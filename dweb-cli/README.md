@@ -1,7 +1,5 @@
 # dweb Command Line App
-**dweb** is a command line program for use with the Autonomi peer-to-peer network, which is like a permanent cloud service, but secure, private and truly decentralised, with no gatekeepers.
-
-The key features of **dweb** include:
+**dweb** is for use with the Autonomi peer-to-peer network. Features are being added all the time, but already include:
 
 - viewing the decentralised web in any standard browser, directly on Autonomi over end-to-end encrypted connections
 
@@ -12,6 +10,18 @@ The key features of **dweb** include:
 - RESTful and Rust APIs for dynamic websites and desktop apps
 
 - backup and sync using [rclone](https://github.com/rclone/rclone/) (is planned)
+
+Web apps are easy and quick to build:
+- **Publii** - build blogs and websites using this third party desktop app
+- **Names** - list, create and delete memorable names for Autonomi websites
+- **Fileman** - view versioned files on Autonomi by address or name
+
+You can use any **static site generator** that does what you need.
+
+### Status
+**IMPORTANT:** **dweb** and **Autonomi** are at an early stage so regard this as experimental (pre-alpha). Everything here works on a local test network and can be used to try things out or begin building web apps for Autonomi.
+
+Note: instructions below have been written for the public network, so be aware that most things only work on a test network for now. Some have had success publishing on the Autonomi public network, but it will be much easier to begin with a local testnet. To start a local testnet see [Test your App](#test-your-app).
 
 ### Quickstart dweb Browsing
 If you have Rust installed you can view websites live on Autonomi in two steps:

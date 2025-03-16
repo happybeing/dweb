@@ -102,6 +102,9 @@ pub struct Opt {
     // Control API use of pointers: when present ignores or trusts rather than the default which varies
     #[clap(long, hide = true)]
     pub ignore_pointers: Option<bool>,
+    // Control API call retries (0 for unlimited tries)
+    #[clap(long, hide = true, default_value = "0")]
+    pub retry_api: u32,
 }
 
 fn greater_than_0(s: &str) -> Result<u64, String> {

@@ -31,6 +31,7 @@ pub enum ShowCost {
     None,
 }
 
+#[derive(Clone)]
 pub struct Spends {
     client: AutonomiClient,
     pub token: Amount,

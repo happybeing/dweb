@@ -20,6 +20,7 @@ use color_eyre::{eyre::eyre, Report, Result};
 use autonomi::{AttoTokens, InitialPeersConfig};
 
 use dweb::client::AutonomiClient;
+use dweb::helpers::retry;
 use dweb::storage::{publish_or_update_files, report_content_published_or_updated};
 use dweb::token::{show_spend_return_value, ShowCost, Spends};
 use dweb::trove::HistoryAddress;
@@ -40,6 +41,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                 opt.show_dweb_costs,
                 opt.max_fee_per_gas,
                 opt.ignore_pointers,
+                opt.retry_api,
                 true,
             )
             .await;
@@ -192,7 +194,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
 
         Some(Subcommands::Estimate { files_root }) => {
             let (client, _) =
-                connect_and_announce(opt.peers, opt.show_dweb_costs, None, None, true).await;
+                connect_and_announce(opt.peers, opt.show_dweb_costs, None, None, 1, true).await;
             match client.client.file_cost(&files_root).await {
                 Ok(tokens) => println!("Cost estimate: {tokens}"),
                 Err(e) => println!("Unable to estimate cost: {e}"),
@@ -211,6 +213,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                 opt.show_dweb_costs,
                 opt.max_fee_per_gas,
                 opt.ignore_pointers,
+                opt.retry_api,
                 true,
             )
             .await;
@@ -259,6 +262,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                 opt.show_dweb_costs,
                 opt.max_fee_per_gas,
                 opt.ignore_pointers,
+                opt.retry_api,
                 true,
             )
             .await;
@@ -300,7 +304,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
 
         Some(Subcommands::Wallet_info {}) => {
             let (client, _) =
-                connect_and_announce(opt.peers, opt.show_dweb_costs, None, None, true).await;
+                connect_and_announce(opt.peers, opt.show_dweb_costs, None, None, 1, true).await;
             let tokens = client.wallet.balance_of_tokens().await?;
             let gas = client.wallet.balance_of_gas_tokens().await?;
             let network = client.network.identifier();
@@ -325,6 +329,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                 opt.show_dweb_costs,
                 None,
                 opt.ignore_pointers,
+                opt.retry_api,
                 true,
             )
             .await;
@@ -358,6 +363,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                 opt.show_dweb_costs,
                 None,
                 opt.ignore_pointers,
+                opt.retry_api,
                 true,
             )
             .await;
@@ -383,6 +389,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                 opt.show_dweb_costs,
                 None,
                 opt.ignore_pointers,
+                opt.retry_api,
                 true,
             )
             .await;
@@ -406,6 +413,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                 opt.show_dweb_costs,
                 None,
                 opt.ignore_pointers,
+                opt.retry_api,
                 true,
             )
             .await;
@@ -463,6 +471,7 @@ async fn connect_and_announce(
     show_cost: ShowCost,
     max_fee_per_gas: Option<u128>,
     ignore_pointers: Option<bool>,
+    retry_api: u32,
     announce: bool,
 ) -> (AutonomiClient, bool) {
     let is_local_network = peers.local;
@@ -471,6 +480,7 @@ async fn connect_and_announce(
         show_cost,
         max_fee_per_gas,
         ignore_pointers,
+        retry_api,
     )
     .await
     .expect("Failed to connect to Autonomi Network");

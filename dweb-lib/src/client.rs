@@ -30,7 +30,6 @@ use autonomi::{InitialPeersConfig, TransactionConfig};
 use autonomi::{Network, Wallet};
 
 use crate::autonomi::access::keys::load_evm_wallet_from_env;
-use crate::autonomi::access::network::NetworkPeers;
 use crate::token::{Rate, ShowCost};
 
 #[derive(Clone)]
@@ -43,6 +42,8 @@ pub struct AutonomiClient {
     // Control API use of pointers: when present ignores or trusts rather than the default which varies
     // Used to investigate unexpected behaviour, since Pointer may not (does not!) update on public network
     pub ignore_pointer: Option<bool>,
+    // Control number of tries on selected Autonomi calls (0 for unlimited)
+    pub retry_api: u32,
 
     pub ant_rate: Option<Rate>,
     pub eth_rate: Option<Rate>,
@@ -68,6 +69,7 @@ impl AutonomiClient {
         show_cost: ShowCost,
         max_fee_per_gas: Option<u128>,
         ignore_pointer: Option<bool>,
+        retry_api: u32,
     ) -> Result<AutonomiClient> {
         println!("Dweb Autonomi client initialising...");
         let client = crate::autonomi::actions::connect_to_network(peers).await?;
@@ -94,6 +96,7 @@ impl AutonomiClient {
             wallet,
             show_cost,
             ignore_pointer,
+            retry_api,
             ant_rate,
             eth_rate,
         })

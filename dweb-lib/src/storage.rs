@@ -24,6 +24,7 @@ use autonomi::files::archive_public::ArchiveAddress;
 use autonomi::AttoTokens;
 
 use crate::client::AutonomiClient;
+use crate::helpers::retry::retry_until_ok;
 use crate::trove::directory_tree::DWEB_SETTINGS_PATH;
 use crate::trove::directory_tree::{osstr_to_string, DirectoryTree};
 use crate::trove::{History, HistoryAddress};
@@ -177,25 +178,38 @@ pub async fn publish_files(
     dweb_settings: Option<PathBuf>,
 ) -> Result<(AttoTokens, ArchiveAddress)> {
     println!("DEBUG publish_files() files_root '{files_root:?}'");
-    match publish_content(client, files_root, dweb_settings).await {
-        Ok((cost, archive)) => match client
-            .client
-            .archive_put_public(&archive, client.payment_option())
-            .await
+
+    retry_until_ok(
+        client.retry_api,
+        &"archive_put_public()",
+        (client, files_root, dweb_settings),
+        async move |(client, files_root, dweb_settings)| match publish_content(
+            client,
+            files_root,
+            dweb_settings,
+        )
+        .await
         {
-            Ok((cost, archive_address)) => {
-                // println!(
-                //     "ARCHIVE ADDRESS:\n{}\nCost: {cost} ANT",
-                //     archive_address.to_hex()
-                // );
-                Ok((cost, archive_address))
-            }
-            Err(e) => Err(eyre!(
-                "Failed to store the PublicArchive for uploaded files: {e}"
-            )),
+            Ok((cost, archive)) => match client
+                .client
+                .archive_put_public(&archive, client.payment_option())
+                .await
+            {
+                Ok((cost, archive_address)) => {
+                    // println!(
+                    //     "ARCHIVE ADDRESS:\n{}\nCost: {cost} ANT",
+                    //     archive_address.to_hex()
+                    // );
+                    Ok((cost, archive_address))
+                }
+                Err(e) => Err(eyre!(
+                    "Failed to store the PublicArchive for uploaded files: {e}"
+                )),
+            },
+            Err(e) => Err(eyre!("Failed to store content. {}", e.root_cause())),
         },
-        Err(e) => Err(eyre!("Failed to store content. {}", e.root_cause())),
-    }
+    )
+    .await
 }
 
 /// Upload the tree of files at files_root
@@ -217,14 +231,25 @@ pub async fn publish_content(
         return Err(eyre!("Path to files is empty: {files_root:?}"));
     }
 
+    // TODO while public net is so unreliable, might be best to do one file at a time
     println!("Uploading files from: {files_root:?}");
-    let (cost, mut archive) = match client
-        .client
-        .dir_content_upload_public(files_root.clone(), client.payment_option())
-        .await
+    let (cost, mut archive) = match retry_until_ok(
+        client.retry_api,
+        &"dir_content_upload_public()",
+        (client, files_root.clone(), client.payment_option()),
+        async move |(client, files_root, payment_option)| match client
+            .client
+            .dir_content_upload_public(files_root.clone(), client.payment_option())
+            .await
+        {
+            Ok((cost, archive)) => Ok((cost, archive)),
+            Err(e) => return Err(eyre!("Failed to upload directory tree: {e}")),
+        },
+    )
+    .await
     {
-        Ok((cost, archive)) => (cost, archive),
-        Err(e) => return Err(eyre!("Failed to upload directory tree: {e}")),
+        Ok(result) => result,
+        Err(e) => return Err(eyre!("Error max retries reached - {e}")),
     };
 
     let settings_cost = if let Some(dweb_path) = dweb_settings {
@@ -232,10 +257,23 @@ pub async fn publish_content(
         let dweb_settings_path = PathBuf::from(DWEB_SETTINGS_PATH);
         println!("Uploading {dweb_settings_file}");
 
-        match client
-            .client
-            .file_content_upload_public(dweb_path.clone(), client.payment_option())
-            .await
+        match retry_until_ok(
+            client.retry_api,
+            &"file_content_upload_public()",
+            (client, dweb_path.clone(), client.payment_option()),
+            async move |(client, dweb_path, payment_option)| match client
+                .client
+                .file_content_upload_public(dweb_path, payment_option)
+                .await
+            {
+                Ok(result) => Ok(result),
+                Err(e) => {
+                    println!("Failed to upload dweb settings - {e}");
+                    return Err(e.into());
+                }
+            },
+        )
+        .await
         {
             Ok((cost, upload_address)) => {
                 let autonomi_metadata =
@@ -244,7 +282,7 @@ pub async fn publish_content(
                 cost
             }
             Err(e) => {
-                println!("Failed to upload dweb settings - {e}");
+                println!("Error max retries reached - {e}");
                 0.into()
             }
         }

@@ -14,14 +14,12 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-use std::collections::{BTreeSet, HashMap};
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use bytes::Bytes;
 use color_eyre::eyre::{eyre, Result};
-use crdts::Identifier;
 use http::status::StatusCode;
-use log::Metadata;
 use mime_guess;
 
 use autonomi::client::data::DataAddress;

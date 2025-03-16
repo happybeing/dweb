@@ -120,30 +120,15 @@ pub async fn serve_with_ports(
 
                     Ok(res)
                 }
-            }) // <SERVICE>-dweb.au routes
-            // TODO work out how to handle API and APP services without a local DNS
-            // .service(api::dweb_v0::init_service(DWEB_SERVICE_API))
-            // .service(app::test::init_service(DWEB_SERVICE_APP))
-            //
-            // <ARCHIVE-ADDRESS>|[vN].<HISTORY-ADDRESS>.www-dweb.au services must be
-            // after above routes or will consume them too!
+            })
             .service(www::dweb_open::init_dweb_open())
             .service(www::dweb_open::init_dweb_open_as())
             .service(www::dweb_info::init_dweb_info())
             .service(www::dweb_version::init_dweb_version())
+            .service(api::v0::ant_proxy_id)
+            // Everything below the next line will be scoped by DWEB_API_ROUTE
             .service(api::v0::init_service())
-            // .service(www::debug::init_service())
             //
-            // TODO: (eventually!) remove these basic test routes
-            // .service(hello)
-            // .service(echo)
-            // .service(test_fetch_file)
-            // .route("/hey", web::get().to(manual_hello))
-            // .route(
-            //     "/test-show-request",
-            //     web::get().to(manual_test_show_request),
-            // )
-            // .route("/test-connect", web::get().to(manual_test_connect))
             .app_data(Data::new(client.clone()))
             .app_data(Data::new(directory_version_with_port.clone()))
             .app_data(Data::new(is_local_network))

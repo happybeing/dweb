@@ -17,9 +17,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 pub mod directory_tree;
 
-use core::num;
 use std::marker::PhantomData;
 
+use autonomi::client::payment::PaymentOption;
 use autonomi::files::archive_public::ArchiveAddress;
 use blsttc::PublicKey;
 use color_eyre::eyre::{eyre, Result};
@@ -40,6 +40,7 @@ use crate::data::autonomi_get_file_public;
 use crate::helpers::graph_entry::{
     create_graph_entry, get_derivation_from_graph_entry, graph_entry_get,
 };
+use crate::helpers::retry::retry_until_ok;
 use crate::token::{show_spend_return_value, Spends};
 
 const LARGEST_VERSION: u32 = u32::MAX;
@@ -551,32 +552,42 @@ impl<T: Trove<T> + Clone> History<T> {
         client: &AutonomiClient,
         pointer_address: &PointerAddress,
     ) -> Result<Pointer> {
-        match client.client.pointer_get(pointer_address).await {
-            Ok(pointer) => {
-                if !pointer.verify_signature() {
-                    let message =
-                        format!("Error - pointer retrieved from network has INVALID SIGNATURE");
+        retry_until_ok(
+            client.retry_api,
+            &"pointer_get()",
+            (client, pointer_address),
+            async move |(client, pointer_address)| match client
+                .client
+                .pointer_get(pointer_address)
+                .await
+            {
+                Ok(pointer) => {
+                    if !pointer.verify_signature() {
+                        let message =
+                            format!("Error - pointer retrieved from network has INVALID SIGNATURE");
+                        println!("{message}");
+                        return Err(eyre!(message));
+                    }
+
+                    let head_address = match pointer.target() {
+                        PointerTarget::GraphEntryAddress(address) => address,
+                        other => return Err(eyre!("Invalid head address {:?}", other.clone())),
+                    };
+                    println!(
+                        "DEBUG pointer counter: {}, head address: {}",
+                        pointer.counter(),
+                        head_address.to_hex()
+                    );
+                    Ok(pointer)
+                }
+                Err(e) => {
+                    let message = format!("failed to get pointer from the network - {e}");
                     println!("{message}");
                     return Err(eyre!(message));
                 }
-
-                let head_address = match pointer.target() {
-                    PointerTarget::GraphEntryAddress(address) => address,
-                    other => return Err(eyre!("Invalid head address {:?}", other.clone())),
-                };
-                println!(
-                    "DEBUG pointer counter: {}, head address: {}",
-                    pointer.counter(),
-                    head_address.to_hex()
-                );
-                Ok(pointer)
-            }
-            Err(e) => {
-                let message = format!("failed to get pointer from the network - {e}");
-                println!("{message}");
-                return Err(eyre!(message));
-            }
-        }
+            },
+        )
+        .await
     }
 
     fn create_pointer_for_update(
@@ -697,24 +708,36 @@ impl<T: Trove<T> + Clone> History<T> {
             "DEBUG directory_tree_download() at {}",
             data_address.to_hex()
         );
-        match autonomi_get_file_public(client, &data_address).await {
-            Ok(content) => {
-                println!("Retrieved {} bytes", content.len());
-                let trove: T = match T::from_bytes(client, content).await {
-                    Ok(trove) => trove,
-                    Err(e) => {
-                        println!("FAILED: {e}");
-                        return Err(eyre!(e));
-                    }
-                };
-                Ok(trove)
-            }
 
-            Err(e) => {
-                println!("FAILED: {e}");
-                Err(eyre!(e))
-            }
-        }
+        retry_until_ok(
+            client.retry_api,
+            &"autonomi_get_file_public()",
+            (client, data_address),
+            async move |(client, data_address)| match autonomi_get_file_public(
+                client,
+                &data_address,
+            )
+            .await
+            {
+                Ok(content) => {
+                    println!("Retrieved {} bytes", content.len());
+                    let trove: T = match T::from_bytes(client, content).await {
+                        Ok(trove) => trove,
+                        Err(e) => {
+                            println!("FAILED: {e}");
+                            return Err(eyre!(e));
+                        }
+                    };
+                    Ok(trove)
+                }
+
+                Err(e) => {
+                    println!("FAILED: {e}");
+                    Err(eyre!(e))
+                }
+            },
+        )
+        .await
     }
 
     /// Get the entry value for the given version.
@@ -1014,24 +1037,37 @@ impl<T: Trove<T> + Clone> History<T> {
                     "Calling pointer_put() with new GraphEntry at: {}",
                     next_address.to_hex()
                 );
-                match self
-                    .client
-                    .client
-                    .pointer_put(new_pointer.clone(), self.client.wallet.clone().into())
-                    .await
+                let client = self.client.client.clone();
+                let new_pointer_clone = new_pointer.clone();
+                let payment_option: PaymentOption = self.client.wallet.clone().into();
+                match retry_until_ok(
+                    self.client.retry_api,
+                    &"pointer_put()",
+                    (client, new_pointer_clone.clone(), payment_option),
+                    async move |(client, new_pointer_clone, payment_option)| match client
+                        .pointer_put(new_pointer_clone, payment_option)
+                        .await
+                    {
+                        Ok(result) => Ok(result),
+                        Err(e) => {
+                            return Err(eyre!("Failed to add a trove to history: {e:?}"));
+                        }
+                    },
+                )
+                .await
                 {
                     Ok((pointer_cost, _pointer_address)) => {
-                        self.pointer_counter = new_pointer.counter();
-                        self.pointer_target = match new_pointer.target() {
+                        self.pointer_counter = new_pointer_clone.counter();
+                        self.pointer_target = match new_pointer_clone.target() {
                             PointerTarget::GraphEntryAddress(pointer_target) => {
                                 Some(*pointer_target)
                             }
                             other => {
                                 return show_spend_return_value::<Result<(AttoTokens, u32)>>(&spends, Err(eyre!(
-                                "History::update_online() pointer target is not a GraphEntry - this is probably a bug. Target: {other:?}"
-                            )),
-                        )
-                        .await;
+                                    "History::update_online() pointer target is not a GraphEntry - this is probably a bug. Target: {other:?}"
+                                )),
+                            )
+                            .await;
                             }
                         };
                         let total_cost = pointer_cost.checked_add(graph_cost);
@@ -1040,17 +1076,15 @@ impl<T: Trove<T> + Clone> History<T> {
                         }
                         return show_spend_return_value::<Result<(AttoTokens, u32)>>(
                             &spends,
-                            Ok((total_cost.unwrap(), new_pointer.counter())),
+                            Ok((total_cost.unwrap(), new_pointer_clone.counter())),
                         )
                         .await;
                     }
-                    Err(e) => {
-                        return Err(eyre!("Failed to add a trove to history: {e:?}"));
-                    }
+                    Err(e) => return Err(eyre!("Retries exceeded: {e:?}")),
                 }
             }
             Err(e) => return Err(eyre!("DEBUG failed to get history prior to update!\n{e}")),
-        };
+        }
     }
 
     /// Create the next graph entry.

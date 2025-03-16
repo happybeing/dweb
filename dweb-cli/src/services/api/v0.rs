@@ -18,9 +18,7 @@
 pub mod directory;
 pub mod name;
 
-use actix_web::{
-    dev::HttpServiceFactory, get, web, web::Data, HttpRequest, HttpResponse, Responder,
-};
+use actix_web::{dev::HttpServiceFactory, get, web::Data, HttpRequest, HttpResponse, Responder};
 
 use dweb::api::DWEB_API_ROUTE;
 
@@ -32,10 +30,15 @@ pub fn init_service() -> impl HttpServiceFactory {
         .service(actix_web::web::scope("/directory-load").service(directory::api_directory_load))
 }
 
+/// Get the value of dweb::api::DWEB_API_ROUTE which identifies the proxy and API version in use
+#[get("/ant-proxy-id")]
+pub async fn ant_proxy_id(_request: HttpRequest) -> impl Responder {
+    HttpResponse::Ok().body(DWEB_API_ROUTE)
+}
+
 #[get("/test/unsupported/route")]
 pub async fn api_test_no_route(
     _request: HttpRequest,
-    _params: web::Path<(String, String)>,
     _client_data: Data<dweb::client::AutonomiClient>,
 ) -> impl Responder {
     HttpResponse::Ok().body("dweb serve: ROUTE NOT IMPLEMENTED")

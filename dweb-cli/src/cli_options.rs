@@ -93,6 +93,15 @@ pub struct Opt {
     // pub files_root: Option<PathBuf>,
     // TODO implement remaining CLI options:
     // TODO --wallet-path <path-to-wallet-dir>
+    /// Show the cost of dweb API calls after each call in tokens, gas, both or none
+    #[clap(long, hide = true, default_value = "both")]
+    pub show_dweb_costs: ShowCost,
+    /// Override default 'max fee per gas' limit (which may be too low at times).
+    #[clap(long, hide = true, short = 'x')]
+    pub max_fee_per_gas: Option<u128>,
+    // Control API use of pointers: when present ignores or trusts rather than the default which varies
+    #[clap(long, hide = true)]
+    pub ignore_pointers: Option<bool>,
 }
 
 fn greater_than_0(s: &str) -> Result<u64, String> {
@@ -270,12 +279,6 @@ pub enum Subcommands {
         /// You can either specify a path here or include the settings in <FILES-ROOT>/.dweb/dweb-settings.json
         #[clap(long = "dweb-settings", short = 'c', value_name = "JSON-FILE")]
         dweb_settings: Option<PathBuf>,
-        /// Show the cost of dweb API calls after each call in tokens, gas, both or none
-        #[clap(long, default_value = "both")]
-        show_dweb_costs: ShowCost,
-        /// Override default 'max fee per gas' limit (which may be too low at times).
-        #[clap(long, short = 'x')]
-        max_fee_per_gas: Option<u128>,
         //
         /// Disable the AWV check when publishing a new website to allow for init of a new Autonomi network (during beta)
         #[clap(long, name = "is-new-network", hide = true, default_value = "false")]
@@ -302,12 +305,6 @@ pub enum Subcommands {
         /// You can either specify a path here or include the settings in <FILES-ROOT>/.dweb/dweb-settings.json
         #[clap(long = "dweb-settings", short = 'c', value_name = "JSON-FILE")]
         dweb_settings: Option<PathBuf>,
-        /// Show the cost of dweb API calls after each call in tokens, gas, both or none
-        #[clap(long, default_value = "both")]
-        show_dweb_costs: ShowCost,
-        /// Override default 'max fee per gas' limit (which may be too low at times).
-        #[clap(long, short = 'x')]
-        max_fee_per_gas: Option<u128>,
     },
 
     /// Download a file or directory. TODO: not yet implemented

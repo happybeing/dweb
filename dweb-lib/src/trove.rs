@@ -299,6 +299,7 @@ impl<T: Trove<T> + Clone> History<T> {
                 "History::from_name() failed - cannot use an empty name"
             ));
         }
+        let ignore_pointer = client.ignore_pointer.unwrap_or(ignore_pointer);
 
         let history_secret_key =
             Self::history_main_secret_key(owner_secret_key).derive_child(name.as_bytes());
@@ -395,6 +396,7 @@ impl<T: Trove<T> + Clone> History<T> {
         //     "DEBUG History::from_history_address({})",
         //     history_address.to_hex()
         // );
+        let ignore_pointer = client.ignore_pointer.unwrap_or(ignore_pointer);
 
         // Check it exists to avoid accidental creation (and payment)
         let pointer_address = Self::pointer_address_from_history_address(history_address.clone())?;

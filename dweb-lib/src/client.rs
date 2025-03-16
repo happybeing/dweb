@@ -40,6 +40,10 @@ pub struct AutonomiClient {
     pub wallet: Wallet, // Must be loaded and funded for writing to the network
     pub show_cost: ShowCost,
 
+    // Control API use of pointers: when present ignores or trusts rather than the default which varies
+    // Used to investigate unexpected behaviour, since Pointer may not (does not!) update on public network
+    pub ignore_pointer: Option<bool>,
+
     pub ant_rate: Option<Rate>,
     pub eth_rate: Option<Rate>,
 }
@@ -61,8 +65,9 @@ impl AutonomiClient {
     /// Artbitrum test network.
     pub async fn initialise_and_connect(
         peers: InitialPeersConfig,
-        show_cost: Option<ShowCost>,
+        show_cost: ShowCost,
         max_fee_per_gas: Option<u128>,
+        ignore_pointer: Option<bool>,
     ) -> Result<AutonomiClient> {
         println!("Dweb Autonomi client initialising...");
         let client = crate::autonomi::actions::connect_to_network(peers).await?;
@@ -80,7 +85,6 @@ impl AutonomiClient {
             wallet.set_transaction_config(TransactionConfig::new(max_fee_per_gas));
             println!("Max fee per gas set to: {}", max_fee_per_gas);
         }
-        let show_cost = show_cost.unwrap_or(ShowCost::None);
         let client = client.clone();
         let ant_rate = Rate::from_environment("ANT".to_string());
         let eth_rate = Rate::from_environment("ETH".to_string());
@@ -89,6 +93,7 @@ impl AutonomiClient {
             network: client.evm_network().clone(),
             wallet,
             show_cost,
+            ignore_pointer,
             ant_rate,
             eth_rate,
         })

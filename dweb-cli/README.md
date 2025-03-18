@@ -73,7 +73,21 @@ In time, downloads will be provided to avoid the need to install Rust, but until
 cargo install dweb-cli
 ```
 
+If you need help, you can list the dweb subcommands and options with:
+```
+dweb help
+```
+And on individual commands such as `publish-new` with the `--help` option:
+```
+dweb publish-new --help
+```
+
 ### Browse websites on Autonomi
+Start the dweb server browsing. This only needs to be done once until you reboot or shut it down:
+```
+dweb serve
+```
+
 Until you know the address of a website to browse you can start at the *dweb-awesome-links* website - on Autonomi - which contains links to websites built by the community. Type:
 ```
 dweb open awesome
@@ -311,7 +325,7 @@ Another ambition is to provide backup applications via an **rclone** compatible 
 
 Others include adding support for services like ActicityPub and Solid Pods.
 
-For more about future possibilities, see  [Roadmap](https://github.com/happybeing/dweb/blob/main/dweb-cli/README.md#future-feature-roadmap)
+For more about future possibilities, see  [Roadmap](https://github.com/happybeing/dweb/blob/main/dweb-cli/README.md#future-features-roadmap)
 
 
 ### Current Features

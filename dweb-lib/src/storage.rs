@@ -180,7 +180,7 @@ pub async fn publish_files(
     println!("DEBUG publish_files() files_root '{files_root:?}'");
 
     retry_until_ok(
-        client.retry_api,
+        client.api_control.tries,
         &"archive_put_public()",
         (client, files_root, dweb_settings),
         async move |(client, files_root, dweb_settings)| match publish_content(
@@ -234,12 +234,12 @@ pub async fn publish_content(
     // TODO while public net is so unreliable, might be best to do one file at a time
     println!("Uploading files from: {files_root:?}");
     let (cost, mut archive) = match retry_until_ok(
-        client.retry_api,
+        client.api_control.tries,
         &"dir_content_upload_public()",
         (client, files_root.clone(), client.payment_option()),
         async move |(client, files_root, payment_option)| match client
             .client
-            .dir_content_upload_public(files_root.clone(), client.payment_option())
+            .dir_content_upload_public(files_root.clone(), payment_option)
             .await
         {
             Ok((cost, archive)) => Ok((cost, archive)),
@@ -258,7 +258,7 @@ pub async fn publish_content(
         println!("Uploading {dweb_settings_file}");
 
         match retry_until_ok(
-            client.retry_api,
+            client.api_control.tries,
             &"file_content_upload_public()",
             (client, dweb_path.clone(), client.payment_option()),
             async move |(client, dweb_path, payment_option)| match client

@@ -96,15 +96,20 @@ pub struct Opt {
     /// Show the cost of dweb API calls after each call in tokens, gas, both or none
     #[clap(long, hide = true, default_value = "both")]
     pub show_dweb_costs: ShowCost,
-    /// Override default 'max fee per gas' limit (which may be too low at times).
+    /// Optionally override the maximum fee in Gwei (units of 0.000000001 ETH), to pay for a transaction on the Arbitrum network.
+    /// Useful if transaction fees are too high for the internal limit used in the Autonomi API.
     #[clap(long, hide = true, short = 'x')]
     pub max_fee_per_gas: Option<u128>,
-    // Control API use of pointers: when present ignores or trusts rather than the default which varies
-    #[clap(long, hide = true)]
-    pub ignore_pointers: Option<bool>,
     // Control API call retries (0 for unlimited tries)
     #[clap(long, hide = true, default_value = "0")]
     pub retry_api: u32,
+    /// Do upload of directories one file at a time. Without this uploading a directory will start from scratch on each retry.
+    /// When true, uploads may succeed more often but will cost more than if they are succeeding without retries.
+    #[clap(long, hide = true, default_value = "true")]
+    pub upload_file_by_file: bool,
+    // Control API use of pointers: when present ignores or trusts rather than the default which varies
+    #[clap(long, hide = true)]
+    pub ignore_pointers: Option<bool>,
 }
 
 fn greater_than_0(s: &str) -> Result<u64, String> {

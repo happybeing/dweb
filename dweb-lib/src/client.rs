@@ -32,18 +32,58 @@ use autonomi::{Network, Wallet};
 use crate::autonomi::access::keys::load_evm_wallet_from_env;
 use crate::token::{Rate, ShowCost};
 
+/// Control how dweb uses and reports on selected Autonomi APIs
+///
+/// This allows use of the API to be made more reliable by enabling
+/// numbers of retries for some operations, how uploads are conducted
+/// and so on.
+#[derive(Clone)]
+pub struct ApiControl {
+    /// Control number of tries on selected Autonomi calls (0 for unlimited)
+    pub tries: u32,
+    /// Do upload of directories one file at a time. Without this a retry will start from scratch.
+    pub upload_file_by_file: bool,
+    /// Control dweb APIs use of pointers.
+    ///
+    /// For selected APIs, if ignore_pointer is Some(true) the API will find
+    /// the most recentry entry (head) of a graph by following the graph from the
+    /// Pointer target to the end. When it is Some(false) the pointer is assumed
+    /// to be up-to-date and point to the most recent graph entry.
+    ///
+    /// When None, behaviour depends on the API, but most will trust that
+    /// the pointer is up-to-date and points to the most recent entry of
+    /// of a graph.
+    ///
+    /// Can be used to investigate behaviour such as Pointers not updating on the public network.
+    pub ignore_pointers: Option<bool>,
+    /// Show the cost of dweb API calls after each call in tokens, gas, both or none
+    pub show_dweb_costs: ShowCost,
+    /// Optional maximum fee in Gwei (units of 0.000000001 ETH), to pay for a transaction on the Arbitrum network.
+    pub max_fee_per_gas: Option<u128>,
+}
+
+impl Default for ApiControl {
+    /// Note: some defaults are likely overriden by command line defaults passed when creating an AutonomiClient.
+    fn default() -> Self {
+        ApiControl {
+            tries: 1,
+            upload_file_by_file: false,
+            ignore_pointers: None,
+            show_dweb_costs: ShowCost::Both,
+            max_fee_per_gas: None,
+        }
+    }
+}
+
+/// A wrapper for autonomi::Client which simplifies use of dweb APIs
+/// TODO support separate data creation/owner and wallet keys
 #[derive(Clone)]
 pub struct AutonomiClient {
     pub client: Client,
     pub network: Network,
     pub wallet: Wallet, // Must be loaded and funded for writing to the network
-    pub show_cost: ShowCost,
 
-    // Control API use of pointers: when present ignores or trusts rather than the default which varies
-    // Used to investigate unexpected behaviour, since Pointer may not (does not!) update on public network
-    pub ignore_pointer: Option<bool>,
-    // Control number of tries on selected Autonomi calls (0 for unlimited)
-    pub retry_api: u32,
+    pub api_control: ApiControl,
 
     pub ant_rate: Option<Rate>,
     pub eth_rate: Option<Rate>,
@@ -66,10 +106,7 @@ impl AutonomiClient {
     /// Artbitrum test network.
     pub async fn initialise_and_connect(
         peers: InitialPeersConfig,
-        show_cost: ShowCost,
-        max_fee_per_gas: Option<u128>,
-        ignore_pointer: Option<bool>,
-        retry_api: u32,
+        api_control: ApiControl,
     ) -> Result<AutonomiClient> {
         println!("Dweb Autonomi client initialising...");
         let client = crate::autonomi::actions::connect_to_network(peers).await?;
@@ -83,7 +120,7 @@ impl AutonomiClient {
             }
         };
 
-        if let Some(max_fee_per_gas) = max_fee_per_gas {
+        if let Some(max_fee_per_gas) = api_control.max_fee_per_gas {
             wallet.set_transaction_config(TransactionConfig::new(max_fee_per_gas));
             println!("Max fee per gas set to: {}", max_fee_per_gas);
         }
@@ -94,9 +131,7 @@ impl AutonomiClient {
             client: client.clone(),
             network: client.evm_network().clone(),
             wallet,
-            show_cost,
-            ignore_pointer,
-            retry_api,
+            api_control,
             ant_rate,
             eth_rate,
         })

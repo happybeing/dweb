@@ -46,7 +46,7 @@ impl Spends {
     pub async fn new(client: &AutonomiClient, label: Option<&str>) -> Result<Spends> {
         let label = label.unwrap_or("Cost total: ").to_string();
         let client = client.clone();
-        let show_cost = client.show_cost.clone();
+        let show_cost = client.api_control.show_dweb_costs.clone();
         let token = client.wallet.balance_of_tokens().await?;
         let gas = client.wallet.balance_of_gas_tokens().await?;
         Ok(Spends {

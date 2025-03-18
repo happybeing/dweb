@@ -300,7 +300,7 @@ impl<T: Trove<T> + Clone> History<T> {
                 "History::from_name() failed - cannot use an empty name"
             ));
         }
-        let ignore_pointer = client.ignore_pointer.unwrap_or(ignore_pointer);
+        let ignore_pointer = client.api_control.ignore_pointers.unwrap_or(ignore_pointer);
 
         let history_secret_key =
             Self::history_main_secret_key(owner_secret_key).derive_child(name.as_bytes());
@@ -397,7 +397,7 @@ impl<T: Trove<T> + Clone> History<T> {
         //     "DEBUG History::from_history_address({})",
         //     history_address.to_hex()
         // );
-        let ignore_pointer = client.ignore_pointer.unwrap_or(ignore_pointer);
+        let ignore_pointer = client.api_control.ignore_pointers.unwrap_or(ignore_pointer);
 
         // Check it exists to avoid accidental creation (and payment)
         let pointer_address = Self::pointer_address_from_history_address(history_address.clone())?;
@@ -553,7 +553,7 @@ impl<T: Trove<T> + Clone> History<T> {
         pointer_address: &PointerAddress,
     ) -> Result<Pointer> {
         retry_until_ok(
-            client.retry_api,
+            client.api_control.tries,
             &"pointer_get()",
             (client, pointer_address),
             async move |(client, pointer_address)| match client
@@ -710,7 +710,7 @@ impl<T: Trove<T> + Clone> History<T> {
         );
 
         retry_until_ok(
-            client.retry_api,
+            client.api_control.tries,
             &"autonomi_get_file_public()",
             (client, data_address),
             async move |(client, data_address)| match autonomi_get_file_public(
@@ -1041,7 +1041,7 @@ impl<T: Trove<T> + Clone> History<T> {
                 let new_pointer_clone = new_pointer.clone();
                 let payment_option: PaymentOption = self.client.wallet.clone().into();
                 match retry_until_ok(
-                    self.client.retry_api,
+                    self.client.api_control.tries,
                     &"pointer_put()",
                     (client, new_pointer_clone.clone(), payment_option),
                     async move |(client, new_pointer_clone, payment_option)| match client

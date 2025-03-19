@@ -30,7 +30,7 @@ use actix_web::{
 use clap::Parser;
 
 use dweb::cache::directory_with_port::DirectoryVersionWithPort;
-use dweb::client::AutonomiClient;
+use dweb::client::DwebClient;
 use dweb::helpers::convert::str_to_data_address;
 use dweb::web::fetch::response_with_body;
 
@@ -63,7 +63,7 @@ const DWEB_SERVICE_DEBUG: &str = "debug-dweb.au";
 ///     is found, call serve_with_ports() to spawn a new one. Then redirect the link.
 ///
 pub async fn serve_with_ports(
-    client: &AutonomiClient,
+    client: &DwebClient,
     directory_version_with_port: Option<DirectoryVersionWithPort>,
     // Host if set from the CLI.
     host: String,
@@ -246,7 +246,7 @@ pub fn request_as_html(request: &HttpRequest) -> String {
 #[get("/awf/{datamap_address:.*}")]
 async fn test_fetch_file(
     datamap_address: web::Path<String>,
-    client_data: Data<dweb::client::AutonomiClient>,
+    client_data: Data<dweb::client::DwebClient>,
 ) -> impl Responder {
     println!("test_fetch_file()...");
 

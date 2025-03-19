@@ -58,7 +58,7 @@ pub fn init_service() -> impl HttpServiceFactory {
 pub async fn www_handler(
     request: HttpRequest,
     path: web::Path<String>,
-    client: Data<dweb::client::AutonomiClient>,
+    client: Data<dweb::client::DwebClient>,
 ) -> HttpResponse {
     println!("DEBUG www_handler(/{path})...");
     let mut host = None;

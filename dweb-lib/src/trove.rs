@@ -35,7 +35,7 @@ use autonomi::AttoTokens;
 use autonomi::Bytes;
 use autonomi::GraphEntryAddress;
 
-use crate::client::AutonomiClient;
+use crate::client::DwebClient;
 use crate::data::autonomi_get_file_public;
 use crate::helpers::graph_entry::{
     create_graph_entry, get_derivation_from_graph_entry, graph_entry_get,
@@ -141,7 +141,7 @@ impl std::fmt::Display for HistoryAddress {
 pub trait Trove<T> {
     fn trove_type() -> DataAddress;
     fn to_bytes(trove: &T) -> Result<Bytes>;
-    async fn from_bytes(client: &AutonomiClient, bytes: Bytes) -> Result<T>;
+    async fn from_bytes(client: &DwebClient, bytes: Bytes) -> Result<T>;
 }
 
 /// A history of versions of a type implementing the Trove trait. This
@@ -153,7 +153,7 @@ pub trait Trove<T> {
 //  TODO initialising it according to whether or not it is initialised from a Register .
 //  TODO Also changes to History::history_main_secret_key() for compatibility with Registers
 pub struct History<T: Trove<T> + Clone> {
-    client: AutonomiClient,
+    client: DwebClient,
 
     history_address: HistoryAddress,
     name: String,
@@ -181,7 +181,7 @@ impl<T: Trove<T> + Clone> History<T> {
     /// To update the history use the same owner_secret_key
     /// name cannot be an empty string
     pub async fn create_online(
-        client: AutonomiClient,
+        client: DwebClient,
         name: String,
         owner_secret_key: SecretKey,
     ) -> Result<(AttoTokens, Self)> {
@@ -288,7 +288,7 @@ impl<T: Trove<T> + Clone> History<T> {
     ///   if !ignore_pointer, and minimum_entry_index is 0, uses the pointer (even though it may be
     ///   out of date). This should be fast.
     pub async fn from_name(
-        client: AutonomiClient,
+        client: DwebClient,
         owner_secret_key: SecretKey,
         name: String,
         ignore_pointer: bool,
@@ -388,7 +388,7 @@ impl<T: Trove<T> + Clone> History<T> {
     ///   if !ignore_pointer, and minimum_entry_index is 0, uses the pointer (even though it may be
     ///   out of date). This should be fast.
     pub async fn from_history_address(
-        client: AutonomiClient,
+        client: DwebClient,
         history_address: HistoryAddress,
         ignore_pointer: bool,
         minimum_entry_index: u32,
@@ -549,7 +549,7 @@ impl<T: Trove<T> + Clone> History<T> {
     }
 
     async fn get_and_verify_pointer(
-        client: &AutonomiClient,
+        client: &DwebClient,
         pointer_address: &PointerAddress,
     ) -> Result<Pointer> {
         retry_until_ok(
@@ -701,7 +701,7 @@ impl<T: Trove<T> + Clone> History<T> {
     /// Type-safe download directly from the network.
     /// Useful if you already have the address and don't want to initialise a History
     pub async fn raw_trove_download(
-        client: &AutonomiClient,
+        client: &DwebClient,
         data_address: ArchiveAddress,
     ) -> Result<T> {
         println!(

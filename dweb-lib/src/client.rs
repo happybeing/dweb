@@ -15,7 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! # AutonomiClient is a wrapper for the Autonomi::client::client
+//! # DwebClient is a wrapper for the Autonomi::client::client
 //!
 //! Provides a simple way to connect and fund a client
 //! for interaction with the Autonomi peer-to-peer storage
@@ -63,7 +63,7 @@ pub struct ApiControl {
 }
 
 impl Default for ApiControl {
-    /// Note: some defaults are likely overriden by command line defaults passed when creating an AutonomiClient.
+    /// Note: some defaults are likely overriden by command line defaults passed when creating an DwebClient.
     fn default() -> Self {
         ApiControl {
             tries: 1,
@@ -78,7 +78,7 @@ impl Default for ApiControl {
 /// A wrapper for autonomi::Client which simplifies use of dweb APIs
 /// TODO support separate data creation/owner and wallet keys
 #[derive(Clone)]
-pub struct AutonomiClient {
+pub struct DwebClient {
     pub client: Client,
     pub network: Network,
     pub wallet: Wallet, // Must be loaded and funded for writing to the network
@@ -89,7 +89,7 @@ pub struct AutonomiClient {
     pub eth_rate: Option<Rate>,
 }
 
-impl AutonomiClient {
+impl DwebClient {
     /// Create and initialse a client ready to access Autonomi
     ///
     /// Sets the default Ethereum Virtual Machine (EVM), obtains peers,
@@ -107,7 +107,7 @@ impl AutonomiClient {
     pub async fn initialise_and_connect(
         peers: InitialPeersConfig,
         api_control: ApiControl,
-    ) -> Result<AutonomiClient> {
+    ) -> Result<DwebClient> {
         println!("Dweb Autonomi client initialising...");
         let client = crate::autonomi::actions::connect_to_network(peers).await?;
 
@@ -127,7 +127,7 @@ impl AutonomiClient {
         let client = client.clone();
         let ant_rate = Rate::from_environment("ANT".to_string());
         let eth_rate = Rate::from_environment("ETH".to_string());
-        Ok(AutonomiClient {
+        Ok(DwebClient {
             client: client.clone(),
             network: client.evm_network().clone(),
             wallet,

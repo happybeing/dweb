@@ -23,7 +23,7 @@ use autonomi::client::files::archive_public::PublicArchive;
 use autonomi::files::archive_public::ArchiveAddress;
 use autonomi::AttoTokens;
 
-use crate::client::AutonomiClient;
+use crate::client::DwebClient;
 use crate::helpers::retry::retry_until_ok;
 use crate::trove::directory_tree::DWEB_SETTINGS_PATH;
 use crate::trove::directory_tree::{osstr_to_string, DirectoryTree};
@@ -37,7 +37,7 @@ use crate::trove::{History, HistoryAddress};
 ///
 /// Returns the amount paid (cost), history name for updates, and the history address
 pub async fn publish_or_update_files(
-    client: &AutonomiClient,
+    client: &DwebClient,
     files_root: &PathBuf,
     app_secret_key: SecretKey,
     name: Option<String>,
@@ -173,7 +173,7 @@ pub fn report_content_published_or_updated(
 /// Upload a directory tree to Autonomi
 /// Returns the XorName of the PublicArchive (which can be used to initialise a DirectoryTree).
 pub async fn publish_files(
-    client: &AutonomiClient,
+    client: &DwebClient,
     files_root: &PathBuf,
     dweb_settings: Option<PathBuf>,
 ) -> Result<(AttoTokens, ArchiveAddress)> {
@@ -215,7 +215,7 @@ pub async fn publish_files(
 /// Upload the tree of files at files_root
 /// Return the autonomi PublicArchive if all files are uploaded
 pub async fn publish_content(
-    client: &AutonomiClient,
+    client: &DwebClient,
     files_root: &PathBuf,
     dweb_settings: Option<PathBuf>,
 ) -> Result<(AttoTokens, PublicArchive)> {
@@ -292,7 +292,7 @@ pub async fn publish_content(
 /// Upload a directory either using the Autonomi directory upload API or
 /// do each file separately if file_by_file is true.
 pub async fn directory_upload_public(
-    client: &AutonomiClient,
+    client: &DwebClient,
     files_root: &PathBuf,
 ) -> Result<(AttoTokens, PublicArchive)> {
     let file_by_file = client.api_control.upload_file_by_file;

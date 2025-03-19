@@ -19,7 +19,7 @@ use color_eyre::{eyre::eyre, Report, Result};
 
 use autonomi::{AttoTokens, InitialPeersConfig};
 
-use dweb::client::{ApiControl, AutonomiClient};
+use dweb::client::{ApiControl, DwebClient};
 use dweb::storage::{publish_or_update_files, report_content_published_or_updated};
 use dweb::token::{show_spend_return_value, Spends};
 use dweb::trove::HistoryAddress;
@@ -412,9 +412,9 @@ async fn connect_and_announce(
     peers: InitialPeersConfig,
     api_control: ApiControl,
     announce: bool,
-) -> (AutonomiClient, bool) {
+) -> (DwebClient, bool) {
     let is_local_network = peers.local;
-    let client = dweb::client::AutonomiClient::initialise_and_connect(peers, api_control)
+    let client = dweb::client::DwebClient::initialise_and_connect(peers, api_control)
         .await
         .expect("Failed to connect to Autonomi Network");
 

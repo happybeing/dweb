@@ -39,7 +39,7 @@ pub async fn ant_proxy_id(_request: HttpRequest) -> impl Responder {
 #[get("/test/unsupported/route")]
 pub async fn api_test_no_route(
     _request: HttpRequest,
-    _client_data: Data<dweb::client::AutonomiClient>,
+    _client_data: Data<dweb::client::DwebClient>,
 ) -> impl Responder {
     HttpResponse::Ok().body("dweb serve: ROUTE NOT IMPLEMENTED")
 }

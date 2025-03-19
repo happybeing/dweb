@@ -42,7 +42,7 @@ pub fn init_dweb_version() -> impl HttpServiceFactory {
 pub async fn dweb_version(
     request: HttpRequest,
     version: web::Path<String>,
-    _client: Data<dweb::client::AutonomiClient>,
+    _client: Data<dweb::client::DwebClient>,
     our_directory_version: Data<Option<DirectoryVersionWithPort>>,
     _is_local_network: Data<bool>,
 ) -> HttpResponse {

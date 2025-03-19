@@ -25,7 +25,7 @@ use url::Url;
 
 use autonomi::client::files::archive_public::ArchiveAddress;
 
-use crate::client::AutonomiClient;
+use crate::client::DwebClient;
 use crate::trove::History;
 use crate::trove::{directory_tree::DirectoryTree, HistoryAddress};
 use crate::web::name::decode_dweb_host;
@@ -44,7 +44,7 @@ use crate::{
 /// Fetch the requested resource from Autonomi or from cached data if available.
 ///  Assumes a dweb URL
 /// TODO update to use response_with_body() instead of reason()
-pub async fn fetch(client: &AutonomiClient, url: Url) -> HttpResponse {
+pub async fn fetch(client: &DwebClient, url: Url) -> HttpResponse {
     println!("DEBUG fetch({url:?})...");
     let host = match url.host_str() {
         Some(host) => host,
@@ -126,7 +126,7 @@ pub async fn fetch(client: &AutonomiClient, url: Url) -> HttpResponse {
 //      the directory_tree.
 // TODO refactor fetch_website_version() to reduce complexity
 pub async fn fetch_website_version(
-    client: &AutonomiClient,
+    client: &DwebClient,
     dweb_host: &DwebHost,
 ) -> Result<(u32, DirectoryVersionWithName)> {
     println!(
@@ -283,7 +283,7 @@ pub async fn fetch_website_version(
 
 /// Get a DirectoryTree from the network using the address and if a history, the optional version
 pub async fn get_directory_tree_for_address_string(
-    client: &AutonomiClient,
+    client: &DwebClient,
     // The hex representation of either a HistoryAddress or an ArchiveAddress
     address: &String,
     // Optional version when the address is a HistoryAddress

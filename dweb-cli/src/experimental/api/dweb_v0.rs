@@ -40,7 +40,7 @@ pub fn init_service(host: &str) -> impl HttpServiceFactory {
 // pub async fn api_dwebname_register(
 //     req: HttpRequest,
 //     params: web::Path<(String, String)>,
-//     _client_data: Data<dweb::client::AutonomiClient>,
+//     _client_data: Data<dweb::client::DwebClient>,
 // ) -> impl Responder {
 //     let (dweb_name, history_address_string) = params.into_inner();
 

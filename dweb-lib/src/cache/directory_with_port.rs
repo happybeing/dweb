@@ -32,7 +32,7 @@ use autonomi::client::files::archive_public::ArchiveAddress;
 
 use crate::{
     cache::directory_with_name::HISTORY_NAMES,
-    client::AutonomiClient,
+    client::DwebClient,
     helpers::convert::*,
     trove::{directory_tree::DirectoryTree, HistoryAddress},
 };
@@ -123,7 +123,7 @@ impl DirectoryVersionWithPort {
 /// and return it. If not found, create a DirectoryVersionWithPort with a free port for a given
 /// address/version combination.
 pub async fn lookup_or_create_directory_version_with_port(
-    client: &AutonomiClient,
+    client: &DwebClient,
     address_or_name: &String,
     version: Option<u32>,
 ) -> Result<(DirectoryVersionWithPort, bool)> {

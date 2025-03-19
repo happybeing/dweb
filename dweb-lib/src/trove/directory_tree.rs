@@ -27,7 +27,7 @@ use autonomi::client::files::archive_public::PublicArchive;
 use autonomi::client::files::Metadata as FileMetadata;
 use autonomi::files::archive_public::ArchiveAddress;
 
-use crate::client::AutonomiClient;
+use crate::client::DwebClient;
 use crate::helpers::convert::str_to_data_address;
 use crate::trove::{History, Trove};
 
@@ -188,7 +188,7 @@ impl Trove<DirectoryTree> for DirectoryTree {
         }
     }
 
-    async fn from_bytes(client: &AutonomiClient, bytes: Bytes) -> Result<DirectoryTree> {
+    async fn from_bytes(client: &DwebClient, bytes: Bytes) -> Result<DirectoryTree> {
         match PublicArchive::from_bytes(bytes) {
             Ok(archive) => Ok(DirectoryTree::from_archive(client, archive).await),
             Err(e) => Err(eyre!("Failed to serialise DirectoryTree::archive - {e}")),
@@ -216,7 +216,7 @@ impl DirectoryTree {
     /// Get an archive from the network and use it to create a new DirectoryTree
     // TODO was directory_tree_download()
     pub async fn from_archive_address(
-        client: &AutonomiClient,
+        client: &DwebClient,
         archive_address: ArchiveAddress,
     ) -> Result<DirectoryTree> {
         println!(
@@ -242,7 +242,7 @@ impl DirectoryTree {
     }
 
     // Initialise with data from the archive without accessing the network for DwebSettings
-    pub async fn from_archive(client: &AutonomiClient, archive: PublicArchive) -> DirectoryTree {
+    pub async fn from_archive(client: &DwebClient, archive: PublicArchive) -> DirectoryTree {
         let mut directory_tree = Self::from_archive_raw(archive);
         directory_tree.update_dweb_settings(client).await;
         directory_tree
@@ -259,7 +259,7 @@ impl DirectoryTree {
 
     // Update DwebSettings if present in the archive
     // Return true if settings were updated
-    async fn update_dweb_settings(&mut self, client: &AutonomiClient) -> bool {
+    async fn update_dweb_settings(&mut self, client: &DwebClient) -> bool {
         // Initialise dweb settings
         let dweb_settings_path = PathBuf::from(DWEB_SETTINGS_PATH);
         if let Some((settings_address, _metadata)) = self.archive.map().get(&dweb_settings_path) {
@@ -484,7 +484,7 @@ pub fn osstr_to_string(file_name: &std::ffi::OsStr) -> Option<String> {
 // Helper which gets a directory version and looks up a web resource.
 // Returns a tuple of the the resource address and content type string if known
 // pub async fn lookup_resource_for_website_version(
-//     client: &AutonomiClient,
+//     client: &DwebClient,
 //     resource_path: &String,
 //     history_address: HistoryAddress,
 //     version: Option<u32>,

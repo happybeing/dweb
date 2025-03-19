@@ -21,11 +21,11 @@ use color_eyre::Result;
 
 use autonomi::client::GetError;
 
-use crate::client::AutonomiClient;
+use crate::client::DwebClient;
 
 /// TODO: move to dweb::data or similar?
 pub async fn autonomi_get_file_public(
-    client: &AutonomiClient,
+    client: &DwebClient,
     file_address: &DataAddress,
 ) -> Result<Bytes, GetError> {
     println!("DEBUG autonomi_get_file_public()");

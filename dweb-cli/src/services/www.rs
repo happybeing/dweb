@@ -43,7 +43,7 @@ pub async fn www_handler(
     request: HttpRequest,
     // path: web::Path<String>,
     is_main_server: Data<bool>,
-    client: Data<dweb::client::AutonomiClient>,
+    client: Data<dweb::client::DwebClient>,
     our_directory_version: Data<Option<DirectoryVersionWithPort>>,
 ) -> HttpResponse {
     let path = request.path().to_string();

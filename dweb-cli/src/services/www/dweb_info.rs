@@ -39,7 +39,7 @@ pub fn init_dweb_info() -> impl HttpServiceFactory {
 #[get("")]
 pub async fn dweb_info(
     request: HttpRequest,
-    client: Data<dweb::client::AutonomiClient>,
+    client: Data<dweb::client::DwebClient>,
     our_directory_version: Data<Option<DirectoryVersionWithPort>>,
     _is_local_network: Data<bool>,
 ) -> impl Responder {

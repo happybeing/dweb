@@ -26,7 +26,7 @@ use crate::services::helpers::*;
 pub async fn api_directory_load(
     request: HttpRequest,
     params: web::Path<String>,
-    client: Data<dweb::client::AutonomiClient>,
+    client: Data<dweb::client::DwebClient>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
 

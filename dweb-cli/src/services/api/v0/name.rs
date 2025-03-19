@@ -28,7 +28,7 @@ use dweb::helpers::convert::str_to_history_address;
 pub async fn api_dwebname_register(
     request: HttpRequest,
     params: web::Path<(String, String)>,
-    _client_data: Data<dweb::client::AutonomiClient>,
+    _client_data: Data<dweb::client::DwebClient>,
 ) -> impl Responder {
     println!(
         "DEBUG api_dwebname_register({})...",

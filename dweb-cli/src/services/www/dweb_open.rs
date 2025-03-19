@@ -45,7 +45,7 @@ pub fn init_dweb_open_as() -> impl HttpServiceFactory {
 pub async fn dweb_open_as(
     request: HttpRequest,
     params: web::Path<String>,
-    client: Data<dweb::client::AutonomiClient>,
+    client: Data<dweb::client::DwebClient>,
     our_directory_version: Data<Option<DirectoryVersionWithPort>>,
     is_local_network: Data<bool>,
 ) -> HttpResponse {
@@ -84,7 +84,7 @@ pub async fn dweb_open(
     request: HttpRequest,
     // params: web::Path<(String, String, String)>,
     params: web::Path<String>,
-    client: Data<dweb::client::AutonomiClient>,
+    client: Data<dweb::client::DwebClient>,
     our_directory_version: Data<Option<DirectoryVersionWithPort>>,
     is_local_network: Data<bool>,
 ) -> HttpResponse {
@@ -115,7 +115,7 @@ pub async fn dweb_open(
 
 pub async fn handle_dweb_open(
     request: &HttpRequest,
-    client: Data<dweb::client::AutonomiClient>,
+    client: Data<dweb::client::DwebClient>,
     _our_directory_version: Data<Option<DirectoryVersionWithPort>>,
     is_local_network: Data<bool>,
     decoded_params: &(Option<u32>, String, String, String),

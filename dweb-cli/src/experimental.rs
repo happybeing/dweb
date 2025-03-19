@@ -31,7 +31,7 @@ use actix_web::{
 use clap::Parser;
 
 use dweb::cache::directory_with_port::DirectoryVersionWithPort;
-use dweb::client::AutonomiClient;
+use dweb::client::DwebClient;
 use dweb::helpers::convert::str_to_data_address;
 use dweb::web::fetch::response_with_body;
 use dweb::web::{DWEB_SERVICE_API, DWEB_SERVICE_APP};
@@ -43,7 +43,7 @@ use crate::services::CONNECTION_TIMEOUT;
 const DWEB_SERVICE_DEBUG: &str = "debug-dweb.au";
 
 pub async fn serve_with_hosts(
-    client: AutonomiClient,
+    client: DwebClient,
     directory_version_with_port: Option<DirectoryVersionWithPort>,
     host: String,
     port: u16,
@@ -187,7 +187,7 @@ pub fn request_as_html(request: &HttpRequest) -> String {
 #[get("/awf/{datamap_address:.*}")]
 async fn test_fetch_file(
     datamap_address: web::Path<String>,
-    client_data: Data<dweb::client::AutonomiClient>,
+    client_data: Data<dweb::client::DwebClient>,
 ) -> impl Responder {
     println!("test_fetch_file()...");
 

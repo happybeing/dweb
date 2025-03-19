@@ -20,7 +20,7 @@ use color_eyre::{eyre::eyre, Result};
 use autonomi::AttoTokens;
 use evmlib::common::{Amount, U256};
 
-use crate::client::AutonomiClient;
+use crate::client::DwebClient;
 
 /// Control 'show cost' operations
 #[derive(clap::ValueEnum, Clone, Debug)]
@@ -33,7 +33,7 @@ pub enum ShowCost {
 
 #[derive(Clone)]
 pub struct Spends {
-    client: AutonomiClient,
+    client: DwebClient,
     pub token: Amount,
     pub gas: Amount,
 
@@ -43,7 +43,7 @@ pub struct Spends {
 
 /// Capture gas and token balances for monitoring and reporting spends
 impl Spends {
-    pub async fn new(client: &AutonomiClient, label: Option<&str>) -> Result<Spends> {
+    pub async fn new(client: &DwebClient, label: Option<&str>) -> Result<Spends> {
         let label = label.unwrap_or("Cost total: ").to_string();
         let client = client.clone();
         let show_cost = client.api_control.show_dweb_costs.clone();

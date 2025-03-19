@@ -231,23 +231,7 @@ pub async fn publish_content(
         return Err(eyre!("Path to files is empty: {files_root:?}"));
     }
 
-    // TODO while public net is so unreliable, might be best to do one file at a time
-    println!("Uploading files from: {files_root:?}");
-    let (cost, mut archive) = match retry_until_ok(
-        client.api_control.tries,
-        &"dir_content_upload_public()",
-        (client, files_root.clone(), client.payment_option()),
-        async move |(client, files_root, payment_option)| match client
-            .client
-            .dir_content_upload_public(files_root.clone(), payment_option)
-            .await
-        {
-            Ok((cost, archive)) => Ok((cost, archive)),
-            Err(e) => return Err(eyre!("Failed to upload directory tree: {e}")),
-        },
-    )
-    .await
-    {
+    let (cost, mut archive) = match directory_upload_public(client, files_root).await {
         Ok(result) => result,
         Err(e) => return Err(eyre!("Error max retries reached - {e}")),
     };
@@ -303,6 +287,97 @@ pub async fn publish_content(
     // println!("Cost: {cost} ANT");
 
     Ok((cost, archive))
+}
+
+/// Upload a directory either using the Autonomi directory upload API or
+/// do each file separately if file_by_file is true.
+pub async fn directory_upload_public(
+    client: &AutonomiClient,
+    files_root: &PathBuf,
+) -> Result<(AttoTokens, PublicArchive)> {
+    let file_by_file = client.api_control.upload_file_by_file;
+
+    let method = if file_by_file { " (file by file)" } else { "" };
+
+    println!("Uploading files from directory{method}: {files_root:?}");
+    if !file_by_file {
+        return retry_until_ok(
+            client.api_control.tries,
+            &"dir_content_upload_public()",
+            (client, files_root.clone(), client.payment_option()),
+            async move |(client, files_root, payment_option)| match client
+                .client
+                .dir_content_upload_public(files_root.clone(), payment_option)
+                .await
+            {
+                Ok((cost, archive)) => Ok((cost, archive)),
+                Err(e) => return Err(eyre!("Failed to upload directory tree: {e}")),
+            },
+        )
+        .await;
+    };
+
+    let mut archive = PublicArchive::new();
+    let mut total_cost = AttoTokens::zero();
+    for entry in walkdir::WalkDir::new(files_root) {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(e) => {
+                let msg = format!("Error walking directory {files_root:?} - {e}");
+                println!("{msg}");
+                return Err(eyre!(msg));
+            }
+        };
+
+        if !entry.file_type().is_file() {
+            continue;
+        };
+        let file = entry;
+
+        println!("file: {:?}", file.file_name());
+        let file_path = file.into_path();
+        let file_path_str;
+        match file_path.clone().into_os_string().into_string() {
+            Ok(path_str) => file_path_str = path_str.clone(),
+            Err(os_str) => {
+                let msg = format!("Error converting file os_str to str - {os_str:?}");
+                println!("{msg}");
+                return Err(eyre!(msg));
+            }
+        };
+
+        let cost = match retry_until_ok(
+            client.api_control.tries,
+            &"file_content_upload_public()",
+            (client, file_path.clone(), client.payment_option()),
+            async move |(client, file_path, payment_option)| match client
+                .client
+                .file_content_upload_public(file_path, payment_option)
+                .await
+            {
+                Ok(result) => Ok(result),
+                Err(e) => {
+                    println!("Failed to upload file - {e}");
+                    return Err(e.into());
+                }
+            },
+        )
+        .await
+        {
+            Ok((cost, upload_address)) => {
+                let autonomi_metadata = crate::helpers::file::metadata_for_file(&file_path_str);
+                archive.add_file(file_path, upload_address, autonomi_metadata);
+                cost
+            }
+            Err(e) => {
+                println!("Error max retries reached - {e}");
+                0.into()
+            }
+        };
+        total_cost = total_cost.checked_add(cost).unwrap_or(total_cost);
+    }
+
+    Ok((total_cost, archive))
 }
 
 /// Check that the path is a directory tree containing at least one file

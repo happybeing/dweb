@@ -399,22 +399,6 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             println!("TODO: implement subcommand 'download'");
         }
 
-        // Some(Subcommands::Awesome {}) => {
-        //     let site_address = if opt.peers.is_local() {
-        //         crate::generated_rs::builtins_local::AWESOME_SITE_HISTORY_LOCAL
-        //     } else {
-        //         crate::generated_rs::builtins_public::AWESOME_SITE_HISTORY_PUBLIC
-        //     };
-
-        //     // TODO replace components with const strings in format():
-        //     let url = format!(
-        //         "http://api-dweb.au:8080/dweb/v0/dwebname/register/awesome/{}",
-        //         site_address
-        //     );
-        //     println!("DEBUG url: {url}");
-        //     let _ = open::that(url);
-        // }
-
         // Default is not to return, but open the browser by continuing
         None {} => {
             println!("No command provided, try 'dweb --help'");

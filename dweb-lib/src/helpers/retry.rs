@@ -37,7 +37,7 @@ where
         format!("{tries}")
     };
 
-    let try_number = 1;
+    let mut try_number = 1;
     let mut last_error = eyre!("retry_until_ok() - hit a bug!");
     println!(">>TRYING {label} {tries_string} times...");
     while tries == 0 || try_number <= tries {
@@ -49,6 +49,7 @@ where
             }
             Err(e) => last_error = eyre!(format!(">>{tries_string} complete with error - {e}")),
         }
+        try_number = try_number + 1;
     }
     Err(last_error)
 }

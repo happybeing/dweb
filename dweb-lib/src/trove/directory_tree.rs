@@ -99,7 +99,18 @@ impl JsonSettings {
     }
 }
 
+/// A JSON file used for dweb settings for website and other apps
 pub const DWEB_SETTINGS_PATH: &str = "/.dweb/dweb-settings.json";
+
+/// Archives which are part of a History can indicate the address by including
+/// a file whose name is the history address at this locaion using DWEB_HISTORY_CONTENT_ADDRESS
+/// as the address to avoid needing to load any content
+///
+/// The directory which holds a single file whose name is the address of a History of this directory
+pub const DWEB_HISTORY_DIRECTORY: &str = "/.dweb/history-address";
+/// The address of existing content that can be re-used to avoid uploading any content for the History address file
+pub const DWEB_DIRECTORY_HISTORY_CONTENT: &str =
+    "0a2768c3ebbb3651cfb4219222ddef9feafd485e07ed9cf1b27b8f97afa4595d";
 
 /// A set of default settings for use with a website when dweb_settings is none
 #[derive(Clone)]

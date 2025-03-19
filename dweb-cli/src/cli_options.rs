@@ -25,9 +25,9 @@ use core::time::Duration;
 
 use ant_bootstrap::InitialPeersConfig;
 use ant_logging::{LogFormat, LogOutputDest};
-use ant_protocol::storage::PointerAddress;
 use autonomi::files::archive_public::ArchiveAddress;
 use autonomi::GraphEntryAddress;
+use autonomi::PointerAddress;
 
 use dweb::helpers::convert::*;
 use dweb::token::ShowCost;

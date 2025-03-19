@@ -20,13 +20,17 @@ use std::path::PathBuf;
 use walkdir::WalkDir;
 
 use autonomi::client::files::archive_public::PublicArchive;
+use autonomi::data::DataAddress;
 use autonomi::files::archive_public::ArchiveAddress;
+use autonomi::files::Metadata as FileMetadata;
 use autonomi::AttoTokens;
 
 use crate::client::DwebClient;
 use crate::helpers::retry::retry_until_ok;
-use crate::trove::directory_tree::DWEB_SETTINGS_PATH;
 use crate::trove::directory_tree::{osstr_to_string, DirectoryTree};
+use crate::trove::directory_tree::{
+    DWEB_DIRECTORY_HISTORY_CONTENT, DWEB_HISTORY_DIRECTORY, DWEB_SETTINGS_PATH,
+};
 use crate::trove::{History, HistoryAddress};
 
 /// Publish a history entry, creating the history if no name is provided
@@ -59,7 +63,7 @@ pub async fn publish_or_update_files(
     }
 
     println!("Uploading files to network...");
-    let (files_cost, files_address) = publish_files(&client, &files_root, dweb_settings)
+    let (files_cost, mut archive) = publish_files(&client, &files_root, dweb_settings)
         .await
         .inspect_err(|e| println!("{}", e))?;
 
@@ -108,14 +112,60 @@ pub async fn publish_or_update_files(
         }
     };
 
+    // When the directory belongs to a history add a file whose name is the address of the History
+    let history_file_path =
+        PathBuf::from(DWEB_HISTORY_DIRECTORY).join(files_history.history_address().to_hex());
+    let autonomi_metadata = FileMetadata {
+        created: 0,
+        modified: 0,
+        size: 1,
+        extra: None,
+    };
+    let data_address = DataAddress::from_hex(DWEB_DIRECTORY_HISTORY_CONTENT).unwrap();
+    archive.add_file(history_file_path, data_address, autonomi_metadata);
+
+    // put the archive
+    let (archive_cost, archive_address) = match retry_until_ok(
+        client.api_control.tries,
+        &"archive_put_public()",
+        (client, archive),
+        async move |(client, archive)| match client
+            .client
+            .archive_put_public(&archive, client.payment_option())
+            .await
+        {
+            Ok((cost, archive_address)) => {
+                // println!(
+                //     "ARCHIVE ADDRESS:\n{}\nCost: {cost} ANT",
+                //     archive_address.to_hex()
+                // );
+                Ok((cost, archive_address))
+            }
+            Err(e) => Err(eyre!(
+                "Failed to store the PublicArchive for uploaded files: {e}"
+            )),
+        },
+    )
+    .await
+    {
+        Ok((archive_cost, archive_address)) => (archive_cost, archive_address),
+        Err(e) => {
+            let message = format!("Max retries reached: {e:?}");
+            println!("{message}");
+            return Err(eyre!(message));
+        }
+    };
+
+    let mut total_cost = files_cost.checked_add(history_cost).or(Some(files_cost));
+    total_cost = total_cost.unwrap().checked_add(archive_cost).or(total_cost);
+
     println!("Updating History...");
     match files_history
-        .publish_new_version(app_secret_key, &files_address)
+        .publish_new_version(app_secret_key, &archive_address)
         .await
     {
         Ok((update_cost, version)) => {
-            let total_cost = files_cost.checked_add(update_cost).or(Some(update_cost));
-            let total_cost = total_cost.unwrap().checked_add(history_cost).or(total_cost);
+            total_cost = total_cost.unwrap().checked_add(update_cost).or(total_cost);
             Ok((
                 total_cost.unwrap(),
                 name,
@@ -135,7 +185,7 @@ pub fn report_content_published_or_updated(
     history_address: &HistoryAddress,
     name: &String,
     version: u32,
-    cost: AttoTokens,
+    _cost: AttoTokens,
     files_root: &PathBuf,
     is_website: bool,
     is_new: bool,
@@ -170,37 +220,38 @@ pub fn report_content_published_or_updated(
     }
 }
 
-/// Upload a directory tree to Autonomi
-/// Returns the XorName of the PublicArchive (which can be used to initialise a DirectoryTree).
-pub async fn publish_files(
+/// Upload a directory tree to Autonomi and store the PublicArchive
+/// Returns the network address of the PublicArchive (which can be used to initialise a DirectoryTree).
+pub async fn publish_directory(
     client: &DwebClient,
     files_root: &PathBuf,
     dweb_settings: Option<PathBuf>,
 ) -> Result<(AttoTokens, ArchiveAddress)> {
-    println!("DEBUG publish_files() files_root '{files_root:?}'");
+    println!("DEBUG publish_directory() files_root '{files_root:?}'");
 
     retry_until_ok(
         client.api_control.tries,
         &"archive_put_public()",
         (client, files_root, dweb_settings),
-        async move |(client, files_root, dweb_settings)| match publish_content(
+        async move |(client, files_root, dweb_settings)| match publish_files(
             client,
             files_root,
             dweb_settings,
         )
         .await
         {
-            Ok((cost, archive)) => match client
+            Ok((files_cost, archive)) => match client
                 .client
                 .archive_put_public(&archive, client.payment_option())
                 .await
             {
-                Ok((cost, archive_address)) => {
+                Ok((archive_cost, archive_address)) => {
                     // println!(
                     //     "ARCHIVE ADDRESS:\n{}\nCost: {cost} ANT",
                     //     archive_address.to_hex()
                     // );
-                    Ok((cost, archive_address))
+                    let total_cost = files_cost.checked_add(archive_cost).unwrap_or(files_cost);
+                    Ok((total_cost, archive_address))
                 }
                 Err(e) => Err(eyre!(
                     "Failed to store the PublicArchive for uploaded files: {e}"
@@ -212,9 +263,9 @@ pub async fn publish_files(
     .await
 }
 
-/// Upload the tree of files at files_root
-/// Return the autonomi PublicArchive if all files are uploaded
-pub async fn publish_content(
+/// Upload the tree of files at files_root (without storing the PublicArchive)
+/// Return the autonomi PublicArchive if all files have been uploaded
+pub async fn publish_files(
     client: &DwebClient,
     files_root: &PathBuf,
     dweb_settings: Option<PathBuf>,
@@ -231,7 +282,7 @@ pub async fn publish_content(
         return Err(eyre!("Path to files is empty: {files_root:?}"));
     }
 
-    let (cost, mut archive) = match directory_upload_public(client, files_root).await {
+    let (files_cost, mut archive) = match directory_upload_public(client, files_root).await {
         Ok(result) => result,
         Err(e) => return Err(eyre!("Error max retries reached - {e}")),
     };
@@ -286,7 +337,8 @@ pub async fn publish_content(
     }
     // println!("Cost: {cost} ANT");
 
-    Ok((cost, archive))
+    let total_cost = files_cost.checked_add(settings_cost).unwrap_or(files_cost);
+    Ok((total_cost, archive))
 }
 
 /// Upload a directory either using the Autonomi directory upload API or

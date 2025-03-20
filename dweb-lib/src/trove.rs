@@ -24,16 +24,15 @@ use autonomi::files::archive_public::ArchiveAddress;
 use blsttc::PublicKey;
 use color_eyre::eyre::{eyre, Result};
 use serde::{Deserialize, Serialize};
-// use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-use ant_protocol::storage::{GraphEntry, Pointer, PointerAddress, PointerTarget};
 use autonomi::client::data::DataAddress;
 use autonomi::client::data_types::graph::{GraphContent, GraphError};
 use autonomi::client::key_derivation::{DerivationIndex, MainPubkey, MainSecretKey};
 use autonomi::client::vault::VaultSecretKey as SecretKey;
-use autonomi::AttoTokens;
-use autonomi::Bytes;
-use autonomi::GraphEntryAddress;
+use autonomi::{
+    pointer::PointerTarget, AttoTokens, Bytes, GraphEntry, GraphEntryAddress, Pointer,
+    PointerAddress,
+};
 
 use crate::client::DwebClient;
 use crate::data::autonomi_get_file_public;

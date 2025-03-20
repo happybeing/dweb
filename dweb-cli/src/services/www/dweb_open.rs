@@ -36,11 +36,11 @@ pub fn init_dweb_open_as() -> impl HttpServiceFactory {
     actix_web::web::scope("/dweb-open-as").service(dweb_open_as)
 }
 
-// dweb_open parses the parameters manually to allow the version portion
-// to be ommitted, and support easier manual construction:
-//
-// url: http://127.0.0.1:<PORT>/dweb-open-as/v<VERSION>/<DWEB-NAME>/<ADDRESS-OR-NAME><REMOTE-PATH>
-//
+/// dweb_open parses the parameters manually to allow the version portion
+/// to be ommitted, and support easier manual construction:
+///
+/// url: http://127.0.0.1:<PORT>/dweb-open-as/v<VERSION>/<DWEB-NAME>/<ADDRESS-OR-NAME><REMOTE-PATH>
+///
 #[get("/{params:.*}")]
 pub async fn dweb_open_as(
     request: HttpRequest,
@@ -74,11 +74,11 @@ pub async fn dweb_open_as(
     .await
 }
 
-// dweb_open parses the parameters manually to allow the version portion
-// to be ommitted, and support easier manual construction:
-//
-// url: http://127.0.0.1:<PORT>/dweb-open/[v<VERSION>/]<ADDRESS-OR-NAME><REMOTE-PATH>
-//
+/// dweb_open parses the parameters manually to allow the version portion
+/// to be ommitted, and support easier manual construction:
+///
+/// url: http://127.0.0.1:<PORT>/dweb-open/[v<VERSION>/]<ADDRESS-OR-NAME><REMOTE-PATH>
+///
 #[get("/{params:.*}")]
 pub async fn dweb_open(
     request: HttpRequest,

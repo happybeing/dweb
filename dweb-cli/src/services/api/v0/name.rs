@@ -23,7 +23,7 @@ use dweb::helpers::convert::str_to_history_address;
 /// Register a DWEB-NAME and optionally redirect to the Dweb URL for the most recent version
 /// Optional query parameters control the redirection:
 ///
-// Test url: http://api-dweb.au:8080/dweb/v0/name_register/smart-ant/91ab27dd1dc342f36c9f16fbe4ea725372d46a857677299d0336bb5eff24392da5d4412c36b6925a4b1857cc558f31e4ef4aae8c3170a4e3d6251bbb637a313d31b5b887aa20a3c81fc358981ccf9d19
+/// Test url: http://127.0.0.1:8080/dweb/v0/name_register/smart-ant/91ab27dd1dc342f36c9f16fbe4ea725372d46a857677299d0336bb5eff24392da5d4412c36b6925a4b1857cc558f31e4ef4aae8c3170a4e3d6251bbb637a313d31b5b887aa20a3c81fc358981ccf9d19
 #[get("/name-register/{dweb_name}/{history_address}")]
 pub async fn api_dwebname_register(
     request: HttpRequest,
@@ -99,6 +99,7 @@ pub async fn api_dwebname_register(
 
 use dweb::web::name::recognised_dwebnames;
 
+/// TODO add documentation
 #[get("/name-list")]
 pub async fn api_dwebname_list() -> impl Responder {
     println!("DEBUG api_dwebname_list(()...");

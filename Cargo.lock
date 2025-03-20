@@ -1051,9 +1051,9 @@ dependencies = [
 
 [[package]]
 name = "ant-networking"
-version = "0.3.7"
+version = "0.3.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a54fcc34da01029a51537555f093c8026b582cb00dffbf2a4a47f2092c80b843"
+checksum = "39c8fba0a6904f7f4bc79a5cd642beb02d104b3f39240df4d668a185b17021ec"
 dependencies = [
  "aes-gcm-siv",
  "ant-bootstrap",
@@ -1454,9 +1454,9 @@ checksum = "ace50bade8e6234aa140d9a2f552bbee1db4d353f69b8217bc503490fc1a9f26"
 
 [[package]]
 name = "autonomi"
-version = "0.4.1"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d35c7ded4e3799090a085827e3d38cfcd1805fc7f55da83b46d865be18f2d69"
+checksum = "f79e90d6dfa3eb9993c20a6d5c17baec8f4da6e0e01bf73b17ce3fab65df1c09"
 dependencies = [
  "ant-bootstrap",
  "ant-evm",
@@ -2477,7 +2477,6 @@ dependencies = [
  "ant-build-info",
  "ant-logging",
  "ant-networking",
- "ant-protocol",
  "anyhow",
  "async-stream",
  "autonomi",
@@ -2537,6 +2536,7 @@ dependencies = [
  "color-eyre",
  "dweb",
  "env_logger 0.11.7",
+ "evmlib",
  "futures-util",
  "hex",
  "indicatif",

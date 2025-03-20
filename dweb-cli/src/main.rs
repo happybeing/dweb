@@ -58,7 +58,6 @@ async fn main() -> Result<()> {
             ("ant_evm".to_string(), Level::TRACE),
             ("ant_logging".to_string(), Level::TRACE),
             ("ant_networking".to_string(), Level::INFO),
-            ("ant_protocol".to_string(), Level::TRACE),
             ("ant_registers".to_string(), Level::TRACE),
             ("evmlib".to_string(), Level::TRACE),
             ("autonomi_cli".to_string(), Level::TRACE),

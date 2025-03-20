@@ -18,10 +18,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 use color_eyre::eyre::{eyre, Result};
 use xor_name::XorName;
 
-use ant_protocol::storage::PointerAddress;
 use autonomi::client::data::DataAddress;
 use autonomi::client::files::archive_public::ArchiveAddress;
 use autonomi::GraphEntryAddress;
+use autonomi::PointerAddress;
 
 use crate::cache::directory_with_name::HISTORY_NAMES;
 use crate::trove::HistoryAddress;

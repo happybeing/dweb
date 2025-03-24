@@ -398,6 +398,16 @@ pub async fn directory_upload_public(
             }
         };
 
+        let files_root_str;
+        match files_root.clone().into_os_string().into_string() {
+            Ok(path_str) => files_root_str = path_str.clone(),
+            Err(os_str) => {
+                let msg = format!("Error converting file os_str to str - {os_str:?}");
+                println!("{msg}");
+                return Err(eyre!(msg));
+            }
+        };
+
         let cost = match retry_until_ok(
             client.api_control.tries,
             &"file_content_upload_public()",
@@ -417,8 +427,13 @@ pub async fn directory_upload_public(
         .await
         {
             Ok((cost, upload_address)) => {
+                let relative_path = if files_root_str.ends_with("/") {
+                    &file_path_str.as_str()[(files_root_str.len() - 1)..]
+                } else {
+                    &file_path_str.as_str()[files_root_str.len()..]
+                };
                 let autonomi_metadata = crate::helpers::file::metadata_for_file(&file_path_str);
-                archive.add_file(file_path, upload_address, autonomi_metadata);
+                archive.add_file(relative_path.into(), upload_address, autonomi_metadata);
                 cost
             }
             Err(e) => {

@@ -31,7 +31,6 @@ pub const AS_NAME_NONE: &str = "anonymous";
 ///
 /// Note:
 ///     version is an optional integer (u32)
-///     as_name must either be a DWEB-NAME to register, or 'anomymous'
 ///     address_or_name is the site to visit
 ///     remote_path is the resource to load from the site
 ///

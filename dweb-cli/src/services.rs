@@ -18,6 +18,7 @@ mod app;
 
 pub(crate) mod api;
 pub(crate) mod helpers;
+pub(crate) mod openapi;
 pub(crate) mod www;
 
 use std::io;
@@ -28,6 +29,10 @@ use actix_web::{
     HttpRequest, HttpResponse, HttpServer, Responder,
 };
 use clap::Parser;
+use utoipa::{OpenApi, ToSchema};
+use utoipa_actix_web::scope::scope;
+use utoipa_actix_web::AppExt;
+use utoipa_swagger_ui::SwaggerUi;
 
 use dweb::cache::directory_with_port::DirectoryVersionWithPort;
 use dweb::client::DwebClient;
@@ -121,19 +126,40 @@ pub async fn serve_with_ports(
                     Ok(res)
                 }
             })
-            .service(www::dweb_open::init_dweb_open())
-            .service(www::dweb_open::init_dweb_open_as())
-            .service(www::dweb_info::init_dweb_info())
-            .service(www::dweb_version::init_dweb_version())
+            .into_utoipa_app()
+            .openapi(openapi::DwebApiDoc::openapi())
+            // Testing to see what logging this provides
+            .map(|app| app.wrap(actix_web::middleware::Logger::default()))
+            // TODO consider using utoipa_actix_web::configure() to separate service configuration into their respective modules
+            .service(www::dweb_open::dweb_open)
+            .service(www::dweb_open::dweb_open_as)
+            .service(www::dweb_info::dweb_info)
+            .service(www::dweb_version::dweb_version)
             .service(api::v0::ant_proxy_id)
-            // Everything below the next line will be scoped by DWEB_API_ROUTE
-            .service(api::v0::init_service())
-            //
+            // Autonomi APIs
+            // currently just for testing OpenAPI generation until real /ant-0 routes are provided
+            // .service(
+            //     scope(dweb::api::ANT_API_ROUTE)
+            //         .service(api::v0::name::api_dwebname_register)
+            //         .service(api::v0::name::api_dwebname_list)
+            //         .service(api::v0::directory::api_directory_load),
+            // )
+            // dweb APIs
+            .service(
+                scope(dweb::api::DWEB_API_ROUTE)
+                    .service(api::v0::name::api_dwebname_register)
+                    .service(api::v0::name::api_dwebname_list)
+                    .service(api::v0::directory::api_directory_load),
+            )
+            .default_service(web::get().to(www::www_handler))
+            .openapi_service(|api| {
+                SwaggerUi::new("/swagger-ui/{_:.*}").url("/api/openapi.json", api)
+            })
             .app_data(Data::new(client.clone()))
             .app_data(Data::new(directory_version_with_port.clone()))
             .app_data(Data::new(is_local_network))
             .app_data(Data::new(is_main_server))
-            .default_service(web::get().to(www::www_handler))
+            .into_app()
     })
     .keep_alive(Duration::from_secs(crate::services::CONNECTION_TIMEOUT));
 

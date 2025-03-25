@@ -16,14 +16,27 @@
 */
 
 use actix_web::{get, web, web::Data, HttpRequest, HttpResponse, Responder};
+use utoipa::ToSchema;
 
 use dweb::cache::directory_with_name::HISTORY_NAMES;
 use dweb::helpers::convert::str_to_history_address;
 
-/// Register a DWEB-NAME and optionally redirect to the Dweb URL for the most recent version
-/// Optional query parameters control the redirection:
+/// Create a short name for content on Autonomi
 ///
-/// Test url: http://127.0.0.1:8080/dweb/v0/name_register/smart-ant/91ab27dd1dc342f36c9f16fbe4ea725372d46a857677299d0336bb5eff24392da5d4412c36b6925a4b1857cc558f31e4ef4aae8c3170a4e3d6251bbb637a313d31b5b887aa20a3c81fc358981ccf9d19
+/// Register a short name (or DWEB-NAME) for a History address. The name can be used from dweb CLI or in dweb APIs until the dweb server is restarted.
+///
+/// Test url: [http://127.0.0.1:8080/dweb-0/name-register/smart-ant/8650c4284430522a638a6fa37dd3e8d610c65b300f89f0199a95a1a9eab0455287f8c8d137fad390654bd9f19b868a5c](http://127.0.0.1:8080/dweb-0/name-register/smart-ant/8650c4284430522a638a6fa37dd3e8d610c65b300f89f0199a95a1a9eab0455287f8c8d137fad390654bd9f19b868a5c)
+#[utoipa::path(
+    responses(
+        (status = 200,
+            description = "Success", body = str)
+        ),
+    tags = [dweb::api::DWEB_API_ROUTE],
+    params(
+        ("dweb_name", description = "A short name for a content History"),
+        ("history_address", description = "The hexadecimal address of a content History on Autonomi")
+    ),
+)]
 #[get("/name-register/{dweb_name}/{history_address}")]
 pub async fn api_dwebname_register(
     request: HttpRequest,
@@ -97,9 +110,20 @@ pub async fn api_dwebname_register(
     HttpResponse::Ok().body("success")
 }
 
-use dweb::web::name::recognised_dwebnames;
+use dweb::web::name::{recognised_dwebnames, RecognisedName};
 
-/// TODO add documentation
+/// Get the short names known to this server
+///
+/// List the names and corresponding History addresses known to this server
+///
+/// Test url: [http://127.0.0.1:8080/dweb-0/name-list](http://127.0.0.1:8080/dweb-0/name-list)
+#[utoipa::path(
+    responses(
+        (status = 200,
+            description = "JSON list of names", body = Vec<RecognisedName>, example = json!("[{\"key\":\"awesome\",\"history_address\":\"8650c4284430522a638a6fa37dd3e8d610c65b300f89f0199a95a1a9eab0455287f8c8d137fad390654bd9f19b868a5c\"}]"))
+        ),
+    tags = [dweb::api::DWEB_API_ROUTE],
+)]
 #[get("/name-list")]
 pub async fn api_dwebname_list() -> impl Responder {
     println!("DEBUG api_dwebname_list(()...");

@@ -4,7 +4,7 @@ members = [ "dweb-cli" , "dweb-lib"]
 
 [workspace.package]
 version = "0.3.1"
-authors = ["Mark <git@happybeing.com>"]
+authors = ["happybeing <git@happybeing.com>"]
 description = "Decentralised web and storage crates for Autonomi"
 license = "AGPL-3.0"
 repository = "https://github.com/happybeing/dweb"

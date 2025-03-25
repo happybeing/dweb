@@ -46,8 +46,8 @@ evmlib = { version = "0.2.1" }
 #ant-networking = { version = "0.3.6" }
 #ant-protocol = { version = "1.0.1" }
 
-#dweb = { path = "../dweb-lib", version = "0.3.1", features = ["development"]}
-dweb = { version = "0.3.1", features = ["development"]}
+dweb = { path = "../dweb-lib", version = "0.3.1", features = ["development"]}
+#dweb = { version = "0.3.1", features = ["development"]}
 
 clap = "4.5.21"
 color-eyre = "0.6.3"
@@ -69,6 +69,15 @@ hex = "0.4.3"
 blsttc = "8.0.2"
 serde_json = "1.0.139"
 actix-cors = "0.7.1"
+
+# patched
+utoipa = { path = "../../utoipa-patch/utoipa", features = ["actix_extras"] } # "5.3.1"
+utoipa-actix-web = { path = "../../utoipa-patch/utoipa-actix-web/", version = "0.1.2" }
+utoipa-swagger-ui = { path = "../../utoipa-patch/utoipa-swagger-ui", version = "9.0.0", features = ["reqwest", "actix-web"] }
+
+#utoipa = { version = "5.3.1", features = ["actix_extras"] }
+#utoipa-actix-web = "0.1.2"
+#utoipa-swagger-ui = { version = "9.0.0", features = ["reqwest", "actix-web"] }
 
 [lints]
 workspace = true

@@ -428,7 +428,7 @@ pub fn dwebname_register(dweb_name: &str, history_address: HistoryAddress) -> Re
 use serde::{Deserialize, Serialize};
 // use serde_json::Result;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, utoipa::ToSchema)]
 pub struct RecognisedName {
     pub key: String,
     pub history_address: String,

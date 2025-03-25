@@ -22,8 +22,27 @@ use dweb::{helpers::convert::*, helpers::web::*, trove::directory_tree::Director
 
 use crate::services::helpers::*;
 
-/// TODO add documentation
-#[get("/{params:.*}")]
+/// Get the file metadata in a directory tree
+///
+/// Retrieves a PublicArchive from Autonomi and returns metadata for all files it contains.
+///
+/// Path parameters:
+///
+///     [v{version}/]{address_or_name}
+///
+// TODO consider changing this to return a utoipa Schema for a DirectoryTree and leave interpretation to the client
+#[utoipa::path(
+    responses(
+        (status = 200,
+            description = "The JSON representation of a DirectoryTree formatted for an SVAR file manager component.
+            <p>Note: this may be changed to return a JSON representation of a DirectoryTree.", body = str)
+        ),
+    tags = [dweb::api::DWEB_API_ROUTE],
+    params(
+        ("params", description = "[v{version}/]{address_or_name}<br/><br/>Optional version (integer > 0), an address_or_name which refers to a History<DirectoryTree>"),
+    )
+)]
+#[get("/directory-load/{params:.*}")]
 pub async fn api_directory_load(
     request: HttpRequest,
     params: web::Path<String>,

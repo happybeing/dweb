@@ -28,58 +28,24 @@ use crate::services::serve_with_ports;
 
 use super::make_error_response;
 
-pub fn init_dweb_open() -> impl HttpServiceFactory {
-    actix_web::web::scope("/dweb-open").service(dweb_open)
-}
-
-pub fn init_dweb_open_as() -> impl HttpServiceFactory {
-    actix_web::web::scope("/dweb-open-as").service(dweb_open_as)
-}
-
-/// dweb_open parses the parameters manually to allow the version portion
-/// to be ommitted, and support easier manual construction:
+/// Open the content at a given address or name
 ///
-/// url: http://127.0.0.1:<PORT>/dweb-open-as/v<VERSION>/<DWEB-NAME>/<ADDRESS-OR-NAME><REMOTE-PATH>
+/// url: <code>http://127.0.0.1:8080/dweb-open/[v<VERSION-NUMBER>/]<ADDRESS-OR-NAME><REMOTE-PATH></code>
 ///
-#[get("/{params:.*}")]
-pub async fn dweb_open_as(
-    request: HttpRequest,
-    params: web::Path<String>,
-    client: Data<dweb::client::DwebClient>,
-    our_directory_version: Data<Option<DirectoryVersionWithPort>>,
-    is_local_network: Data<bool>,
-) -> HttpResponse {
-    println!("DEBUG {}", request.path());
-
-    let params = params.into_inner();
-    let decoded_params = match parse_versioned_path_params_with_as_name(&params) {
-        Ok(params) => params,
-        Err(_ant_bootstrape) => {
-            return make_error_response(
-                None,
-                &mut HttpResponse::BadRequest(),
-                "/open-as handler error".to_string(),
-                "/open-as invalid parameters: {params}",
-            )
-        }
-    };
-
-    handle_dweb_open(
-        &request,
-        client,
-        our_directory_version,
-        is_local_network,
-        &decoded_params,
+#[utoipa::path(
+    responses(
+        (status = 200,
+            description = "The JSON representation of a DirectoryTree formatted for an SVAR file manager component.
+            <p>Note: this may be changed to return a JSON representation of a DirectoryTree.", body = str)
+        ),
+    tags = [dweb::api::DWEB_API_ROUTE],
+    params(
+        ("VERSION-NUMBER" = Option<u64>, description = "Optional version when ADDRESS-OR-NAME refers to a History<DirectoryTree>"),
+        ("ADDRESS-OR-NAME", description = "A hexadecimal address or a short name referring to a History or PublicArchive"),
+        ("REMOTE-PATH" = Option<String>, description = "Optional path to the resource you wish to open. Must begin with \"/\"")
     )
-    .await
-}
-
-/// dweb_open parses the parameters manually to allow the version portion
-/// to be ommitted, and support easier manual construction:
-///
-/// url: http://127.0.0.1:<PORT>/dweb-open/[v<VERSION>/]<ADDRESS-OR-NAME><REMOTE-PATH>
-///
-#[get("/{params:.*}")]
+)]
+#[get("/dweb-open/{params:.*}")]
 pub async fn dweb_open(
     request: HttpRequest,
     // params: web::Path<(String, String, String)>,
@@ -99,6 +65,57 @@ pub async fn dweb_open(
                 &mut HttpResponse::BadRequest(),
                 "/dweb-open handler error".to_string(),
                 "/dweb-open invalid parameters: {params}",
+            )
+        }
+    };
+
+    handle_dweb_open(
+        &request,
+        client,
+        our_directory_version,
+        is_local_network,
+        &decoded_params,
+    )
+    .await
+}
+
+/// Open the content at a given address and register a name for it
+///
+/// url: <code>http://127.0.0.1:8080/dweb-open-as/v<VERSION-NUMBER>/<DWEB-NAME>/<HISTORY-ADDRESS><REMOTE-PATH></code>
+///
+#[utoipa::path(
+    responses(
+        (status = 200,
+            description = "The JSON representation of a DirectoryTree formatted for an SVAR file manager component.
+            <p>Note: this may be changed to return a JSON representation of a DirectoryTree.", body = str)
+        ),
+    tags = [dweb::api::DWEB_API_ROUTE],
+    params(
+        ("VERSION-NUMBER" = Option<u64>, description = "Optional version (integer > 0) of the History<DirectoryTree>"),
+        ("DWEB-NAME", description = "The short name to register for the HISTORY-ADDRESS"),
+        ("HISTORY-ADDRESS", description = "A hexadecimal address or a short name referring to a content History"),
+        ("REMOTE-PATH" = Option<String>, description = "Optional path to the resource you wish to open. Must begin with \"/\"")
+    )
+)]
+#[get("/dweb-open-as/{params:.*}")]
+pub async fn dweb_open_as(
+    request: HttpRequest,
+    params: web::Path<String>,
+    client: Data<dweb::client::DwebClient>,
+    our_directory_version: Data<Option<DirectoryVersionWithPort>>,
+    is_local_network: Data<bool>,
+) -> HttpResponse {
+    println!("DEBUG {}", request.path());
+
+    let params = params.into_inner();
+    let decoded_params = match parse_versioned_path_params_with_as_name(&params) {
+        Ok(params) => params,
+        Err(_ant_bootstrape) => {
+            return make_error_response(
+                None,
+                &mut HttpResponse::BadRequest(),
+                "/open-as handler error".to_string(),
+                "/open-as invalid parameters: {params}",
             )
         }
     };

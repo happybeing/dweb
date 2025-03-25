@@ -23,20 +23,26 @@ use dweb::trove::{directory_tree::DirectoryTree, History};
 
 use super::make_error_response;
 
-pub fn init_dweb_info() -> impl HttpServiceFactory {
-    actix_web::web::scope("/dweb-info").service(dweb_info)
-}
-
-/// /dweb-info[?use-graph=true|false]
+/// Show information about the current directory or website
 ///
-/// Returns a page of information about the current directory or website.
+/// /dweb-info[?use-graph=true|false]
 ///
 /// If use-graph is 'true' it traverses the graph to the end to find the 'head' entry
 /// rather than use the pointer. This causes a delay but can be useful as the pointer may
 /// not be up-to-date.
 ///
-/// url: http://127.0.0.1:<PORT>/dweb-info/?use-graph=0
-#[get("")]
+/// url: <code>http://127.0.0.1:<PORT-NUMBER>/dweb-info</code>
+#[utoipa::path(
+    responses(
+        (status = 200,
+            description = "HTML summary of the directory or website History", body = str)
+        ),
+    tags = ["manual", dweb::api::DWEB_API_ROUTE],
+    params(
+        ("use-graph" = Option<bool>, description = "when 'true' ignores the Pointer and follows the graph to find the most recent entry in the content History"),
+    )
+)]
+#[get("/dweb-info")]
 pub async fn dweb_info(
     request: HttpRequest,
     client: Data<dweb::client::DwebClient>,

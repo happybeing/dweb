@@ -15,7 +15,7 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-use actix_web::{dev::HttpServiceFactory, get, web, web::Data, HttpRequest, HttpResponse};
+use actix_web::{get, web, web::Data, HttpRequest, HttpResponse};
 
 use dweb::cache::directory_with_port::*;
 use dweb::web::fetch::response_redirect;
@@ -23,22 +23,26 @@ use dweb::web::LOCALHOST_STR;
 
 use super::make_error_response;
 
-pub fn init_dweb_version() -> impl HttpServiceFactory {
-    actix_web::web::scope("/dweb-version").service(dweb_version)
-}
-
-/// /dweb-version/[VERSION]
-///
-/// Opens the specified VERSION of the current site. The first version is 1.
+/// Open the specified VERSION of the current site. The first version is 1.
 ///
 /// To open the most recent version use VERSION 'latest'.
 ///
 /// Examples (replace <PORT> with the port currently in the address bar):
 ///
-/// Switch to version 3: http://127.0.0.1:<PORT>/dweb-version/3
+/// Switch to version 3: <code>http://127.0.0.1:<PORT-NUMBER>/dweb-version/3</code>
 ///
-/// Switch to most recent: http://127.0.0.1:<PORT>/dweb-version/latest
-#[get("/{version}")]
+/// Switch to most recent: <code>http://127.0.0.1:<PORT-NUMBER>/dweb-version/latest</code>
+#[utoipa::path(
+    responses(
+        (status = 200,
+            description = "Content fetched from the requested version", body = str)
+        ),
+    tags = ["manual", dweb::api::DWEB_API_ROUTE],
+    params(
+        ("version" = Option<String>, description = "A version (integer > 0), or 'latest' for the most recent version"),
+    )
+)]
+#[get("/dweb-version/{version}")]
 pub async fn dweb_version(
     request: HttpRequest,
     version: web::Path<String>,

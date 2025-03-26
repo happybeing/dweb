@@ -347,9 +347,18 @@ For more about future possibilities, see  [Roadmap](https://github.com/happybein
 
 #### Web API
 
-The dweb web API allows a website or desktop application to access dweb and Autonomi APIs over a RESTful interface. These APIs currently limited but will be expanded to give greater access to the Autonomi APIs and dweb-lib APIs which provide dweb features such as versioned data.
+The dweb web API allows a website or desktop application to access dweb and Autonomi APIs over a RESTful interface. This gives access to both the Autonomi APIs and the dweb-lib APIs (which include extensions such as for versioned data using a content History).
 
 I welcome requests for specific features and general design of the API.
+
+dweb uses OpenAPI to document all the APIs, and these can be viewed by starting a dweb server and opening the Swagger UI:
+```
+dweb serve
+dweb openapi-docs
+```
+<img src="./misc/screenshot-swagger-ui.png" alt="Screenshot of Swagger UI">
+
+Some sample APIs are listed below but the Swagger UI provides a complete reference and playground.
 
 APIs designed for manual input in the browser address bar:
 - **/dweb-open** - open a website or directory by version (optional), address or name

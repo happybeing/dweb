@@ -23,6 +23,7 @@ use dweb::client::{ApiControl, DwebClient};
 use dweb::storage::{publish_or_update_files, report_content_published_or_updated};
 use dweb::token::{show_spend_return_value, Spends};
 use dweb::trove::HistoryAddress;
+use dweb::web::request::{main_server_request, make_main_server_url};
 use dweb::web::{LOCALHOST_STR, SERVER_HOSTS_MAIN_PORT, SERVER_PORTS_MAIN_PORT};
 
 use crate::cli_options::{Opt, Subcommands};
@@ -397,6 +398,41 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             files_args: _,
         }) => {
             println!("TODO: implement subcommand 'download'");
+        }
+
+        Some(Subcommands::Openapi_docs { print, host, port }) => {
+            if !dweb::cache::spawn::is_main_server_with_ports_running() {
+                println!("Please  start the dweb server before using 'dweb openapi-docs'");
+                println!("For help, type 'dweb serve --help");
+                return Ok(true);
+            }
+
+            let host_string = match host.clone() {
+                Some(host) => host,
+                None => "".to_string(),
+            };
+            let host_ref = if host.is_some() {
+                Some(&host_string)
+            } else {
+                None
+            };
+
+            if print {
+                match main_server_request(host_ref, port, crate::services::openapi::JSON_PATH).await
+                {
+                    Ok(json) => {
+                        println!("{json}");
+                    }
+                    Err(e) => {
+                        println!("Error fetching openapi.json from server - {e}");
+                    }
+                }
+            } else {
+                let url =
+                    make_main_server_url(host_ref, port, crate::services::openapi::SWAGGER_UI);
+                let _ = open::that(url);
+            }
+            return Ok(true);
         }
 
         // Default is not to return, but open the browser by continuing

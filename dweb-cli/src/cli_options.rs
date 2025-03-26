@@ -127,7 +127,7 @@ fn greater_than_0(s: &str) -> Result<u64, String> {
 
 #[derive(Subcommand, Debug)]
 pub enum Subcommands {
-    /// Start a server to view Autonomi websites in your browser.
+    /// Start a server to view Autonomi websites in your browser. Also required for some dweb subcommands.
     ///
     /// Afterwards, if you open a new terminal you can view a website in your browser
     /// by typing 'dweb open awesome'. The 'awesome' website contains links to other websites.
@@ -150,7 +150,7 @@ pub enum Subcommands {
         port: Option<u16>,
     },
 
-    /// Open a browser to view a website on Autonomi.
+    /// Open a browser to view a website on Autonomi (requires 'dweb serve' running)
     ///
     /// You must have already started a server by typing 'dweb serve' in a different
     /// terminal before trying 'dweb open'.
@@ -206,7 +206,7 @@ pub enum Subcommands {
         as_name: Option<String>,
     },
 
-    /// Provide a memorable name for a directory or website.
+    /// Provide a memorable name for a directory or website (requires 'dweb serve' running)
     ///
     /// After setting a name you can use it in commands which accept DWEB-NAME
     /// as a parameter. For example, to open a website called 'myblog' type:
@@ -240,7 +240,7 @@ pub enum Subcommands {
         experimental: bool,
     },
 
-    /// List all names currently recognised by the dweb server.
+    /// List all names currently recognised by the dweb server (requires 'dweb serve' running)
     #[allow(non_camel_case_types)]
     List_names {
         /// The host that will serve the request. Defaults to "127.0.0.1"
@@ -442,6 +442,28 @@ pub enum Subcommands {
 
         #[command(flatten)]
         files_args: FilesArgs,
+    },
+
+    /// Access OpenAPI documentation for dweb and Autonomi RESTful APIs (requires 'dweb serve' running)
+    ///
+    /// By default opens a website built into dweb showing the RESTful APIs
+    /// supported by dweb. This uses the Swagger UI.
+    ///
+    /// Alternatively can print the OpenAPI specified APIs
+    /// to the terminal in JSON format.
+    #[allow(non_camel_case_types)]
+    Openapi_docs {
+        /// Print dweb APIs to the terminal as OpenAPI JSON
+        #[clap(long = "print", default_value = "false")]
+        print: bool,
+        /// The host that will serve the request. Defaults to "127.0.0.1"
+        /// This is only needed when not using defaults, so hidden to de-clutter the CLI help
+        #[clap(hide = true, long, value_name = "HOST", value_parser = parse_host)]
+        host: Option<String>,
+        /// The port that will serve the request (on localhost by default)
+        /// This is only needed when not using defaults, so hidden to de-clutter the CLI help
+        #[clap(hide = true, long, value_name = "PORT", value_parser = parse_port_number)]
+        port: Option<u16>,
     },
 }
 

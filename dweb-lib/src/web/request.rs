@@ -30,9 +30,9 @@ use color_eyre::eyre::Result;
 /// the host/port part of the URL.
 ///
 pub async fn main_server_request(
-    url_path: &str,
     host: Option<&String>,
     port: Option<u16>,
+    url_path: &str,
 ) -> Result<String> {
     let url_string = make_main_server_url(host, port, url_path);
     println!("main_server_request() request: {url_string}");

@@ -53,7 +53,7 @@ pub async fn name_register(
         history_address.to_hex()
     );
 
-    match main_server_request(&url_path, host, port).await {
+    match main_server_request(host, port, &url_path).await {
         Ok(_json_value) => Ok(()),
         Err(e) => Err(eyre!(Into::<Error>::into(e))),
     }
@@ -62,7 +62,7 @@ pub async fn name_register(
 /// Query the server for a list of recognised names
 pub async fn name_list(host: Option<&String>, port: Option<u16>) -> Result<Vec<RecognisedName>> {
     let url_path = format!("{DWEB_API_ROUTE}/name-list");
-    match main_server_request(&url_path, host, port).await {
+    match main_server_request(host, port, &url_path).await {
         Ok(json) => {
             let vec: Vec<RecognisedName> = serde_json::from_str(&json)?;
             Ok(vec)

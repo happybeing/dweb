@@ -17,6 +17,9 @@
 
 use utoipa::OpenApi;
 
+pub(crate) const JSON_PATH: &str = "/api/openapi.json";
+pub(crate) const SWAGGER_UI: &str = "/swagger-ui/#/";
+
 #[derive(Debug, OpenApi)]
 #[openapi(info(
     title = "dweb",

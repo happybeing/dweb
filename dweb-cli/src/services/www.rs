@@ -84,7 +84,7 @@ pub async fn www_handler(
 
     match our_directory_version
         .directory_tree
-        .lookup_web_resource(&path)
+        .lookup_file(&path, true)
     {
         Ok((file_address, content_type)) => match client.data_get_public(file_address).await {
             Ok(content) => {
@@ -98,7 +98,7 @@ pub async fn www_handler(
                 return response_with_body(
                     StatusCode::BAD_GATEWAY,
                     Some(String::from(format!(
-                        "DirectoryTree::lookup_web_resource({}) failed: {e}",
+                        "DirectoryTree::lookup_file({}) failed: {e}",
                         path.as_str()
                     ))),
                 );
@@ -113,7 +113,7 @@ pub async fn www_handler(
             return response_with_body(
                 status_code,
                 Some(String::from(format!(
-                    "DirectoryTree::lookup_web_resource({}) failed",
+                    "DirectoryTree::lookup_file({}) failed",
                     path.as_str()
                 ))),
             );

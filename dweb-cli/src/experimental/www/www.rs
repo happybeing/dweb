@@ -27,7 +27,7 @@ use actix_web::{
     HttpRequest, HttpResponse,
 };
 
-use dweb::web::fetch::{fetch_website_version, response_redirect, response_with_body};
+use dweb::web::fetch::{directory_version_get, response_redirect, response_with_body};
 use dweb::web::DWEB_SERVICE_WWW;
 
 pub fn init_service() -> impl HttpServiceFactory {
@@ -84,12 +84,12 @@ pub async fn www_handler(
         Err(e) => return response_with_body(StatusCode::BAD_REQUEST, Some(format!("{e}"))),
     };
 
-    let (version, directory_version) = match fetch_website_version(&client, &dweb_host).await {
+    let (version, directory_version) = match directory_version_get(&client, &dweb_host).await {
         Ok(directory_version) => directory_version,
         Err(e) => {
             return response_with_body(
                 StatusCode::BAD_REQUEST,
-                Some(format!("fetch_website_version() error: {e}")),
+                Some(format!("directory_version_get() error: {e}")),
             )
         }
     };
@@ -98,7 +98,7 @@ pub async fn www_handler(
         return response_with_body(
             StatusCode::INTERNAL_SERVER_ERROR,
             Some(
-                "fetch_website_version() returned invalid directory_version - this appears to be a bug".to_string(),
+                "directory_version_get() returned invalid directory_version - this appears to be a bug".to_string(),
             ),
         );
     } else {
@@ -117,7 +117,7 @@ pub async fn www_handler(
         return response_redirect(&request, &versioned_host, None, Some(path));
     }
 
-    match directory_tree.lookup_web_resource(&(String::from("/") + path.as_str())) {
+    match directory_tree.lookup_file(&(String::from("/") + path.as_str()), true) {
         Ok((file_address, content_type)) => match client.data_get_public(file_address).await {
             Ok(content) => {
                 let mut response = HttpResponse::Ok();
@@ -130,7 +130,7 @@ pub async fn www_handler(
                 return response_with_body(
                     StatusCode::BAD_GATEWAY,
                     Some(String::from(format!(
-                        "DirectoryTree::lookup_web_resource({}) failed: {e}",
+                        "DirectoryTree::lookup_file({}) failed: {e}",
                         path.as_str()
                     ))),
                 );
@@ -145,7 +145,7 @@ pub async fn www_handler(
             return response_with_body(
                 status_code,
                 Some(String::from(format!(
-                    "DirectoryTree::lookup_web_resource({}) failed",
+                    "DirectoryTree::lookup_file({}) failed",
                     path.as_str()
                 ))),
             );

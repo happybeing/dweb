@@ -42,9 +42,15 @@ use crate::{
 };
 
 /// Fetch the requested resource from Autonomi or from cached data if available.
-///  Assumes a dweb URL
+/// Assumes a dweb URL.
+///
+/// If as_website is false the URL is handled as an exact file path.
+///
+/// When as_website is true website specific handling such as redirecting
+/// a directory path to an index.html etc is enabled.
+///
 /// TODO update to use response_with_body() instead of reason()
-pub async fn fetch(client: &DwebClient, url: Url) -> HttpResponse {
+pub async fn fetch(client: &DwebClient, url: Url, as_website: bool) -> HttpResponse {
     println!("DEBUG fetch({url:?})...");
     let host = match url.host_str() {
         Some(host) => host,
@@ -65,13 +71,13 @@ pub async fn fetch(client: &DwebClient, url: Url) -> HttpResponse {
     };
 
     let mut reason: &'static str = "";
-    let response = match fetch_website_version(client, &dweb_host).await {
+    let response = match directory_version_get(client, &dweb_host).await {
         // TODO cache function that wraps fetching the History/DirectoryTree
         Ok((_version, cache_version_entry)) => {
             match cache_version_entry
                 .directory_tree
-                .unwrap() // Guaranteed to be Some() by fetch_website_version()
-                .lookup_web_resource(&url.path().to_string())
+                .unwrap() // Guaranteed to be Some() by directory_version_get()
+                .lookup_file(&url.path().to_string(), as_website)
             {
                 Ok((file_address, content_type)) => {
                     let content_type = if content_type.is_some() {
@@ -124,13 +130,13 @@ pub async fn fetch(client: &DwebClient, url: Url) -> HttpResponse {
 //      if it obtains the DirectoryVersionWithName.archive_address but not the directory_tree. A subsequent call
 //      using the same DwebHost can then skip getting the archive_address and will just retry getting
 //      the directory_tree.
-// TODO refactor fetch_website_version() to reduce complexity
-pub async fn fetch_website_version(
+// TODO refactor directory_version_get() to reduce complexity
+pub async fn directory_version_get(
     client: &DwebClient,
     dweb_host: &DwebHost,
 ) -> Result<(u32, DirectoryVersionWithName)> {
     println!(
-        "DEBUG fetch_website_version([ {}, {}, {:?} ])...",
+        "DEBUG directory_version_get([ {}, {}, {:?} ])...",
         dweb_host.dweb_host_string, dweb_host.dweb_name, dweb_host.version
     );
 

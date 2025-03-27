@@ -284,13 +284,17 @@ impl DirectoryTree {
         false
     }
 
-    /// Looks up the web resource in a version of a History
+    /// Looks up a file or website resource in a version of a History
+    ///
     /// First gets a DirectoryTree version, using cached data if held by the history
     /// If version is None attempts obtain the default (most recent version)
+    ///
+    /// as_website controls special handling for a website. See `lookup_file()`
     /// Returns a tuple with the address of the resource and optional content type if it can be determined
-    pub async fn history_lookup_web_resource(
+    pub async fn history_lookup_file(
         history: &mut History<DirectoryTree>,
         resource_path: &String,
+        as_website: bool,
         version: Option<u32>,
     ) -> Result<(DataAddress, Option<String>), StatusCode> {
         if !history.fetch_version_trove(version).await.is_none() {
@@ -299,7 +303,7 @@ impl DirectoryTree {
             {
                 let cached_version = history.cached_version.as_ref().unwrap();
                 let directory = cached_version.trove.as_ref().unwrap();
-                return directory.lookup_web_resource(resource_path);
+                return directory.lookup_file(resource_path, as_website);
             } else {
                 println!("Failed to fetch directory.");
             }
@@ -307,14 +311,24 @@ impl DirectoryTree {
         Err(StatusCode::NOT_FOUND)
     }
 
-    /// Look up a canonicalised web resource path (which must begin with '/').
-    /// If the path ends with '/' or no file matches a directory is assumed.
-    /// For directories it will look for a default index file based on any dweb settings.
-    /// If found returns a tuple with the resource's xor address if found and content type if known
+    /// Look up a canonicalised file path (which must begin with '/') with special handling for websites.
+    ///
+    /// If the path ends with '/' or no file matches a directory is assumed and handling
+    /// depends on the value of as_website.
+    ///
+    /// if as_website is false the path must be an exact match for a file.
+    ///
+    /// If as_website is true, an exact path match is not always required. For directories it will
+    /// look for a default index file based on any dweb settings. It will also return a
+    /// default for '/faviocon.ico' if not matched.
+    ///
+    /// If found, returns a tuple with the resource's xor address and content type if known.
+    ///
     /// On error, returns a suitable status code??? TODO
-    pub fn lookup_web_resource(
+    pub fn lookup_file(
         &self,
         resource_path: &String,
+        as_website: bool,
     ) -> Result<(DataAddress, Option<String>), StatusCode> {
         let last_separator_result = resource_path.rfind(PATH_SEPARATOR);
         if last_separator_result.is_none() {
@@ -339,7 +353,8 @@ impl DirectoryTree {
             }
         };
 
-        if path_and_address.is_none() {
+        // For a wesbite directory, look for an index file
+        if as_website && path_and_address.is_none() {
             // Assume the second part is a directory name, so remake the path for that
             let new_resource_path = if original_resource_path.ends_with(PATH_SEPARATOR) {
                 original_resource_path.clone()
@@ -377,7 +392,7 @@ impl DirectoryTree {
             None => {
                 println!("FAILED to find resource for path: '{original_resource_path}' in:");
                 println!("{:?}", self.directory_map.paths_to_files_map);
-                if original_resource_path == "/favicon.ico" {
+                if as_website && original_resource_path == "/favicon.ico" {
                     if let Ok(address) = str_to_data_address(ADDRESS_DEFAULT_FAVICON) {
                         return Ok((address, None));
                     }
@@ -506,7 +521,7 @@ pub fn osstr_to_string(file_name: &std::ffi::OsStr) -> Option<String> {
 
 //     match History::<DirectoryTree>::from_history_address(client.clone(), history_address).await {
 //         Ok(mut history) => {
-//             return DirectoryTree::history_lookup_web_resource(
+//             return DirectoryTree::history_lookup_file(
 //                 &mut history,
 //                 resource_path,
 //                 version,

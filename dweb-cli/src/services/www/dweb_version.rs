@@ -21,7 +21,7 @@ use dweb::cache::directory_with_port::*;
 use dweb::web::fetch::response_redirect;
 use dweb::web::LOCALHOST_STR;
 
-use super::make_error_response;
+use super::make_error_response_page;
 
 /// Open the specified VERSION of the current site. The first version is 1.
 ///
@@ -67,18 +67,18 @@ pub async fn dweb_version(
             let host = request.uri().host().unwrap_or(LOCALHOST_STR);
             response_redirect(&request, host, None, Some(url_path))
         } else {
-            return make_error_response(
+            return make_error_response_page(
                 None,
                 &mut HttpResponse::InternalServerError(),
-                "/dweb_version handler error".to_string(),
+                "/dweb_version error".to_string(),
                 &format!("You cannot select a version as this is a directory not a History"),
             );
         }
     } else {
-        return make_error_response(
+        return make_error_response_page(
             None,
             &mut HttpResponse::InternalServerError(),
-            "/dweb_version handler error".to_string(),
+            "/dweb_version error".to_string(),
             &format!("Unable to access our_directory_version - probably a bug"),
         );
     }

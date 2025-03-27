@@ -24,23 +24,16 @@ pub(crate) mod www;
 use std::io;
 use std::time::Duration;
 
-use actix_web::{
-    dev::Service, get, http::StatusCode, middleware::Logger, post, web, web::Data, App,
-    HttpRequest, HttpResponse, HttpServer, Responder,
-};
-use clap::Parser;
-use utoipa::{OpenApi, ToSchema};
+use actix_web::{dev::Service, middleware::Logger, web, web::Data, App, HttpServer};
+use utoipa::OpenApi;
 use utoipa_actix_web::scope::scope;
 use utoipa_actix_web::AppExt;
 use utoipa_swagger_ui::SwaggerUi;
 
 use dweb::cache::directory_with_port::DirectoryVersionWithPort;
 use dweb::client::DwebClient;
-use dweb::helpers::convert::str_to_data_address;
-use dweb::web::fetch::response_with_body;
 
-use crate::cli_options::Opt;
-use crate::generated_rs::register_builtin_names;
+use crate::services::api::v0::name::register_builtin_names;
 
 pub const CONNECTION_TIMEOUT: u64 = 75;
 
@@ -140,16 +133,18 @@ pub async fn serve_with_ports(
             // currently just for testing OpenAPI generation until real /ant-0 routes are provided
             // .service(
             //     scope(dweb::api::ANT_API_ROUTE)
-            //         .service(api::v0::name::api_dwebname_register)
+            //         .service(api::v0::name::api_register_name)
             //         .service(api::v0::name::api_dwebname_list)
             //         .service(api::v0::directory::api_directory_load),
             // )
             // dweb APIs
             .service(
                 scope(dweb::api::DWEB_API_ROUTE)
-                    .service(api::v0::name::api_dwebname_register)
+                    .service(api::v0::name::api_register_name)
                     .service(api::v0::name::api_dwebname_list)
-                    .service(api::v0::directory::api_directory_load),
+                    .service(api::v0::directory::api_directory_load)
+                    .service(api::v0::file::file_get)
+                    .service(api::v0::data::data_get),
             )
             .default_service(web::get().to(www::www_handler))
             .openapi_service(|api| {
@@ -198,145 +193,4 @@ pub async fn serve_with_ports(
         println!("dweb main server listening on {host}:{port}");
         server.bind((host, port))?.run().await
     }
-}
-
-// impl Guard for HttpRequest {
-//     fn check(&self, req: &GuardContext) -> bool {
-//         match req.head().
-//             .contains_key(http::header::CONTENT_TYPE)
-//     }
-// }
-
-///////////////////////
-// Earlier test routes
-#[get("/")]
-async fn hello() -> impl Responder {
-    HttpResponse::Ok().body("Hello world!")
-}
-
-#[post("/echo")]
-async fn echo(req_body: String) -> impl Responder {
-    HttpResponse::Ok().body(req_body)
-}
-
-async fn manual_hello() -> impl Responder {
-    HttpResponse::Ok().body("Hey there!")
-}
-
-// async fn manual_test_default_route(request: HttpRequest) -> impl Responder {
-//     return HttpResponse::Ok().body(format!(
-//         "<!DOCTYPE html><head></head><body>quick-test-default-route '/':<br/>uri: {}<br/>method: {}<body>",
-//         request.uri(),
-//         request.method()
-//     ));
-// }
-
-async fn manual_test_show_request(request: HttpRequest) -> impl Responder {
-    return HttpResponse::Ok().body(request_as_html(&request));
-}
-
-// Returns an HTML page detailing an HttpRequest including its headers
-pub fn request_as_html(request: &HttpRequest) -> String {
-    let mut headers = String::from(
-        "   <tr><td></td><td></td></tr>
-        <tr><td><b>HEADERS:</b></td><td></td></tr>
-    ",
-    );
-    for (key, value) in request.headers().iter() {
-        headers += format!("<tr><td>{key:?}</td><td>{value:?}</td></tr>").as_str();
-    }
-
-    format!(
-        "
-        <table rules='all' style='border: solid;'>
-           <tr><td></td><td></td></tr>
-        <tr><td><b>HttpRequest:</b></td><td></td></tr>
-        <tr><td>full_url</td><td>{}</td></tr>
-        <tr><td>uri</td><td>{}</td></tr>
-        <tr><td>method</td><td>{}</td></tr>
-        <tr><td>path</td><td>{}</td></tr>
-        <tr><td>query_string</td><td>{}</td></tr>
-        <tr><td>peer_addr</td><td>{:?}</td></tr>
-        {headers}
-        </table>
-        ",
-        request.full_url(),
-        request.uri(),
-        request.method(),
-        request.path(),
-        request.query_string(),
-        request.peer_addr(),
-    )
-}
-
-#[get("/awf/{datamap_address:.*}")]
-async fn test_fetch_file(
-    datamap_address: web::Path<String>,
-    client_data: Data<dweb::client::DwebClient>,
-) -> impl Responder {
-    println!("test_fetch_file()...");
-
-    let file_address = match str_to_data_address(datamap_address.as_str()) {
-        Ok(file_address) => file_address,
-        Err(e) => {
-            return response_with_body(
-                StatusCode::BAD_REQUEST,
-                Some(format!("invalid address. {e}")),
-            );
-        }
-    };
-
-    match client_data.data_get_public(file_address).await {
-        Ok(bytes) => HttpResponse::Ok().body(bytes),
-        Err(e) => {
-            return response_with_body(StatusCode::NOT_FOUND, Some(format!("{e}")));
-        }
-    }
-}
-
-async fn manual_test_connect() -> impl Responder {
-    let opt = Opt::parse();
-    if let Ok(_client) = dweb::autonomi::actions::connect_to_network(opt.peers).await {
-        return HttpResponse::Ok().body(
-            "Testing connect to Autonomi..\
-        SUCCESS!",
-        );
-    } else {
-        return HttpResponse::Ok().body(
-            "Testing connect to Autonomi..\
-        ERROR: failed to connect",
-        );
-    };
-}
-
-// impl Guard for HttpRequest {
-//     fn check(&self, req: &GuardContext) -> bool {
-//         match req.head().
-//             .contains_key(http::header::CONTENT_TYPE)
-//     }
-// }
-
-async fn manual_test_default_route(request: HttpRequest) -> impl Responder {
-    return HttpResponse::Ok().body(format!(
-        "<!DOCTYPE html><head></head><body>test-default-route '/':<br/>uri: {}<br/>method: {}<body>",
-        request.uri(),
-        request.method()
-    ));
-}
-
-pub fn register_name(dweb_name: &str, history_address_str: &str) {
-    if history_address_str != "" {
-        if let Ok(history_address) =
-            dweb::helpers::convert::str_to_history_address(history_address_str)
-        {
-            match dweb::web::name::dwebname_register(dweb_name, history_address) {
-                Ok(_) => {
-                    println!("Registered built-in DWEB-NAME: {dweb_name} -> {history_address_str}")
-                }
-                Err(e) => {
-                    println!("DEBUG: failed to register built-in DWEB-NAME '{dweb_name}' - {e}")
-                }
-            }
-        };
-    };
 }

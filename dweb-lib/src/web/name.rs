@@ -387,8 +387,31 @@ pub fn validate_dweb_name(dweb_name: &str) -> Result<String> {
     Ok(dweb_name.to_string())
 }
 
+pub fn register_name_from_string(dweb_name: &str, history_address_str: &str) -> Result<()> {
+    let history_address = match crate::helpers::convert::str_to_history_address(history_address_str)
+    {
+        Ok(history_adddress) => history_adddress,
+        Err(e) => {
+            return Err(eyre!(
+                "Failed to register name due for INVALID history address string - {e}"
+            ));
+        }
+    };
+
+    match register_name(dweb_name, history_address) {
+        Ok(_) => {
+            println!("DEBUG: Registered built-in DWEB-NAME: {dweb_name} -> {history_address_str}");
+            Ok(())
+        }
+        Err(e) => {
+            println!("DEBUG: failed to register built-in DWEB-NAME '{dweb_name}' - {e}");
+            Err(e)
+        }
+    }
+}
+
 /// Register a DWEB-NAME programmatically so it can be used in the browser address bar
-pub fn dwebname_register(dweb_name: &str, history_address: HistoryAddress) -> Result<()> {
+pub fn register_name(dweb_name: &str, history_address: HistoryAddress) -> Result<()> {
     match validate_dweb_name(&dweb_name) {
         Ok(_) => (),
         Err(e) => {

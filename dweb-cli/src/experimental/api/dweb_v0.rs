@@ -27,7 +27,7 @@ use crate::services::api::v0::*; // Re-use ports implementations where possible
 pub fn init_service(host: &str) -> impl HttpServiceFactory {
     // TODO modify this and the get to accept /{api}/{version}/{operation} etc (see www::init_service())
     actix_web::web::scope(dweb::api::DWEB_API_ROUTE)
-        .service(name::api_dwebname_register)
+        .service(name::api_register_name)
         .service(name::api_dwebname_list)
         .guard(guard::Host(host))
 }
@@ -37,7 +37,7 @@ pub fn init_service(host: &str) -> impl HttpServiceFactory {
 // ///   ?redirect=false
 // Test url: http://api-dweb.au:8080/dweb/v0/name_register/smart-ant/91ab27dd1dc342f36c9f16fbe4ea725372d46a857677299d0336bb5eff24392da5d4412c36b6925a4b1857cc558f31e4ef4aae8c3170a4e3d6251bbb637a313d31b5b887aa20a3c81fc358981ccf9d19
 // #[get("/name_register/{dweb_name}/{history_address}")]
-// pub async fn api_dwebname_register(
+// pub async fn api_register_name(
 //     req: HttpRequest,
 //     params: web::Path<(String, String)>,
 //     _client_data: Data<dweb::client::DwebClient>,

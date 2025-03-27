@@ -15,11 +15,46 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+use actix_web::HttpRequest;
 use chrono::offset::Utc;
 use chrono::DateTime;
 use std::time::{Duration, UNIX_EPOCH};
 
 use crate::trove::directory_tree::DirectoryTreePathMap;
+
+/// Return HTML detailing an HttpRequest including its headers
+pub fn request_as_html(request: &HttpRequest) -> String {
+    let mut headers = String::from(
+        "   <tr><td></td><td></td></tr>
+        <tr><td><b>HEADERS:</b></td><td></td></tr>
+    ",
+    );
+    for (key, value) in request.headers().iter() {
+        headers += format!("<tr><td>{key:?}</td><td>{value:?}</td></tr>").as_str();
+    }
+
+    format!(
+        "
+        <table rules='all' style='border: solid;'>
+           <tr><td></td><td></td></tr>
+        <tr><td><b>HttpRequest:</b></td><td></td></tr>
+        <tr><td>full_url</td><td>{}</td></tr>
+        <tr><td>uri</td><td>{}</td></tr>
+        <tr><td>method</td><td>{}</td></tr>
+        <tr><td>path</td><td>{}</td></tr>
+        <tr><td>query_string</td><td>{}</td></tr>
+        <tr><td>peer_addr</td><td>{:?}</td></tr>
+        {headers}
+        </table>
+        ",
+        request.full_url(),
+        request.uri(),
+        request.method(),
+        request.path(),
+        request.query_string(),
+        request.peer_addr(),
+    )
+}
 
 // A JSON string representing a date from autonomi::files::Metadata
 pub fn json_date_from_metadata(date: u64) -> String {

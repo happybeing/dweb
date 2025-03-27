@@ -21,7 +21,7 @@ use qstring::QString;
 use dweb::cache::directory_with_port::*;
 use dweb::trove::{directory_tree::DirectoryTree, History};
 
-use super::make_error_response;
+use super::make_error_response_page;
 
 /// Show information about the current directory or website
 ///
@@ -54,10 +54,10 @@ pub async fn dweb_info(
     let directory_version = if our_directory_version.is_some() {
         our_directory_version.as_ref().clone().unwrap()
     } else {
-        return make_error_response(
+        return make_error_response_page(
             None,
             &mut HttpResponse::InternalServerError(),
-            "/dweb_version handler error".to_string(),
+            "/dweb_version error".to_string(),
             &format!("Unable to access our_directory_version - probably a bug"),
         );
     };
@@ -89,10 +89,10 @@ pub async fn dweb_info(
                     Err(e) => pointer_max_version = format!("unknown (error: {e}"),
                 },
                 Err(e) => {
-                    return make_error_response(
+                    return make_error_response_page(
                         None,
                         &mut HttpResponse::InternalServerError(),
-                        "/dweb_version handler error".to_string(),
+                        "/dweb_version error".to_string(),
                         &format!(
                             "failed to get History from address '{}': {e} - probably a bug",
                             history_address.to_hex()
@@ -115,10 +115,10 @@ pub async fn dweb_info(
                         Err(e) => graph_max_version = format!("unknown (error: {e}"),
                     },
                     Err(e) => {
-                        return make_error_response(
+                        return make_error_response_page(
                             None,
                             &mut HttpResponse::InternalServerError(),
-                            "/dweb_version handler error".to_string(),
+                            "/dweb_version error".to_string(),
                             &format!(
                                 "failed to get History from address '{}': {e} - probably a bug",
                                 history_address.to_hex()

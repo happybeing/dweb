@@ -15,63 +15,46 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-use actix_web::{get, web, web::Data, HttpRequest, HttpResponse};
+use actix_web::{
+    get,
+    http::{header, StatusCode},
+    web,
+    web::Data,
+    HttpRequest, HttpResponse, HttpResponseBuilder,
+};
 
 use dweb::trove::History;
-use dweb::{helpers::convert::*, helpers::web::*, trove::directory_tree::DirectoryTree};
+use dweb::{helpers::convert::*, trove::directory_tree::DirectoryTree};
 
 use crate::services::helpers::*;
 
-/// Get the file metadata in a directory tree
+/// Get a file from a content History or directory on the network
 ///
-/// Retrieves a PublicArchive from Autonomi and returns metadata for all files it contains.
-///
-/// Path parameters:
-///
-///     [v{version}/]{address_or_name}
-///
-// TODO consider changing this to return a utoipa Schema for a DirectoryTree and leave interpretation to the client
 #[utoipa::path(
     responses(
-        (status = 200,
-            description = "The JSON representation of a DirectoryTree formatted for an SVAR file manager component.
-            <p>Note: this may be changed to return a JSON representation of a DirectoryTree.", body = str)
+        (status = 200)
         ),
     tags = [dweb::api::DWEB_API_ROUTE],
     params(
-        ("params", description = "[v{version}/]{address_or_name}<br/><br/>Optional version (integer > 0), an address_or_name which refers to a History<DirectoryTree>"),
-    )
+        ("address_or_name", description = "The hexadecimal address or short name of a content History, or the address of a directory, on Autonomi"),
+        ("file_path", description = "The full path of a file in the referenced directory"),
+    ),
 )]
-#[get("/directory-load/{params:.*}")]
-pub async fn api_directory_load(
+#[get("/file/{address_or_name}/{file_path:.*}")]
+pub async fn file_get(
     request: HttpRequest,
-    params: web::Path<String>,
+    params: web::Path<(String, String)>,
     client: Data<dweb::client::DwebClient>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
 
-    let params = params.into_inner();
-    let decoded_params = match parse_versioned_path_params(&params) {
-        Ok(params) => params,
-        Err(_e) => {
-            return make_error_response_page(
-                None,
-                &mut HttpResponse::BadRequest(),
-                "/directory-load error".to_string(),
-                "/directory-load invalid parameters",
-            )
-        }
-    };
-
-    let (version, as_name, address_or_name, remote_path) = decoded_params;
-    let version = version.clone();
-
+    let (address_or_name, file_path) = params.into_inner();
     let (history_address, archive_address) = address_tuple_from_address_or_name(&address_or_name);
     if history_address.is_none() && archive_address.is_none() {
         return make_error_response_page(
             None,
             &mut HttpResponse::BadRequest(),
-            "/directory-load error".to_string(),
+            "/file error".to_string(),
             &format!("Unrecognised DWEB-NAME or invalid address: '{address_or_name}'"),
         );
     }
@@ -94,25 +77,21 @@ pub async fn api_directory_load(
                 return make_error_response_page(
                     None,
                     &mut HttpResponse::NotFound(),
-                    "/directory-load error".to_string(),
-                    "/directory-load failed to get directory History",
+                    "/file error".to_string(),
+                    &format!("/file failed to get directory History - {e}"),
                 )
             }
         };
 
         let ignore_pointer = false;
-        let version = version.unwrap_or(0);
-        match history
-            .get_version_entry_value(version, ignore_pointer)
-            .await
-        {
+        match history.get_version_entry_value(0, ignore_pointer).await {
             Ok(archive_address) => archive_address,
             Err(e) => {
                 return make_error_response_page(
                     None,
                     &mut HttpResponse::BadRequest(),
-                    "/directory-load error".to_string(),
-                    "/directory-load invalid parameters",
+                    "/file error".to_string(),
+                    &format!("/file directory History failed to get most recent version - {e}"),
                 )
             }
         }
@@ -128,22 +107,43 @@ pub async fn api_directory_load(
             return make_error_response_page(
                 None,
                 &mut HttpResponse::NotFound(),
-                "/directory-load error".to_string(),
-                "/directory-load failed to get directory Archive",
+                "/file error".to_string(),
+                &format!("/file failed to get directory Archive - {e}"),
             )
         }
     };
 
-    // println!(
-    //     "DEBUG JSON:\n{}",
-    //     json_for_svar_file_manager(&directory_tree.directory_map)
-    // );
+    let (data_address, content_type) = match directory_tree.lookup_file(&file_path, false) {
+        Ok((data_address, content_type)) => (data_address, content_type),
+        Err(_e) => {
+            return make_error_response_page(
+                None,
+                &mut HttpResponse::NotFound(),
+                "/file error".to_string(),
+                "/file file not found in directory",
+            )
+        }
+    };
 
-    // let remote_path = if !remote_path.is_empty() {
-    //     Some(format!("/{remote_path}"))
-    // } else {
-    //     None
-    // };
+    let content_type = if content_type.is_some() {
+        content_type.unwrap().clone()
+    } else {
+        String::from("text/plain")
+    };
 
-    HttpResponse::Ok().body(json_for_svar_file_manager(&directory_tree.directory_map))
+    let content = match client.data_get_public(data_address).await {
+        Ok(bytes) => bytes,
+        Err(e) => {
+            return make_error_response_page(
+                None,
+                &mut HttpResponse::NotFound(),
+                "/file error".to_string(),
+                &format!("/file failed to get file from network - {e}"),
+            );
+        }
+    };
+
+    HttpResponseBuilder::new(StatusCode::OK)
+        .insert_header((header::CONTENT_TYPE, content_type.as_str()))
+        .body(content)
 }

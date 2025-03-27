@@ -17,16 +17,3 @@
 
 pub(crate) mod builtins_local;
 pub(crate) mod builtins_public;
-
-use crate::services::register_name;
-
-// Register builtin history addresses so they can be used immediately in browser (and CLI if supported in cli_options.rs)
-pub fn register_builtin_names(is_local: bool) {
-    use crate::generated_rs::{builtins_local, builtins_public};
-
-    if is_local {
-        register_name("awesome", builtins_local::AWESOME_SITE_HISTORY_LOCAL);
-    } else {
-        register_name("awesome", builtins_public::AWESOME_SITE_HISTORY_PUBLIC);
-    }
-}

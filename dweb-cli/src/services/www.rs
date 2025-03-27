@@ -51,7 +51,7 @@ pub async fn www_handler(
 
     // If we're the main server arriving here means no API handler for the route
     if *is_main_server.into_inner() {
-        return make_error_response(
+        return make_error_response_page(
             Some(StatusCode::NOT_FOUND),
             &mut HttpResponse::NotFound(),
             "main dweb server error".to_string(),
@@ -62,10 +62,10 @@ pub async fn www_handler(
     let our_directory_version = if our_directory_version.is_some() {
         our_directory_version.as_ref().clone().unwrap()
     } else {
-        return make_error_response(
+        return make_error_response_page(
             Some(StatusCode::INTERNAL_SERVER_ERROR),
             &mut HttpResponse::InternalServerError(),
-            "dweb www handler error".to_string(),
+            "dweb www error".to_string(),
             &format!("Unable to access our_directory_version - probably a bug"),
         );
     };

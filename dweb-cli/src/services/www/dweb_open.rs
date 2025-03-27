@@ -26,7 +26,7 @@ use dweb::web::LOCALHOST_STR;
 use crate::services::helpers::*;
 use crate::services::serve_with_ports;
 
-use super::make_error_response;
+use super::make_error_response_page;
 
 /// Open the content at a given address or name
 ///
@@ -60,10 +60,10 @@ pub async fn dweb_open(
     let decoded_params = match parse_versioned_path_params(&params) {
         Ok(params) => params,
         Err(_e) => {
-            return make_error_response(
+            return make_error_response_page(
                 None,
                 &mut HttpResponse::BadRequest(),
-                "/dweb-open handler error".to_string(),
+                "/dweb-open error".to_string(),
                 "/dweb-open invalid parameters: {params}",
             )
         }
@@ -111,10 +111,10 @@ pub async fn dweb_open_as(
     let decoded_params = match parse_versioned_path_params_with_as_name(&params) {
         Ok(params) => params,
         Err(_ant_bootstrape) => {
-            return make_error_response(
+            return make_error_response_page(
                 None,
                 &mut HttpResponse::BadRequest(),
-                "/open-as handler error".to_string(),
+                "/open-as error".to_string(),
                 "/open-as invalid parameters: {params}",
             )
         }
@@ -142,10 +142,10 @@ pub async fn handle_dweb_open(
 
     let (history_address, archive_address) = address_tuple_from_address_or_name(&address_or_name);
     if history_address.is_none() && archive_address.is_none() {
-        return make_error_response(
+        return make_error_response_page(
             None,
             &mut HttpResponse::BadRequest(),
-            "/dweb-open handler error".to_string(),
+            "/dweb-open error".to_string(),
             &format!("Unrecognised DWEB-NAME or invalid address: '{address_or_name}'"),
         );
     }
@@ -176,10 +176,10 @@ pub async fn handle_dweb_open(
                 {
                     Ok(_) => (),
                     Err(e) => {
-                        return make_error_response(
+                        return make_error_response_page(
                             None,
                             &mut HttpResponse::BadGateway(),
-                            "/dweb-open handler error".to_string(),
+                            "/dweb-open error".to_string(),
                             &format!("{e}. Address: {address_or_name}"),
                         )
                     }
@@ -198,10 +198,10 @@ pub async fn handle_dweb_open(
             directory_version
         }
         Err(e) => {
-            return make_error_response(
+            return make_error_response_page(
                 None,
                 &mut HttpResponse::BadGateway(),
-                "/dweb-open handler error".to_string(),
+                "/dweb-open error".to_string(),
                 &format!("{e}. Address: {address_or_name}"),
             )
         }

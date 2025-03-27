@@ -15,7 +15,10 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-use actix_web::{http::StatusCode, HttpResponse, HttpResponseBuilder};
+use actix_web::{
+    http::{header, StatusCode},
+    HttpResponse, HttpResponseBuilder,
+};
 use color_eyre::eyre::{eyre, Result};
 
 use dweb::web::name::validate_dweb_name;
@@ -144,7 +147,7 @@ pub fn parse_version_string(version_str: &str) -> Result<Option<u32>> {
     }
 }
 
-pub(crate) fn make_error_response(
+pub(crate) fn make_error_response_page(
     status_code: Option<StatusCode>,
     response_builder: &mut HttpResponseBuilder,
     heading: String,
@@ -165,5 +168,7 @@ pub(crate) fn make_error_response(
     </body>"
     );
 
-    response_builder.body(body)
+    response_builder
+        .insert_header(header::ContentType(mime::TEXT_HTML))
+        .body(body)
 }

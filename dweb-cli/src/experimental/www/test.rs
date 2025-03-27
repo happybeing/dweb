@@ -18,7 +18,7 @@
 // use actix_web::{body, get, post, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use actix_web::{dev::HttpServiceFactory, guard, http::header, web, HttpRequest, HttpResponse};
 
-use crate::services::request_as_html;
+use dweb::helpers::web::request_as_html;
 
 pub fn init_service() -> impl HttpServiceFactory {
     web::resource("/test/{path:.*}")

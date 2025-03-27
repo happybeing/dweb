@@ -16,10 +16,8 @@
 */
 
 use actix_web::{get, web, web::Data, HttpRequest, HttpResponse, Responder};
-use utoipa::ToSchema;
 
-use dweb::cache::directory_with_name::HISTORY_NAMES;
-use dweb::helpers::convert::str_to_history_address;
+use dweb::web::name::{register_name, register_name_from_string};
 
 /// Create a short name for content on Autonomi
 ///
@@ -38,76 +36,18 @@ use dweb::helpers::convert::str_to_history_address;
     ),
 )]
 #[get("/name-register/{dweb_name}/{history_address}")]
-pub async fn api_dwebname_register(
+pub async fn api_register_name(
     request: HttpRequest,
     params: web::Path<(String, String)>,
     _client_data: Data<dweb::client::DwebClient>,
 ) -> impl Responder {
-    println!(
-        "DEBUG api_dwebname_register({})...",
-        request.path().to_string()
-    );
-    let (dweb_name, history_address_string) = params.into_inner();
+    println!("DEBUG api_register_name({})...", request.path().to_string());
+    let (dweb_name, history_address) = params.into_inner();
 
-    // let qs = QString::from(req.query_string());
-    // let redirect: bool = match qs.get("redirect").unwrap_or("true") {
-    //     "false" => false,
-    //     "0" => false,
-    //     _ => true,
-    // };
-
-    match dweb::web::name::validate_dweb_name(&dweb_name) {
-        Ok(_) => (),
-        Err(e) => {
-            return HttpResponse::BadRequest()
-                .body(format!("Invalid DWEB-NAME '{dweb_name}' - {e}"));
-        }
-    };
-
-    let history_address = match str_to_history_address(&history_address_string) {
-        Ok(history_address) => history_address,
-        Err(e) => {
-            return HttpResponse::BadRequest().body(format!(
-                "Invalid HISTORY-ADDRESS '{history_address_string}' - {e}"
-            ));
-        }
-    };
-
-    match &mut HISTORY_NAMES.lock() {
-        Ok(lock) => {
-            let cached_history_address = lock.get(&dweb_name);
-            if cached_history_address.is_some() {
-                let cached_history_address = cached_history_address.unwrap();
-                if history_address != *cached_history_address {
-                    return HttpResponse::BadRequest().body(format!(
-                        "DWEB-NAME '{dweb_name}' already in use for HISTORY-ADDRESS '{}'",
-                        cached_history_address.to_hex()
-                    ));
-                }
-                println!("DWEB-NAME '{dweb_name}' already registered for {history_address_string}");
-            } else {
-                lock.insert(dweb_name.clone(), history_address);
-                println!(
-                    "DWEB-NAME '{dweb_name}' successfully registered for {history_address_string}"
-                );
-            }
-            // if redirect {
-            //     println!("DEBUG redirecting...");
-            //     return response_redirect(
-            //         &req,
-            //         &(dweb_name.clone() + "." + DWEB_SERVICE_WWW),   needs to redirect to port
-            //         None,
-            //         None,
-            //     );
-            // };
-        }
-        Err(e) => {
-            return HttpResponse::InternalServerError()
-                .body(format!("Failed to access dweb name cache - {e}"));
-        }
-    };
-
-    HttpResponse::Ok().body("success")
+    match register_name_from_string(&dweb_name, &history_address) {
+        Ok(()) => HttpResponse::Ok().body("success"),
+        Err(e) => HttpResponse::BadRequest().body(format!("Failed to register dweb_name - {e}")),
+    }
 }
 
 use dweb::web::name::{recognised_dwebnames, RecognisedName};
@@ -144,4 +84,15 @@ pub async fn api_dwebname_list() -> impl Responder {
     };
 
     HttpResponse::Ok().body(body)
+}
+
+// Register builtin history addresses so they can be used immediately in browser (and CLI if supported in cli_options.rs)
+pub fn register_builtin_names(is_local: bool) {
+    use crate::generated_rs::{builtins_local, builtins_public};
+
+    if is_local {
+        register_name_from_string("awesome", builtins_local::AWESOME_SITE_HISTORY_LOCAL);
+    } else {
+        register_name_from_string("awesome", builtins_public::AWESOME_SITE_HISTORY_PUBLIC);
+    }
 }

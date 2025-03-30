@@ -29,7 +29,7 @@ use actix_web::{get, http::header, HttpRequest, HttpResponse, Responder};
         This identifies the server as the 'dweb' proxy, and the version of the dweb API being served (e.g. '0').", body = str)
 
     ),
-    tags = ["manual", dweb::api::DWEB_API_ROUTE],
+    tags = ["Server"],
 )]
 #[get("/ant-proxy-id")]
 pub async fn ant_proxy_id(_request: HttpRequest) -> impl Responder {

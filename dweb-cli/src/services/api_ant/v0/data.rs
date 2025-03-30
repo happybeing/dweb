@@ -34,7 +34,7 @@ use crate::services::helpers::*;
         (status = StatusCode::BAD_REQUEST, description = "The data_address is not a valid address"),
         (status = StatusCode::NOT_FOUND, description = "The data was not found or a network error occured"),
         ),
-    tags = [dweb::api::ANT_API_ROUTE],
+    tags = ["Autonomi"],
     params(
         ("data_address", description = "The hexadecimal address of a datamap on Autonomi"),
     ),

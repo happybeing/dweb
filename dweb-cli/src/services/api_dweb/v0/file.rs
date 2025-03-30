@@ -34,7 +34,7 @@ use crate::services::helpers::*;
     responses(
         (status = 200)
         ),
-    tags = [dweb::api::DWEB_API_ROUTE],
+    tags = ["Dweb"],
     params(
         ("address_or_name", description = "The hexadecimal address or short name of a content History, or the address of a directory, on Autonomi"),
         ("file_path", description = "The full path of a file in the referenced directory"),

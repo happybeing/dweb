@@ -37,7 +37,7 @@ use super::make_error_response_page;
         (status = 200,
             description = "HTML summary of the directory or website History", body = str)
         ),
-    tags = ["manual", dweb::api::DWEB_API_ROUTE],
+    tags = ["Manual"],
     params(
         ("use-graph" = Option<bool>, description = "when 'true' ignores the Pointer and follows the graph to find the most recent entry in the content History"),
     )

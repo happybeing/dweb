@@ -38,7 +38,7 @@ use super::make_error_response_page;
             description = "The JSON representation of a DirectoryTree formatted for an SVAR file manager component.
             <p>Note: this may be changed to return a JSON representation of a DirectoryTree.", body = str)
         ),
-    tags = [dweb::api::DWEB_API_ROUTE],
+    tags = ["Linking"],
     params(
         ("VERSION-NUMBER" = Option<u64>, description = "Optional version when ADDRESS-OR-NAME refers to a History<DirectoryTree>"),
         ("ADDRESS-OR-NAME", description = "A hexadecimal address or a short name referring to a History or PublicArchive"),
@@ -89,7 +89,7 @@ pub async fn dweb_open(
             description = "The JSON representation of a DirectoryTree formatted for an SVAR file manager component.
             <p>Note: this may be changed to return a JSON representation of a DirectoryTree.", body = str)
         ),
-    tags = [dweb::api::DWEB_API_ROUTE],
+    tags = ["Linking"],
     params(
         ("VERSION-NUMBER" = Option<u64>, description = "Optional version (integer > 0) of the History<DirectoryTree>"),
         ("DWEB-NAME", description = "The short name to register for the HISTORY-ADDRESS"),

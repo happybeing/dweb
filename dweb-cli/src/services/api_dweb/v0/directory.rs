@@ -37,7 +37,7 @@ use crate::services::helpers::*;
             description = "The JSON representation of a DirectoryTree formatted for an SVAR file manager component.
             <p>Note: this may be changed to return a JSON representation of a DirectoryTree.", body = str)
         ),
-    tags = [dweb::api::DWEB_API_ROUTE],
+    tags = ["Dweb"],
     params(
         ("params", description = "[v{version}/]{address_or_name}<br/><br/>Optional version (integer > 0), an address_or_name which refers to a History<DirectoryTree>"),
     )

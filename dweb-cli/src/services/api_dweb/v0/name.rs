@@ -29,7 +29,7 @@ use dweb::web::name::{register_name, register_name_from_string};
         (status = 200,
             description = "Success", body = str)
         ),
-    tags = [dweb::api::DWEB_API_ROUTE],
+    tags = ["Dweb"],
     params(
         ("dweb_name", description = "A short name for a content History"),
         ("history_address", description = "The hexadecimal address of a content History on Autonomi")
@@ -62,7 +62,7 @@ use dweb::web::name::{recognised_dwebnames, RecognisedName};
         (status = 200,
             description = "JSON list of names", body = Vec<RecognisedName>, example = json!("[{\"key\":\"awesome\",\"history_address\":\"8650c4284430522a638a6fa37dd3e8d610c65b300f89f0199a95a1a9eab0455287f8c8d137fad390654bd9f19b868a5c\"}]"))
         ),
-    tags = [dweb::api::DWEB_API_ROUTE],
+    tags = ["Dweb"],
 )]
 #[get("/name-list")]
 pub async fn api_dwebname_list() -> impl Responder {

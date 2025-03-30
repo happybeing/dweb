@@ -37,7 +37,7 @@ use super::make_error_response_page;
         (status = 200,
             description = "Content fetched from the requested version", body = str)
         ),
-    tags = ["manual", dweb::api::DWEB_API_ROUTE],
+    tags = ["Manual"],
     params(
         ("version" = Option<String>, description = "A version (integer > 0), or 'latest' for the most recent version"),
     )

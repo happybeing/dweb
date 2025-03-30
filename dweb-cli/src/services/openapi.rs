@@ -40,10 +40,11 @@ This RESTful API is part of a package of features for both users and develpers u
 More on github: [https://github.com/happybeing/dweb/dweb-cli](https://github.com/happybeing/dweb/tree/main/dweb-cli#dweb-command-line-app)"
 ),
 tags(
-    [name = "manual", description = "simplified APIs for manual input into the address bar"],
-    [name = dweb::api::DWEB_API_ROUTE, description = "dweb APIs"],
-    [name = dweb::api::ANT_API_ROUTE, description = "Autonomi APIs"],
-    // [name = "default", description = "untagged APIs"],
+    [name = "Manual", description = "for typing into the browser address bar"],
+    [name = "Autonomi", description = "Automoni APIs"],
+    [name = "Dweb", description = "dweb APIs"],
+    [name = "Linking", description = "for embeding links in a website"],
+    [name = "Server", description = "dweb server APIs"],
 ),
 )]
 pub(crate) struct DwebApiDoc;

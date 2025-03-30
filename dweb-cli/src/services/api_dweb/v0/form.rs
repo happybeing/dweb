@@ -88,7 +88,7 @@ pub struct PutResult {
 // See: https://github.com/juhaku/utoipa/discussions/742
 //    request_body(content = WhatEverStruct, description = "Multipart file", content_type = "multipart/form-data"),
     put,
-    params(("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi data_put_public() for each file upload, 0 means unlimited. This overrides the API control setting in the server.")),
+    params(("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi data_put_public() API for each file upload, 0 means unlimited. This overrides the API control setting in the server.")),
     request_body(content = UploadForm, content_type = "multipart/form-data"),
     responses(
         (status = 200, description = "A PutResult featuring either status 200 with cost and data address on the network, or in case of error an error status code and message about the error.<br/>\
@@ -97,7 +97,7 @@ pub struct PutResult {
         &nbsp;&nbsp;&nbsp;BAD_GATEWAY: Autonomi network error", body = PutResult,
             example = json!("{\"file_name\": \"somefile.txt\", \"status\": \"200\", \"cost_in_attos\": \"12\", \"data_address\": \"a9cd8dd0c9f2b9dc71ad548d1f37fcba6597d5eb1be0b8c63793802cc6c7de27\", \"message\": \"\" }")),
     ),
-    tags = [dweb::api::DWEB_API_ROUTE],
+    tags = ["Dweb"],
 )]
 #[put("/form-upload-file?tries={tries}")]
 pub async fn data_put(
@@ -217,7 +217,7 @@ pub struct PutResultList {
 // See: https://github.com/juhaku/utoipa/discussions/742
 //    request_body(content = WhatEverStruct, description = "Multipart file", content_type = "multipart/form-data"),
     put,
-    params(("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi data_put_public() for each file upload, 0 means unlimited. This overrides the API control setting in the server.")),
+    params(("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi data_put_public() API for each file upload, 0 means unlimited. This overrides the API control setting in the server.")),
     request_body(content = UploadFormList, content_type = "multipart/form-data"),
     responses(
         (status = 200, description = "A PutResultList featuring a PutResult for each upload either status 200 with cost and data address on the network, or in case of error an error status code and message about the error.<br/>\
@@ -226,7 +226,7 @@ pub struct PutResultList {
         &nbsp;&nbsp;&nbsp;BAD_GATEWAY: Autonomi network error", body = [PutResultList],
             example = json!("{\"put_results\": [{\"file_name\": \"somefile.txt\", \"status\": \"200\", \"cost_in_attos\": \"12\", \"data_address\": \"a9cd8dd0c9f2b9dc71ad548d1f37fcba6597d5eb1be0b8c63793802cc6c7de27\", \"message\": \"\" }]}")),
     ),
-    tags = [dweb::api::DWEB_API_ROUTE],
+    tags = ["Dweb"],
 )]
 #[put("/form-upload-file-list")]
 pub async fn data_put_list(

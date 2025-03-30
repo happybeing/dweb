@@ -20,18 +20,24 @@ use std::io::Read;
 use actix_multipart::form::{tempfile::TempFile, MultipartForm};
 use actix_web::{
     http::{header::ContentType, StatusCode},
-    put,
+    put, web,
     web::Data,
     HttpRequest, HttpResponse,
 };
+use color_eyre::eyre::eyre;
 use serde::{Deserialize, Serialize};
 use utoipa::{schema, ToSchema};
 
 use dweb::client::DwebClient;
+use dweb::helpers::retry::retry_until_ok;
 use dweb::token::format_tokens_as_attos;
 
 use crate::services::helpers::*;
 
+#[derive(Deserialize, ToSchema)]
+struct QueryParams {
+    tries: Option<u32>,
+}
 // NOTES:
 //  To derive ToSchema can try:
 //      Building the schema or faking the struct: https://github.com/juhaku/utoipa/discussions/742
@@ -82,6 +88,7 @@ pub struct PutResult {
 // See: https://github.com/juhaku/utoipa/discussions/742
 //    request_body(content = WhatEverStruct, description = "Multipart file", content_type = "multipart/form-data"),
     put,
+    params(("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi data_put_public(). The default is 1 try, and 0 means unlimited")),
     request_body(content = UploadForm, content_type = "multipart/form-data"),
     responses(
         (status = 200, description = "A PutResult featuring either status 200 with cost and data address on the network, or in case of error an error status code and message about the error.<br/>\
@@ -92,16 +99,18 @@ pub struct PutResult {
     ),
     tags = [dweb::api::DWEB_API_ROUTE],
 )]
-#[put("/form-upload-file")]
+#[put("/form-upload-file?tries={tries}")]
 pub async fn data_put(
     MultipartForm(mut form): MultipartForm<UploadForm>,
     request: HttpRequest,
-    // params: web::Path<u32>,
+    query_params: web::Query<QueryParams>,
     client: Data<dweb::client::DwebClient>,
 ) -> HttpResponse {
+    let tries = query_params.tries.unwrap_or(client.api_control.tries);
+
     println!("DEBUG {}", request.path()); // Swagger UI execute doesn't get here, adding ;applicatation/json to the curl works
                                           // let retries = params.into_inner();
-    let put_result = put_file_public(&client, &mut form.file).await;
+    let put_result = put_file_public(&client, &mut form.file, tries).await;
 
     let json = match serde_json::to_string(&put_result) {
         Ok(json) => json,
@@ -131,7 +140,7 @@ fn make_failed_put_result(file_name: String, status: StatusCode, message: String
     }
 }
 
-async fn put_file_public(client: &DwebClient, file: &mut TempFile) -> PutResult {
+async fn put_file_public(client: &DwebClient, file: &mut TempFile, tries: u32) -> PutResult {
     // TODO update if Autonomi supports streamed data_put_public() (or file_put_public())
     let mut content = Vec::<u8>::new();
     let file_name = file.file_name.clone().unwrap_or("unknown".to_string());
@@ -145,11 +154,24 @@ async fn put_file_public(client: &DwebClient, file: &mut TempFile) -> PutResult 
         }
     };
 
-    match client
-        .client
-        .data_put_public(content.into(), client.payment_option())
-        .await
-    {
+    let data = content.into();
+    let payment_option = client.payment_option().clone();
+    let result = retry_until_ok(
+        tries,
+        &"data_put_public()",
+        (data, payment_option),
+        async move |(data, payment_option)| match client
+            .client
+            .data_put_public(data, payment_option.clone())
+            .await
+        {
+            Ok(result) => Ok(result),
+            Err(e) => Err(eyre!(e)),
+        },
+    )
+    .await;
+
+    match result {
         Ok(result) => {
             println!("DEBUG data_put_public() stored '{file_name}' {content_len} bytes on the network at address");
             PutResult {
@@ -168,6 +190,7 @@ async fn put_file_public(client: &DwebClient, file: &mut TempFile) -> PutResult 
         }
     }
 }
+
 #[derive(Debug, MultipartForm, ToSchema)]
 struct UploadFormList {
     // #[multipart(rename = "file")]
@@ -184,14 +207,17 @@ pub struct PutResultList {
 /// Multipart form upload of one or more files
 ///
 /// Example form:
+/// ```
 /// <form target="/" method="post" enctype="multipart/form-data">
 ///     <input type="file" multiple name="file"/>
 ///     <button type="submit">Submit</button>
 /// </form>
+/// ```
 #[utoipa::path(
 // See: https://github.com/juhaku/utoipa/discussions/742
 //    request_body(content = WhatEverStruct, description = "Multipart file", content_type = "multipart/form-data"),
     put,
+    params(("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi data_put_public() for each file upload. The default is 1 try, and 0 means unlimited")),
     request_body(content = UploadFormList, content_type = "multipart/form-data"),
     responses(
         (status = 200, description = "A PutResultList featuring a PutResult for each upload either status 200 with cost and data address on the network, or in case of error an error status code and message about the error.<br/>\
@@ -206,11 +232,11 @@ pub struct PutResultList {
 pub async fn data_put_list(
     MultipartForm(form): MultipartForm<UploadFormList>,
     request: HttpRequest,
-    // params: web::Path<u32>,
+    query_params: web::Query<QueryParams>,
     client: Data<dweb::client::DwebClient>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
-    // let retries = params.into_inner();
+    let tries = query_params.tries.unwrap_or(client.api_control.tries);
 
     let mut put_list = PutResultList {
         put_results: Vec::<PutResult>::new(),
@@ -220,7 +246,7 @@ pub async fn data_put_list(
             "DEBUG data_put_list() file: {:?}, size: {}",
             file.file_name, file.size
         );
-        let put_result = put_file_public(&client, &mut file).await;
+        let put_result = put_file_public(&client, &mut file, tries).await;
         put_list.put_results.push(put_result);
     }
 

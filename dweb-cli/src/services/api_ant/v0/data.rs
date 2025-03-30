@@ -30,7 +30,9 @@ use crate::services::helpers::*;
 ///
 #[utoipa::path(
     responses(
-        (status = 200)
+        (status = 200, description = "Success"),
+        (status = StatusCode::BAD_REQUEST, description = "The data_address is not a valid address"),
+        (status = StatusCode::NOT_FOUND, description = "The data was not found or a network error occured"),
         ),
     tags = [dweb::api::ANT_API_ROUTE],
     params(
@@ -50,7 +52,7 @@ pub async fn data_get_public(
         Err(e) => {
             return make_error_response_page(
                 None,
-                &mut HttpResponse::NotFound(),
+                &mut HttpResponse::BadRequest(),
                 "/data error".to_string(),
                 &format!("/data address not valid - {e}"),
             );

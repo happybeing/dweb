@@ -88,7 +88,7 @@ pub struct PutResult {
 // See: https://github.com/juhaku/utoipa/discussions/742
 //    request_body(content = WhatEverStruct, description = "Multipart file", content_type = "multipart/form-data"),
     put,
-    params(("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi data_put_public(). The default is 1 try, and 0 means unlimited")),
+    params(("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi data_put_public() for each file upload, 0 means unlimited. This overrides the API control setting in the server.")),
     request_body(content = UploadForm, content_type = "multipart/form-data"),
     responses(
         (status = 200, description = "A PutResult featuring either status 200 with cost and data address on the network, or in case of error an error status code and message about the error.<br/>\
@@ -217,7 +217,7 @@ pub struct PutResultList {
 // See: https://github.com/juhaku/utoipa/discussions/742
 //    request_body(content = WhatEverStruct, description = "Multipart file", content_type = "multipart/form-data"),
     put,
-    params(("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi data_put_public() for each file upload. The default is 1 try, and 0 means unlimited")),
+    params(("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi data_put_public() for each file upload, 0 means unlimited. This overrides the API control setting in the server.")),
     request_body(content = UploadFormList, content_type = "multipart/form-data"),
     responses(
         (status = 200, description = "A PutResultList featuring a PutResult for each upload either status 200 with cost and data address on the network, or in case of error an error status code and message about the error.<br/>\

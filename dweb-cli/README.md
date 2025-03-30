@@ -83,12 +83,11 @@ dweb publish-new --help
 ```
 
 ### Browse websites on Autonomi
-Start the dweb server browsing. This only needs to be done once until you reboot or shut it down:
+To browse the dweb, first start the server. This only needs to be done once until you reboot or shut it down:
 ```
 dweb serve
 ```
-
-Until you know the address of a website to browse you can start at the *dweb-awesome-links* website - on Autonomi - which contains links to websites built by the community. Type:
+Until you know some websites on Autonomi you can start at the *dweb-awesome-links* website which contains links to websites built by the community. Type:
 ```
 dweb open awesome
 ```
@@ -102,7 +101,7 @@ The above is the long string is the address of the awesome website, so change pa
 
 To open a website and give it a name:
 ```
-dweb open -as-name toast b89dbdad3297bde6539723b63f92a508bccf6ba6b0956b9f2aad6d139260d41c36256b3fa3a8394c9ec990d5e45e6c71
+dweb open --as-name toast b89dbdad3297bde6539723b63f92a508bccf6ba6b0956b9f2aad6d139260d41c36256b3fa3a8394c9ec990d5e45e6c71
 ```
 You can also just name sites yourself and then use those names with 'dweb open':
 ```
@@ -115,7 +114,7 @@ Then:
 ```
 $ dweb open toast
 ```
-Names are not persistant yet, and will be forgotten when you restart the server.
+Names are not persistant yet, so they will be forgotten when you restart the server.
 
 ### Advanced Browsing
 There are some neat features of the dweb which you can access via a regular browser while viewing a dweb website. These include getting information about the website, choosing which version of a website you want to view, or opening another website.

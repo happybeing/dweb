@@ -22,7 +22,7 @@ use actix_web::{dev::HttpServiceFactory, guard};
 // use dweb::helpers::convert::str_to_history_address;
 // use dweb::web::fetch::response_redirect;
 
-use crate::services::api::v0::*; // Re-use ports implementations where possible
+use crate::services::api_dweb::v0::*; // Re-use ports implementations where possible
 
 pub fn init_service(host: &str) -> impl HttpServiceFactory {
     // TODO modify this and the get to accept /{api}/{version}/{operation} etc (see www::init_service())

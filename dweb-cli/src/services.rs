@@ -16,7 +16,8 @@
 */
 mod app;
 
-pub(crate) mod api;
+pub(crate) mod api_ant;
+pub(crate) mod api_dweb;
 pub(crate) mod helpers;
 pub(crate) mod openapi;
 pub(crate) mod www;
@@ -33,7 +34,7 @@ use utoipa_swagger_ui::SwaggerUi;
 use dweb::cache::directory_with_port::DirectoryVersionWithPort;
 use dweb::client::DwebClient;
 
-use crate::services::api::v0::name::register_builtin_names;
+use crate::services::api_dweb::v0::name::register_builtin_names;
 
 pub const CONNECTION_TIMEOUT: u64 = 75;
 
@@ -128,23 +129,18 @@ pub async fn serve_with_ports(
             .service(www::dweb_open::dweb_open_as)
             .service(www::dweb_info::dweb_info)
             .service(www::dweb_version::dweb_version)
-            .service(api::v0::ant_proxy_id)
+            .service(api_dweb::v0::ant_proxy_id)
             // Autonomi APIs
-            // currently just for testing OpenAPI generation until real /ant-0 routes are provided
-            // .service(
-            //     scope(dweb::api::ANT_API_ROUTE)
-            //         .service(api::v0::name::api_register_name)
-            //         .service(api::v0::name::api_dwebname_list)
-            //         .service(api::v0::directory::api_directory_load),
-            // )
+            .service(scope(dweb::api::ANT_API_ROUTE).service(api_ant::v0::data::data_get_public))
             // dweb APIs
             .service(
                 scope(dweb::api::DWEB_API_ROUTE)
-                    .service(api::v0::name::api_register_name)
-                    .service(api::v0::name::api_dwebname_list)
-                    .service(api::v0::directory::api_directory_load)
-                    .service(api::v0::file::file_get)
-                    .service(api::v0::data::data_get),
+                    .service(api_dweb::v0::name::api_register_name)
+                    .service(api_dweb::v0::name::api_dwebname_list)
+                    .service(api_dweb::v0::directory::api_directory_load)
+                    .service(api_dweb::v0::file::file_get)
+                    .service(api_dweb::v0::form::data_put)
+                    .service(api_dweb::v0::form::data_put_list),
             )
             .default_service(web::get().to(www::www_handler))
             .openapi_service(|api| {

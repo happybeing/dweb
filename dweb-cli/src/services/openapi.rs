@@ -42,7 +42,7 @@ More on github: [https://github.com/happybeing/dweb/dweb-cli](https://github.com
 tags(
     [name = "manual", description = "simplified APIs for manual input into the address bar"],
     [name = dweb::api::DWEB_API_ROUTE, description = "dweb APIs"],
-    // [name = dweb::api::ANT_API_ROUTE, description = "dweb wrappers for Autonomi APIs"],
+    [name = dweb::api::ANT_API_ROUTE, description = "Autonomi APIs"],
     // [name = "default", description = "untagged APIs"],
 ),
 )]

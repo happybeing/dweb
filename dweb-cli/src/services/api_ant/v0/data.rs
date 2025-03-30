@@ -17,9 +17,8 @@
 
 use actix_web::{
     get,
-    http::{header, StatusCode},
-    web,
-    web::Data,
+    http::StatusCode,
+    web::{self, Data},
     HttpRequest, HttpResponse, HttpResponseBuilder,
 };
 
@@ -33,13 +32,13 @@ use crate::services::helpers::*;
     responses(
         (status = 200)
         ),
-    tags = [dweb::api::DWEB_API_ROUTE],
+    tags = [dweb::api::ANT_API_ROUTE],
     params(
         ("data_address", description = "The hexadecimal address of a datamap on Autonomi"),
     ),
 )]
-#[get("/data/{data_address}")]
-pub async fn data_get(
+#[get("/data-public/{data_address}")]
+pub async fn data_get_public(
     request: HttpRequest,
     params: web::Path<String>,
     client: Data<dweb::client::DwebClient>,

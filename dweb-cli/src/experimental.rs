@@ -36,7 +36,7 @@ use dweb::helpers::convert::str_to_data_address;
 use dweb::web::fetch::response_with_body;
 use dweb::web::{DWEB_SERVICE_API, DWEB_SERVICE_APP};
 
-use crate::services::api::v0::name::register_builtin_names;
+use crate::services::api_dweb::v0::name::register_builtin_names;
 use crate::services::CONNECTION_TIMEOUT;
 
 #[cfg(feature = "development")]

@@ -126,14 +126,19 @@ impl Spends {
     }
 }
 
-const UNITS_PER_TOKEN_U64: u64 = 1_000_000_000_000_000_000;
-const UNITS_PER_TOKEN_F32: f32 = 1_000_000_000_000_000_000.0;
+pub const UNITS_PER_TOKEN_U64: u64 = 1_000_000_000_000_000_000;
+pub const UNITS_PER_TOKEN_F32: f32 = 1_000_000_000_000_000_000.0;
 
 /// Return a string representation with 18 decimal places
 pub fn format_tokens(amount: Amount) -> String {
     let unit = amount / Amount::from(UNITS_PER_TOKEN_U64);
     let remainder = amount % Amount::from(UNITS_PER_TOKEN_U64);
     format!("{unit}.{remainder:018}").to_string()
+}
+
+/// Return a string integer representation of attos
+pub fn format_tokens_as_attos(amount: Amount) -> String {
+    format!("{amount}").to_string()
 }
 
 /// Helper to simplify handling of Result<_>.

@@ -86,12 +86,15 @@ blsttc = "8.0.2"
 open = "5.3.2"
 port_check = "0.2.1"
 reqwest = "0.12.12"
+utoipa = { version = "5.3.1", features = ["actix_extras"] }
+utoipa-actix-web = "0.1.2"
+utoipa-swagger-ui = { version = "9.0.0", features = ["reqwest", "actix-web"] }
 
 # patched
-utoipa = { path = "../../utoipa-patch/utoipa", features = ["actix_extras"] } # "5.3.1"
+#utoipa = { path = "../../utoipa-patch/utoipa", features = ["actix_extras"] } # "5.3.1"
 #utoipa-actix-web = { path = "../../utoipa-patch/utoipa-actix-web/", version = "0.1.2" }
 #utoipa-swagger-ui = { path = "../../utoipa-patch/utoipa-swagger-ui", version = "9.0.0", features = ["reqwest", "actix-web"] }
 
-#utoipa = { version = "5.3.1", features = ["actix_extras"] }
-#utoipa-actix-web = "0.1.2"
-#utoipa-swagger-ui = { version = "9.0.0", features = ["reqwest", "actix-web"] }
+[dependencies.zip]
+# Downgrade zip until utoipa fix released
+version = "=2.3.0"

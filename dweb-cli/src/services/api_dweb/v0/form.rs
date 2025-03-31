@@ -100,7 +100,7 @@ pub struct PutResult {
 //    request_body(content = WhatEverStruct, description = "Multipart file", content_type = "multipart/form-data"),
     put,
     params(
-        ("is_public" = bool, description = "true to upload data as public"),
+        ("make_public" = bool, description = "true to upload data as public"),
         ("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi data_put_public() API for each file upload, 0 means unlimited. This overrides the API control setting in the server.")),
     request_body(content = UploadForm, content_type = "multipart/form-data"),
     responses(
@@ -112,7 +112,7 @@ pub struct PutResult {
     ),
     tags = ["Dweb"],
 )]
-#[put("/form-upload-file/{is_public}/?tries={tries}")]
+#[put("/form-upload-file/{make_public}/?tries={tries}")]
 pub async fn data_put(
     MultipartForm(mut form): MultipartForm<UploadForm>,
     request: HttpRequest,
@@ -120,12 +120,12 @@ pub async fn data_put(
     query_params: web::Query<QueryParams>,
     client: Data<dweb::client::DwebClient>,
 ) -> HttpResponse {
-    let is_public = path_params.into_inner();
+    let make_public = path_params.into_inner();
     let tries = query_params.tries.unwrap_or(client.api_control.tries);
 
     println!("DEBUG {}", request.path()); // Swagger UI execute doesn't get here, adding ;applicatation/json to the curl works
                                           // let retries = params.into_inner();
-    let put_result = if is_public {
+    let put_result = if make_public {
         put_file_public(&client, &mut form.file, tries).await
     } else {
         put_file_private(&client, &mut form.file, tries).await
@@ -191,7 +191,7 @@ pub struct PutResultList {
 //    request_body(content = WhatEverStruct, description = "Multipart file", content_type = "multipart/form-data"),
     put,
     params(
-        ("is_public" = bool, description = "true to upload data as public"),
+        ("make_public" = bool, description = "true to upload data as public"),
         ("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi data_put_public() API for each file upload, 0 means unlimited. This overrides the API control setting in the server.")),
     request_body(content = UploadFormList, content_type = "multipart/form-data"),
     responses(
@@ -203,7 +203,7 @@ pub struct PutResultList {
     ),
     tags = ["Dweb"],
 )]
-#[put("/form-upload-file-list/{is_public}/?tries={tries}")]
+#[put("/form-upload-file-list/{make_public}/?tries={tries}")]
 pub async fn data_put_list(
     MultipartForm(form): MultipartForm<UploadFormList>,
     request: HttpRequest,
@@ -212,7 +212,7 @@ pub async fn data_put_list(
     client: Data<dweb::client::DwebClient>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
-    let is_public = path_params.into_inner();
+    let make_public = path_params.into_inner();
     let tries = query_params.tries.unwrap_or(client.api_control.tries);
 
     let mut put_list = PutResultList {
@@ -223,7 +223,7 @@ pub async fn data_put_list(
             "DEBUG data_put_list() file: {:?}, size: {}",
             file.file_name, file.size
         );
-        let put_result = if is_public {
+        let put_result = if make_public {
             put_file_public(&client, &mut file, tries).await
         } else {
             put_file_private(&client, &mut file, tries).await

@@ -101,7 +101,7 @@ pub struct PutResult {
     put,
     params(
         ("make_public" = bool, description = "true to upload data as public"),
-        ("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi data_put_public() API for each file upload, 0 means unlimited. This overrides the API control setting in the server.")),
+        ("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi upload API for each file upload, 0 means unlimited. This overrides the API control setting in the server.")),
     request_body(content = UploadForm, content_type = "multipart/form-data"),
     responses(
         (status = 200, description = "A PutResult featuring either status 200 with cost and data address on the network, or in case of error an error status code and message about the error.<br/>\
@@ -137,8 +137,8 @@ pub async fn data_put(
             return make_error_response_page(
                 Some(StatusCode::INTERNAL_SERVER_ERROR),
                 &mut HttpResponse::NotFound(),
-                "/data PUT error".to_string(),
-                &format!("data_put_public() failed to encode JSON result - {e}"),
+                "/form-upload-file PUT error".to_string(),
+                &format!("data_put() failed to encode JSON result - {e}"),
             )
         }
     };
@@ -192,7 +192,7 @@ pub struct PutResultList {
     put,
     params(
         ("make_public" = bool, description = "true to upload data as public"),
-        ("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi data_put_public() API for each file upload, 0 means unlimited. This overrides the API control setting in the server.")),
+        ("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi upload API for each file upload, 0 means unlimited. This overrides the API control setting in the server.")),
     request_body(content = UploadFormList, content_type = "multipart/form-data"),
     responses(
         (status = 200, description = "A PutResultList featuring a PutResult for each upload either status 200 with cost and data address on the network, or in case of error an error status code and message about the error.<br/>\
@@ -237,8 +237,8 @@ pub async fn data_put_list(
             return make_error_response_page(
                 Some(StatusCode::INTERNAL_SERVER_ERROR),
                 &mut HttpResponse::NotFound(),
-                "/data PUT error".to_string(),
-                &format!("data_put_public() failed to encode JSON result - {e}"),
+                "/form-upload-file-list PUT error".to_string(),
+                &format!("data_put_list() failed to encode JSON result - {e}"),
             )
         }
     };
@@ -250,7 +250,7 @@ pub async fn data_put_list(
 }
 
 async fn put_file_public(client: &DwebClient, file: &mut TempFile, tries: u32) -> PutResult {
-    // TODO update if Autonomi supports streamed data_put_public() (or file_put_public())
+    // TODO update if Autonomi supports streamed uploads
     let mut content = Vec::<u8>::new();
     let file_name = file.file_name.clone().unwrap_or("unknown".to_string());
     let content_len = match file.file.read_to_end(&mut content) {

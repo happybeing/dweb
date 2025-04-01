@@ -15,12 +15,82 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-pub mod directory;
 pub mod file;
 pub mod form;
 pub mod name;
+// pub mod publish;
 
-use actix_web::{get, http::header, HttpRequest, HttpResponse, Responder};
+use actix_web::{
+    get,
+    http::{header, StatusCode},
+    HttpRequest, HttpResponse, Responder,
+};
+use autonomi::AttoTokens;
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
+
+use dweb::token::format_tokens_as_attos;
+
+/// Network data types foor dweb REST APIs
+#[derive(Serialize, Deserialize, ToSchema)]
+pub enum DwebType {
+    PublicFile,
+    PrivateFile,
+    PublicArchive,
+    History,
+    Register,
+    Pointer,
+    Scratchpad,
+    Vault,
+}
+/// PutResult is used to return the result of POST or PUT operations for several network data types
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct PutResult {
+    /// DwebType of the data stored
+    pub dweb_type: DwebType,
+
+    /// The HTTP status code returned for this upload
+    pub status: u16,
+    /// Information about the operation, such as "success" or an explanation of an error.
+    ///
+    /// Either "success" or an explanatory error message.
+    pub status_message: String,
+    /// The cost incurred by the operation
+    pub cost_in_attos: String,
+
+    /// Name of the resource when data_type is "file"
+    pub file_name: String,
+    /// Full local system path of the resource (returned by /publish APIs)
+    pub full_path: String,
+    /// Hex encoded address of a data map or of other stored data. Only returned when uploading data as public
+    ///
+    /// Returned for public data of type: PublicFile, PublicArchive, History, Register, Pointer, Scratchpad, Vault
+    pub data_address: String,
+    /// Hex encoded data map for the uploaded data. Only returned when uploading data as private.
+    ///
+    /// This data_map has not been stored and will be needed in order to access the data later.
+    pub data_map: String,
+}
+
+impl PutResult {
+    pub fn new(
+        dweb_type: DwebType,
+        status: StatusCode,
+        status_message: String,
+        cost_in_attos: AttoTokens,
+    ) -> PutResult {
+        PutResult {
+            dweb_type,
+            status: status.as_u16(),
+            status_message,
+            cost_in_attos: format_tokens_as_attos(cost_in_attos.as_atto()),
+            data_address: "".to_string(),
+            data_map: "".to_string(),
+            file_name: "".to_string(),
+            full_path: "".to_string(),
+        }
+    }
+}
 
 /// Get the proxy identifier and version of the dweb API
 #[utoipa::path(

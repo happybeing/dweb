@@ -14,11 +14,12 @@
  You should have received a copy of the GNU Affero General Public License
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+use std::time::{Duration, UNIX_EPOCH};
 
 use actix_web::HttpRequest;
 use chrono::offset::Utc;
 use chrono::DateTime;
-use std::time::{Duration, UNIX_EPOCH};
+use color_eyre::eyre::Result;
 
 use crate::trove::directory_tree::DirectoryTreePathMap;
 
@@ -56,10 +57,16 @@ pub fn request_as_html(request: &HttpRequest) -> String {
     )
 }
 
-// A JSON string representing a date from autonomi::files::Metadata
-pub fn json_date_from_metadata(date: u64) -> String {
+/// A u64 date from autonomi::files::Metadata as a string
+pub fn metadata_date_to_json_datestring(date: u64) -> String {
     let date: DateTime<Utc> = (UNIX_EPOCH + Duration::from_secs(date)).into();
     date.format("%Y-%m-%d %H:%M:%S").to_string()
+}
+
+/// A data string to u64 date (as in autonomi::files::Metadata)
+pub fn json_date_to_metadata_date(date_string: &String) -> Result<u64> {
+    let datetime: DateTime<Utc> = date_string.parse()?;
+    Ok(datetime.timestamp() as u64)
 }
 
 // The JSON representation of a DirectoryTree, for the SVAR file manager
@@ -78,7 +85,7 @@ pub fn json_for_svar_file_manager(directory_map: &DirectoryTreePathMap) -> Strin
             }
             let file_id = format!("{path}{filename}");
             let file_size = metadata.size;
-            let file_modified = json_date_from_metadata(metadata.modified);
+            let file_modified = metadata_date_to_json_datestring(metadata.modified);
             json_string = json_string + &format!("{{\"id\": \"{file_id}\", \"size\": {file_size}, \"date\": \"{file_modified}\", \"type\": \"file\" }}");
 
             if metadata.modified > directory_modified {
@@ -97,7 +104,7 @@ pub fn json_for_svar_file_manager(directory_map: &DirectoryTreePathMap) -> Strin
             if !is_first_item {
                 json_string = json_string + ",\n";
             }
-            let directory_modified = json_date_from_metadata(directory_modified);
+            let directory_modified = metadata_date_to_json_datestring(directory_modified);
             json_string = json_string
             + &format!(
                 "{{\"id\": \"{path}\", \"size\": {directory_size}, \"date\": \"{directory_modified}\", \"type\": \"folder\" }}"

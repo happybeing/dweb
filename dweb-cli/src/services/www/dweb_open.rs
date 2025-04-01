@@ -30,7 +30,17 @@ use super::make_error_response_page;
 
 /// Open the content at a given address or name
 ///
+/// Path parameters refer to the required version and dweb History:
+///
+///     [v{VERSION-NUMBER}/]{ADDRESS-OR-NAME}/{REMOTE-PATH}
+///
 /// url: <code>http://127.0.0.1:8080/dweb-open/[v<VERSION-NUMBER>/]<ADDRESS-OR-NAME><REMOTE-PATH></code>
+///
+/// VERSION-NUMBER      Optional version when ADDRESS-OR-NAME refers to a <code>History<DirectoryTree></code>
+///
+/// ADDRESS-OR-NAME     A hexadecimal address or a short name referring to a History or PublicArchive
+///
+/// REMOTE-PATH         Optional path to the resource you wish to open. Must begin with '/'
 ///
 #[utoipa::path(
     responses(
@@ -39,11 +49,6 @@ use super::make_error_response_page;
             <p>Note: this may be changed to return a JSON representation of a DirectoryTree.", body = str)
         ),
     tags = ["Linking"],
-    params(
-        ("VERSION-NUMBER" = Option<u64>, description = "Optional version when ADDRESS-OR-NAME refers to a History<DirectoryTree>"),
-        ("ADDRESS-OR-NAME", description = "A hexadecimal address or a short name referring to a History or PublicArchive"),
-        ("REMOTE-PATH" = Option<String>, description = "Optional path to the resource you wish to open. Must begin with \"/\"")
-    )
 )]
 #[get("/dweb-open/{params:.*}")]
 pub async fn dweb_open(

@@ -49,8 +49,8 @@ const ADDRESS_DEFAULT_FAVICON: &str =
 // Early Safepress icon, blue cube inside a cube. Nice resolution
 // const ADDRESS_DEFAULT_FAVICON: &str = "";
 
-/// Separator used in DirectoryTree::directory_map
-pub const PATH_SEPARATOR: char = '/';
+/// Separator used in PublicArchive and DirectoryTree::directory_map
+pub const ARCHIVE_PATH_SEPARATOR: char = '/';
 
 /// Manage settings as a JSON string
 //
@@ -330,7 +330,7 @@ impl DirectoryTree {
         resource_path: &String,
         as_website: bool,
     ) -> Result<(DataAddress, Option<String>), StatusCode> {
-        let last_separator_result = resource_path.rfind(PATH_SEPARATOR);
+        let last_separator_result = resource_path.rfind(ARCHIVE_PATH_SEPARATOR);
         if last_separator_result.is_none() {
             return Err(StatusCode::BAD_REQUEST);
         }
@@ -356,10 +356,10 @@ impl DirectoryTree {
         // For a wesbite directory, look for an index file
         if as_website && path_and_address.is_none() {
             // Assume the second part is a directory name, so remake the path for that
-            let new_resource_path = if original_resource_path.ends_with(PATH_SEPARATOR) {
+            let new_resource_path = if original_resource_path.ends_with(ARCHIVE_PATH_SEPARATOR) {
                 original_resource_path.clone()
             } else {
-                original_resource_path.clone() + PATH_SEPARATOR.to_string().as_str()
+                original_resource_path.clone() + ARCHIVE_PATH_SEPARATOR.to_string().as_str()
             };
 
             println!("Retrying for index file in new_resource_path '{new_resource_path}'");
@@ -462,7 +462,7 @@ impl DirectoryTreePathMap {
     ) -> Result<()> {
         // println!("DEBUG add_content_to_map() path '{resource_website_path}'");
         let mut web_path = Self::webify_string(&resource_website_path);
-        if let Some(last_separator_position) = web_path.rfind(PATH_SEPARATOR) {
+        if let Some(last_separator_position) = web_path.rfind(ARCHIVE_PATH_SEPARATOR) {
             let resource_file_name = web_path.split_off(last_separator_position + 1);
             // println!(
             //     "DEBUG Splitting at {last_separator_position} into path: '{web_path}' file: '{resource_file_name}'"
@@ -494,7 +494,7 @@ impl DirectoryTreePathMap {
     // }
 
     // Replace OS path separators with '/'
-    fn webify_string(path_string: &String) -> String {
+    pub fn webify_string(path_string: &String) -> String {
         let path_string = path_string.clone();
         return path_string.replace(std::path::MAIN_SEPARATOR_STR, "/");
     }

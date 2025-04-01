@@ -150,7 +150,7 @@ pub async fn publish_or_update_files(
     {
         Ok((archive_cost, archive_address)) => (archive_cost, archive_address),
         Err(e) => {
-            let message = format!("Max retries reached: {e:?}");
+            let message = format!("max tries reached: {e:?}");
             println!("{message}");
             return Err(eyre!(message));
         }
@@ -263,8 +263,9 @@ pub async fn publish_directory(
     .await
 }
 
-/// Upload the tree of files at files_root (without storing the PublicArchive)
-/// Return the autonomi PublicArchive if all files have been uploaded
+/// Upload the tree of files with the option to include a dweb settings file
+///
+/// Return the autonomi PublicArchive if all files have been uploaded. Does not store the PublicArchive.
 pub async fn publish_files(
     client: &DwebClient,
     files_root: &PathBuf,
@@ -284,7 +285,7 @@ pub async fn publish_files(
 
     let (files_cost, mut archive) = match directory_upload_public(client, files_root).await {
         Ok(result) => result,
-        Err(e) => return Err(eyre!("Error max retries reached - {e}")),
+        Err(e) => return Err(eyre!("Error max tries reached - {e}")),
     };
 
     let settings_cost = if let Some(dweb_path) = dweb_settings {
@@ -317,7 +318,7 @@ pub async fn publish_files(
                 cost
             }
             Err(e) => {
-                println!("Error max retries reached - {e}");
+                println!("Error max tries reached - {e}");
                 0.into()
             }
         }
@@ -437,7 +438,7 @@ pub async fn directory_upload_public(
                 cost
             }
             Err(e) => {
-                println!("Error max retries reached - {e}");
+                println!("Error max tries reached - {e}");
                 0.into()
             }
         };

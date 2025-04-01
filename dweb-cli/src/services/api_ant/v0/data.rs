@@ -40,7 +40,7 @@ use crate::services::helpers::*;
     ),
 )]
 #[get("/data-public/{data_address}")]
-pub async fn data_get_public(
+pub async fn get_public(
     request: HttpRequest,
     params: web::Path<String>,
     client: Data<dweb::client::DwebClient>,

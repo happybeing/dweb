@@ -1046,9 +1046,9 @@ dependencies = [
 
 [[package]]
 name = "ant-evm"
-version = "0.1.11"
+version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "594832b3c46a8074d55b6d143d482b954ba6b3a384a5ba8a34ce467b69fe4e30"
+checksum = "31057cdfc9e35640d5f639f3271d027c714cc03a9a59cf96f973867c4b74721b"
 dependencies = [
  "custom_debug",
  "evmlib",
@@ -1089,9 +1089,9 @@ dependencies = [
 
 [[package]]
 name = "ant-networking"
-version = "0.3.8"
+version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39c8fba0a6904f7f4bc79a5cd642beb02d104b3f39240df4d668a185b17021ec"
+checksum = "e648a52e239e836b6a7cc69c3a6e9968381c4ded98fef7bc22f8b58480cc6a5c"
 dependencies = [
  "aes-gcm-siv",
  "ant-bootstrap",
@@ -1124,9 +1124,9 @@ dependencies = [
 
 [[package]]
 name = "ant-protocol"
-version = "1.0.2"
+version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97d59ed357075e338e871aa8d0d6f47503086a9fe616fad19e191c710fbbc480"
+checksum = "446aa39e22121d86bd8522f8154460e8137e458e5dc76d369a173e2f5b16c45d"
 dependencies = [
  "ant-build-info",
  "ant-evm",
@@ -1501,9 +1501,9 @@ checksum = "ace50bade8e6234aa140d9a2f552bbee1db4d353f69b8217bc503490fc1a9f26"
 
 [[package]]
 name = "autonomi"
-version = "0.4.2"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f79e90d6dfa3eb9993c20a6d5c17baec8f4da6e0e01bf73b17ce3fab65df1c09"
+checksum = "c23de5febb61e57e46b6923c1f3ea4b06b9872c12f88d6ade9c31e0574c3876b"
 dependencies = [
  "ant-bootstrap",
  "ant-evm",
@@ -2593,13 +2593,14 @@ checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
 
 [[package]]
 name = "dweb"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "actix-web",
  "ant-bootstrap",
  "ant-build-info",
  "ant-logging",
  "ant-networking",
+ "ant-protocol",
  "anyhow",
  "async-stream",
  "autonomi",
@@ -2647,7 +2648,7 @@ dependencies = [
 
 [[package]]
 name = "dweb-cli"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "actix-cors",
  "actix-multipart",

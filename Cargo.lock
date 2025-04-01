@@ -2593,13 +2593,12 @@ checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
 
 [[package]]
 name = "dweb"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "actix-web",
  "ant-bootstrap",
  "ant-build-info",
  "ant-logging",
- "ant-networking",
  "ant-protocol",
  "anyhow",
  "async-stream",
@@ -2648,7 +2647,7 @@ dependencies = [
 
 [[package]]
 name = "dweb-cli"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "actix-cors",
  "actix-multipart",
@@ -2656,7 +2655,6 @@ dependencies = [
  "ant-bootstrap",
  "ant-build-info",
  "ant-logging",
- "ant-networking",
  "ant-protocol",
  "autonomi",
  "blsttc",

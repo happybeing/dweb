@@ -26,7 +26,6 @@ autonomi = { version = "0.4.3" }
 ant-bootstrap = { version = "0.2.0" }
 ant-build-info = { version = "0.1.26" }
 ant-logging = { version = "0.2.48" }
-ant-networking = { version = "0.3.9" }
 ant-protocol = { version = "1.0.3" }
 evmlib = { version = "0.2.1" }
 

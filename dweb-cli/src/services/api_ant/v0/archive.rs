@@ -40,7 +40,6 @@ use crate::services::helpers::*;
 
 // TODO archive_put() for /put
 // TODO remove /directory-load
-// TODO add Option<version> to DwebArchive for when retrieved from a History
 
 /// Get a directory tree (PublicArchive)
 ///
@@ -157,6 +156,7 @@ pub async fn get_version(
 
     let (version, _as_name, address_or_name, _remote_path) = decoded_params;
     let version = version.clone();
+    let mut history_metadata = None;
 
     let (history_address, archive_address) = address_tuple_from_address_or_name(&address_or_name);
     if history_address.is_none() && archive_address.is_none() {
@@ -195,6 +195,12 @@ pub async fn get_version(
 
         let ignore_pointer = false;
         let version = version.unwrap_or(0);
+        history_metadata = Some(DwebHistoryReference {
+            version,
+            history_address: history_address.to_hex(),
+            history_size: history.num_entries() - 1,
+        });
+
         match history
             .get_version_entry_value(version, ignore_pointer)
             .await
@@ -226,7 +232,8 @@ pub async fn get_version(
         }
     };
 
-    let dweb_archive = DwebArchive::from_public_archive(&public_archive);
+    let mut dweb_archive = DwebArchive::from_public_archive(&public_archive);
+    dweb_archive.history_metadata = history_metadata;
     let json = match serde_json::to_string(&dweb_archive) {
         Ok(json) => json,
         Err(e) => {
@@ -246,15 +253,30 @@ pub async fn get_version(
         .body(json)
 }
 
+/// Metadata about the History from which a DwebArchive was obtained
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct DwebHistoryReference {
+    /// The address in hexadecimal of the History from which the PublicArchive was retrieved
+    history_address: String,
+    /// The version entry of the retrieved PublicArchive. A version of 0 indicates the most recent version was obtained
+    version: u32,
+    /// The total number of versions when the History was accessed
+    history_size: u32,
+}
+
 /// A representation of the Autonomi PublicArchive for web clients
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct DwebArchive {
+    /// File and directory entries represented in a PublicArchive. For PUT, directory entries are ignored so not required
     pub entries: Vec<DwebArchiveEntry>,
+    /// Information about a History will only be present only when retrieved from a History using /archive-versions this
+    pub history_metadata: Option<DwebHistoryReference>,
 }
 
 impl DwebArchive {
     pub fn new() -> DwebArchive {
         DwebArchive {
+            history_metadata: None,
             entries: Vec::<DwebArchiveEntry>::new(),
         }
     }

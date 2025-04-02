@@ -28,33 +28,7 @@ ant-logging = { version = "0.2.48" }
 ant-protocol = { version = "1.0.3" }
 evmlib = { version = "0.2.1" }
 
-# Generated using: awe-dependencies --branch stable
-#autonomi = { version = "0.4.2" }
-#ant-bootstrap = { version = "0.2.0" }
-#ant-build-info = { version = "0.1.26" }
-#ant-logging = { version = "0.2.48" }
-#ant-networking = { version = "0.3.8" }
-#ant-protocol = { version = "1.0.2" }
-#evmlib = { version = "0.2.1" }
-
-# Generated using: awe-dependencies --branch stable-2025.1.2.11
-#autonomi = { version = "0.4.1" }
-#ant-bootstrap = { version = "0.2.0" }
-#ant-build-info = { version = "0.1.26" }
-#ant-logging = { version = "0.2.48" }
-#ant-networking = { version = "0.3.7" }
-#ant-protocol = { version = "1.0.2" }
-
-# Generated using: awe-dependencies --branch stable-2025.1.2.6
-#autonomi = { version = "0.4.0" }
-#ant-bootstrap = { version = "0.1.6" }
-#ant-build-info = { version = "0.1.25" }
-#ant-logging = { version = "0.2.47" }
-#ant-networking = { version = "0.3.6" }
-#ant-protocol = { version = "1.0.1" }
-
 dweb = { path = "../dweb-lib", version = "0.3.3", features = ["development"]}
-#dweb = { version = "0.3.2", features = ["development"]}
 
 clap = "4.5.21"
 color-eyre = "0.6.3"

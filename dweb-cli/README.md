@@ -26,7 +26,7 @@ Note: instructions below have been written for the public network, so be aware t
 ### Quickstart dweb Browsing
 If you have Rust installed you can view websites live on Autonomi in two steps:
 ```
-cargo install dweb-cli
+cargo install --locked dweb-cli
 dweb open awesome
 ```
 The above opens your browser and loads a website from Autonomi containing links to other sites you can view. Just a taste of things to come. More demo sites are welcome, and will be included to help people get started on the dweb.
@@ -70,7 +70,7 @@ In time, downloads will be provided to avoid the need to install Rust, but until
 
 ### Install dweb-cli
 ```
-cargo install dweb-cli
+cargo install --locked dweb-cli
 ```
 
 If you need help, you can list the dweb subcommands and options with:
@@ -415,12 +415,12 @@ Install the following:
 - get Rust  for installing command line apps. See [Get Rust](https://www.rust-lang.org/tools/install)
 - get dweb:
 ```
-   cargo install dweb-cli
+   cargo install --locked dweb-cli
    dweb --version
 ```
 - get ant (the Autonomi command line interface):
 ```
-   cargo install autonomi-cli
+   cargo install --locked autonomi-cli
    ant --version
 ```
 

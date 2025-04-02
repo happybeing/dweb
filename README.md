@@ -3,7 +3,7 @@
 
 If you have Rust installed you can take a look at the early dweb right now:
 ```
-cargo install dweb-cli
+cargo install --locked dweb-cli
 dweb open awesome
 ```
 
@@ -14,7 +14,7 @@ This is an active project with lots of ideas and potential, but already supports
 ## Command Line Usage
 To get the **dweb** command line app and view a website live on Autonomi:
 ```
-cargo install dweb-cli
+cargo install --locked dweb-cli
 dweb open awesome
 ```
 After installing dweb this will open your web browser to show a website stored on Autonomi which contains links to other websites also on Autonomi. If you don't yet have Rust see [Get Rust](#get-rust).

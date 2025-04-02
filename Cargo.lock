@@ -2596,7 +2596,6 @@ name = "dweb"
 version = "0.3.4"
 dependencies = [
  "actix-web",
- "ant-bootstrap",
  "ant-build-info",
  "ant-logging",
  "ant-protocol",
@@ -2652,7 +2651,6 @@ dependencies = [
  "actix-cors",
  "actix-multipart",
  "actix-web",
- "ant-bootstrap",
  "ant-build-info",
  "ant-logging",
  "ant-protocol",

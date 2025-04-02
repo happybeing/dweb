@@ -17,8 +17,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use color_eyre::{eyre::eyre, Result};
 
+use autonomi::Amount;
 use autonomi::AttoTokens;
-use evmlib::common::{Amount, U256};
+use evmlib::common::U256;
 
 use crate::client::DwebClient;
 

@@ -23,10 +23,10 @@ use clap::Subcommand;
 use color_eyre::{eyre::eyre, Result};
 use core::time::Duration;
 
-use ant_bootstrap::InitialPeersConfig;
 use ant_logging::{LogFormat, LogOutputDest};
 use autonomi::files::archive_public::ArchiveAddress;
 use autonomi::GraphEntryAddress;
+use autonomi::InitialPeersConfig;
 use autonomi::PointerAddress;
 
 use dweb::helpers::convert::*;

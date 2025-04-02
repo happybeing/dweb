@@ -37,6 +37,7 @@ pub enum DwebType {
     PublicFile,
     PrivateFile,
     PublicArchive,
+    PrivateArchive,
     History,
     Register,
     Pointer,

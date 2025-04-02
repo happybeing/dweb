@@ -60,7 +60,7 @@ struct UploadForm {
 ///
 /// Example form:
 /// ```
-/// <form target="/form-upload-file/true" method="post" enctype="multipart/form-data">
+/// <form target="/form-upload-file/true" method="put" enctype="multipart/form-data">
 ///     <input type="file" name="file"/>
 ///     <button type="submit">Submit</button>
 /// </form>
@@ -91,7 +91,7 @@ struct UploadForm {
     ),
     tags = ["Dweb"],
 )]
-#[put("/form-upload-file/{make_public}/?tries={tries}")]
+#[put("/form-upload-file/{make_public}")]
 pub async fn data_put(
     MultipartForm(mut form): MultipartForm<UploadForm>,
     request: HttpRequest,
@@ -165,7 +165,7 @@ pub struct PutResultList {
 ///
 /// Example form:
 /// ```
-/// <form target="/form-upload-file-list/true" method="post" enctype="multipart/form-data">
+/// <form target="/form-upload-file-list/true" method="put" enctype="multipart/form-data">
 ///     <input type="file" multiple name="file"/>
 ///     <button type="submit">Submit</button>
 /// </form>
@@ -187,7 +187,7 @@ pub struct PutResultList {
     ),
     tags = ["Dweb"],
 )]
-#[put("/form-upload-file-list/{make_public}/?tries={tries}")]
+#[put("/form-upload-file-list/{make_public}")]
 pub async fn data_put_list(
     MultipartForm(form): MultipartForm<UploadFormList>,
     request: HttpRequest,

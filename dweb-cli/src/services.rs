@@ -133,8 +133,9 @@ pub async fn serve_with_ports(
             // Autonomi APIs
             .service(
                 scope(dweb::api::ANT_API_ROUTE)
-                    .service(api_ant::v0::archive::get)
-                    .service(api_ant::v0::archive::get_version)
+                    .service(api_ant::v0::archive_public::post)
+                    .service(api_ant::v0::archive_public::get)
+                    .service(api_ant::v0::archive_public::get_version)
                     .service(api_ant::v0::data::get_public),
             )
             // dweb APIs

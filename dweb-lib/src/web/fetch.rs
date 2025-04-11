@@ -26,8 +26,8 @@ use url::Url;
 use autonomi::client::files::archive_public::ArchiveAddress;
 
 use crate::client::DwebClient;
-use crate::trove::History;
-use crate::trove::{directory_tree::DirectoryTree, HistoryAddress};
+use crate::files::directory_tree::{get_content, DirectoryTree};
+use crate::trove::{History, HistoryAddress};
 use crate::web::name::decode_dweb_host;
 use crate::web::name::DwebHost;
 use crate::{
@@ -79,14 +79,14 @@ pub async fn fetch(client: &DwebClient, url: Url, as_website: bool) -> HttpRespo
                 .unwrap() // Guaranteed to be Some() by directory_version_get()
                 .lookup_file(&url.path().to_string(), as_website)
             {
-                Ok((file_address, content_type)) => {
+                Ok((datamap_chunk, data_address, content_type)) => {
                     let content_type = if content_type.is_some() {
                         content_type.unwrap().clone()
                     } else {
                         String::from("text/plain")
                     };
 
-                    match client.data_get_public(file_address).await {
+                    match get_content(client, datamap_chunk, data_address).await {
                         Ok(bytes) => Some(
                             HttpResponseBuilder::new(StatusCode::OK)
                                 .insert_header((header::CONTENT_TYPE, content_type.as_str()))

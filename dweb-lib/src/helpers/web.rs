@@ -21,7 +21,7 @@ use chrono::offset::Utc;
 use chrono::DateTime;
 use color_eyre::eyre::Result;
 
-use crate::trove::directory_tree::DirectoryTreePathMap;
+use crate::files::directory_tree::DirectoryTreePathMap;
 
 /// Return HTML detailing an HttpRequest including its headers
 pub fn request_as_html(request: &HttpRequest) -> String {
@@ -79,7 +79,7 @@ pub fn json_for_svar_file_manager(directory_map: &DirectoryTreePathMap) -> Strin
 
         let mut directory_modified: u64 = 0;
         let mut directory_size: u64 = 0;
-        for (filename, _data_address, metadata) in files {
+        for (filename, _data_address, _datamap, metadata) in files {
             if !is_first_item {
                 json_string = json_string + ",\n";
             }

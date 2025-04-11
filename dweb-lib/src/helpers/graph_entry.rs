@@ -104,7 +104,7 @@ pub async fn graph_entry_get(
                     println!("DEBUG GraphEntry exists");
                 }
             }
-            Err(e) => {}
+            Err(_e) => {}
         };
     };
 
@@ -195,11 +195,11 @@ pub async fn create_graph_entry(
 
     let new_value: HistoryValue = new_value.xorname().0;
     let next_entry = GraphEntry::new(&entry_secret_key, parents, new_value, descendants);
-    debug_print_graph_entry(
-        "returning created next_entry",
-        &next_entry,
-        Some(history_secret_key),
-    );
+    // debug_print_graph_entry(
+    //     "returning created next_entry",
+    //     &next_entry,
+    //     Some(history_secret_key),
+    // );
 
     Ok(next_entry)
 }

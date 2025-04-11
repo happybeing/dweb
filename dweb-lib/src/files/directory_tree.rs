@@ -22,13 +22,16 @@ use color_eyre::eyre::{eyre, Result};
 use http::status::StatusCode;
 use mime_guess;
 
+use autonomi::chunk::DataMapChunk;
 use autonomi::client::data::DataAddress;
+use autonomi::client::files::archive_private::PrivateArchive;
 use autonomi::client::files::archive_public::PublicArchive;
 use autonomi::client::files::Metadata as FileMetadata;
 use autonomi::files::archive_public::ArchiveAddress;
 
 use crate::client::DwebClient;
-use crate::helpers::convert::str_to_data_address;
+use crate::files::archive::DualArchive;
+use crate::storage::DwebType;
 use crate::trove::{History, Trove};
 
 // The Trove type for a DirectoryTree
@@ -49,7 +52,7 @@ const ADDRESS_DEFAULT_FAVICON: &str =
 // Early Safepress icon, blue cube inside a cube. Nice resolution
 // const ADDRESS_DEFAULT_FAVICON: &str = "";
 
-/// Separator used in PublicArchive and DirectoryTree::directory_map
+/// Separator used in PublicArchive/PrivateArchive and DirectoryTree::directory_map
 pub const ARCHIVE_PATH_SEPARATOR: char = '/';
 
 /// Manage settings as a JSON string
@@ -111,6 +114,8 @@ pub const DWEB_HISTORY_DIRECTORY: &str = "/.dweb/history-address";
 /// The address of existing content that can be re-used to avoid uploading any content for the History address file
 pub const DWEB_DIRECTORY_HISTORY_CONTENT: &str =
     "0a2768c3ebbb3651cfb4219222ddef9feafd485e07ed9cf1b27b8f97afa4595d";
+pub const DWEB_DIRECTORY_HISTORY_DATAMAPCHUNK: &str =
+    "81a54669727374939400dc00204f71ccc3ccdb7bcc95ccbaccd80a6eccd6125a2dccab2acc9657ccb5ccd9ccf518ccc4ccc455ccb311cc96ccd3ccf6cca139dc0020ccdbccf2cce1cccdccd03bccfccce4ccbe563220cca74a7fcca6cca13c2f21cc8e0248ccbaccc967cc87ccabcce65ecc99ccdcce000123179401dc0020cc8064cc8112cc9fcca6ccbcccf5151e4a4ccc87ccfc6d455650cc980dcc9a11cc8c7ccc83cced01cc90ccdbccc8cca341dc0020cc891d5677cc8267ccd7ccf6ccaf7acccb75ccde01ccb3cc81cc88cc82cc8c354f135cccd9cc836b48cc85ccf601ccebcce6ce000123179402dc00206accd622cccf50ccf5ccb4ccbccca738027bccd1ccceccc95f222173020921ccb000cc82ccd43a1ecc80cce2cce3ccfedc0020386cccc344360619157d6541ccd2ccbf7dcc866ecca812ccc424cc841c43cc81ccf1cc8563ccab353bccc3ccf4ce00012318";
 
 /// A set of default settings for use with a website when dweb_settings is none
 #[derive(Clone)]
@@ -166,14 +171,18 @@ impl DwebSettings {
 /// of the tree or website which have been stored.
 #[derive(Clone)]
 pub struct DirectoryTree {
-    // We use a different map structure than Archive here but use an Autonomi PublicArchive
-    // for serialisation in order to be compatible with other apps using that to store files.
+    // We use a different map structure than Archive here and can consume either Autonomi
+    // PublicArchive or PrivateArchive in the form of a dweb::archive::DualArchive
+    //
+    // Serialisation is designed to be compatible with other apps using either PublicArchive
+    // or PrivateArchive to store files. We prefer PrivateArchive even for public data
+    // as explained in the docs for dweb::archive::DualArchive.
     //
     /// Map using directory as key:
     pub directory_map: DirectoryTreePathMap,
 
-    /// Keep a copy of the archive for serialisation.
-    pub archive: PublicArchive,
+    /// Holds the Autonomi archive type for serialisation
+    pub archive: DualArchive,
 
     /// Optional settings for dweb or third party apps. These are stored as a JSON formatted
     /// file in the Archive, updated whenever the DirectoryTree is stored on or retrieved
@@ -192,16 +201,20 @@ impl Trove<DirectoryTree> for DirectoryTree {
         DataAddress::from_hex(FILE_TREE_TYPE).unwrap() // An error here is a bug that should be fixed
     }
 
+    /// Serialise as PrivateArchive
+    ///
+    /// A PrivateArchive is used in preference to PublicArchive even for public data.
+    /// See dweb::archive::DualArchive for an explanation.
     fn to_bytes(directory_tree: &DirectoryTree) -> Result<Bytes> {
-        match directory_tree.archive.to_bytes() {
+        match directory_tree.archive.to_bytes_as_private() {
             Ok(bytes) => Ok(bytes),
             Err(e) => Err(eyre!("Failed to serialise DirectoryTree::archive - {e}")),
         }
     }
 
     async fn from_bytes(client: &DwebClient, bytes: Bytes) -> Result<DirectoryTree> {
-        match PublicArchive::from_bytes(bytes) {
-            Ok(archive) => Ok(DirectoryTree::from_archive(client, archive).await),
+        match DualArchive::from_bytes(bytes) {
+            Ok(archive) => Ok(DirectoryTree::from_dual_archive(client, archive).await),
             Err(e) => Err(eyre!("Failed to serialise DirectoryTree::archive - {e}")),
         }
     }
@@ -234,47 +247,111 @@ impl DirectoryTree {
             "DEBUG directory_tree_download() at {}",
             archive_address.to_hex()
         );
-        match client.client.archive_get_public(&archive_address).await {
-            Ok(archive) => {
-                println!(
-                    "DEBUG Retrieved Public Archive of {} files",
-                    archive.files().len()
-                );
-                let mut directory_tree = Self::from_archive_raw(archive);
-                directory_tree.update_dweb_settings(client).await;
-                Ok(directory_tree)
-            }
-
+        match client.client.data_get_public(&archive_address).await {
+            Ok(data) => match DualArchive::from_bytes(data) {
+                Ok(dual_archive) => {
+                    println!(
+                        "DEBUG Retrieved {:?} of {} files",
+                        dual_archive.dweb_type,
+                        dual_archive.files().len()
+                    );
+                    let mut directory_tree = Self::from_dual_archive(client, dual_archive).await;
+                    directory_tree.update_dweb_settings(client).await;
+                    Ok(directory_tree)
+                }
+                Err(e) => {
+                    let message = format!("DEBUG failed to deseralise archive - {e}");
+                    println!("DEBUG {message}");
+                    return Err(eyre!(message));
+                }
+            },
             Err(e) => {
-                println!("FAILED: {e}");
+                println!("FAILED to get archive data {e}");
                 Err(e.into())
             }
         }
     }
 
-    // Initialise with data from the archive without accessing the network for DwebSettings
-    pub async fn from_archive(client: &DwebClient, archive: PublicArchive) -> DirectoryTree {
-        let mut directory_tree = Self::from_archive_raw(archive);
-        directory_tree.update_dweb_settings(client).await;
-        directory_tree
+    /// Initialise from an PublicArchive
+    ///
+    /// If the archive contains a DwebSettings file this will be read from the network
+    pub async fn from_public_archive(
+        client: &DwebClient,
+        public_archive: PublicArchive,
+    ) -> DirectoryTree {
+        Self::from_dual_archive(
+            client,
+            DualArchive {
+                public_archive,
+                private_archive: PrivateArchive::new(),
+                dweb_type: DwebType::PublicArchive,
+            },
+        )
+        .await
     }
 
-    // Initialise with data from the archive without accessing the network for DwebSettings
-    fn from_archive_raw(archive: PublicArchive) -> DirectoryTree {
-        DirectoryTree {
-            directory_map: DirectoryTreePathMap::from_public_archive(&archive),
-            archive,
-            dweb_settings: DwebSettings::default(),
-        }
+    /// Initialise from an PrivateArchive
+    ///
+    /// If the archive contains a DwebSettings file this will be read from the network
+    pub async fn from_private_archive(
+        client: &DwebClient,
+        private_archive: PrivateArchive,
+    ) -> DirectoryTree {
+        Self::from_dual_archive(
+            client,
+            DualArchive {
+                public_archive: PublicArchive::new(),
+                private_archive,
+                dweb_type: DwebType::PrivateArchive,
+            },
+        )
+        .await
+    }
+
+    /// Initialise from a DualArchive
+    ///
+    /// If the archive contains a DwebSettings file this will be read from the network
+    ///
+    /// Check the value of DualArchive.dweb_type to determine the type or archive. On failure it will be DwebType::Uknown
+    pub async fn from_dual_archive(client: &DwebClient, archive: DualArchive) -> DirectoryTree {
+        let dweb_type = archive.dweb_type;
+        let mut directory_tree = match dweb_type {
+            DwebType::PrivateArchive => DirectoryTree {
+                directory_map: DirectoryTreePathMap::from_private_archive(&archive.private_archive),
+                archive,
+                dweb_settings: DwebSettings::default(),
+            },
+            DwebType::PublicArchive => DirectoryTree {
+                directory_map: DirectoryTreePathMap::from_public_archive(&archive.public_archive),
+                archive,
+                dweb_settings: DwebSettings::default(),
+            },
+            _ => {
+                let message =
+                    format!("DirectoryTree cannot initialise using unknown DualArchive.dweb_type");
+                println!("DEBUG {message}");
+                DirectoryTree {
+                    directory_map: DirectoryTreePathMap::new(),
+                    archive,
+                    dweb_settings: DwebSettings::default(),
+                }
+            }
+        };
+        directory_tree.update_dweb_settings(client).await;
+        println!("DEBUG DirectoryTree initialised using {dweb_type:?}",);
+        directory_tree
     }
 
     // Update DwebSettings if present in the archive
     // Return true if settings were updated
+    // TODOxxx update to handle public/private archive getting using address or datamap
     async fn update_dweb_settings(&mut self, client: &DwebClient) -> bool {
         // Initialise dweb settings
         let dweb_settings_path = PathBuf::from(DWEB_SETTINGS_PATH);
-        if let Some((settings_address, _metadata)) = self.archive.map().get(&dweb_settings_path) {
-            if let Ok(bytes) = client.client.data_get_public(settings_address).await {
+        if let Some((datamap_chunk, data_address, _metadata)) =
+            self.archive.lookup_file(&dweb_settings_path)
+        {
+            if let Ok(bytes) = get_content(client, datamap_chunk, data_address).await {
                 if let Ok(parsed_settings) = DwebSettings::from_bytes(&bytes) {
                     self.dweb_settings = parsed_settings;
                     return true;
@@ -290,13 +367,18 @@ impl DirectoryTree {
     /// If version is None attempts obtain the default (most recent version)
     ///
     /// as_website controls special handling for a website. See `lookup_file()`
-    /// Returns a tuple with the address of the resource and optional content type if it can be determined
+    ///
+    /// If found, returns a tuple: (datamap_chunk: String, data_address: String, content_type: Option<String>)
+    ///
+    /// Only one of datamap_chunk and data_address will be a hex encoded string, the other empty.
+    ///
+    // TODOxxx update to handle public/private archive getting using address or datamap
     pub async fn history_lookup_file(
         history: &mut History<DirectoryTree>,
         resource_path: &String,
         as_website: bool,
         version: Option<u32>,
-    ) -> Result<(DataAddress, Option<String>), StatusCode> {
+    ) -> Result<(String, String, Option<String>), StatusCode> {
         if !history.fetch_version_trove(version).await.is_none() {
             if history.cached_version.is_some()
                 && history.cached_version.as_ref().unwrap().trove.is_some()
@@ -322,14 +404,16 @@ impl DirectoryTree {
     /// look for a default index file based on any dweb settings. It will also return a
     /// default for '/faviocon.ico' if not matched.
     ///
-    /// If found, returns a tuple with the resource's xor address and content type if known.
+    /// If found, returns a tuple: (datamap_chunk: String, data_address: String, content_type: Option<String>)
+    ///
+    /// Only one of datamap_chunk and data_address will be a hex encoded string, the other empty.
     ///
     /// On error, returns a suitable status code??? TODO
     pub fn lookup_file(
         &self,
         resource_path: &String,
         as_website: bool,
-    ) -> Result<(DataAddress, Option<String>), StatusCode> {
+    ) -> Result<(String, String, Option<String>), StatusCode> {
         let last_separator_result = resource_path.rfind(ARCHIVE_PATH_SEPARATOR);
         if last_separator_result.is_none() {
             return Err(StatusCode::BAD_REQUEST);
@@ -347,7 +431,9 @@ impl DirectoryTree {
             if second_part.len() > 0 {
                 println!("DEBUG DirectoryTree looking up '{}'", second_part);
                 match Self::lookup_name_in_vec(&second_part, resources) {
-                    Some(data_address) => path_and_address = Some((second_part, data_address)),
+                    Some((datamap_chunk, data_address)) => {
+                        path_and_address = Some((second_part, datamap_chunk, data_address))
+                    }
                     None => {}
                 }
             }
@@ -374,7 +460,10 @@ impl DirectoryTree {
                 for index_file in index_filenames {
                     // TODO might it be necessary to return the name of the resource?
                     match Self::lookup_name_in_vec(&index_file, &new_resources) {
-                        Some(xorname) => path_and_address = Some((index_file.clone(), xorname)),
+                        Some((datamap_chunk, data_address)) => {
+                            path_and_address =
+                                Some((index_file.clone(), datamap_chunk, data_address))
+                        }
                         None => {}
                     };
                 }
@@ -382,34 +471,38 @@ impl DirectoryTree {
         };
 
         match path_and_address {
-            Some((path, address)) => {
+            Some((path, datamap_chunk, data_address)) => {
                 let content_type = match mime_guess::from_path(path).first_raw() {
                     Some(str) => Some(str.to_string()),
                     None => None,
                 };
-                Ok((address, content_type))
+                Ok((datamap_chunk, data_address, content_type))
             }
             None => {
                 println!("FAILED to find resource for path: '{original_resource_path}' in:");
                 println!("{:?}", self.directory_map.paths_to_files_map);
                 if as_website && original_resource_path == "/favicon.ico" {
-                    if let Ok(address) = str_to_data_address(ADDRESS_DEFAULT_FAVICON) {
-                        return Ok((address, None));
-                    }
+                    return Ok((
+                        "".to_string(),
+                        ADDRESS_DEFAULT_FAVICON.to_string(),
+                        None::<String>,
+                    ));
                 }
                 Err(StatusCode::NOT_FOUND)
             }
         }
     }
 
+    /// Lookup a filename and return a xxx
+    // TODOxxx update to handle public/private archive getting using address or datamap
     fn lookup_name_in_vec(
         name: &String,
-        resources_vec: &Vec<(String, DataAddress, FileMetadata)>,
-    ) -> Option<DataAddress> {
+        resources_vec: &Vec<(String, String, String, FileMetadata)>,
+    ) -> Option<(String, String)> {
         println!("DEBUG lookup_name_in_vec({name})");
-        for (resource_name, xor_name, _metadata) in resources_vec {
+        for (resource_name, datamap_chunk, data_address, _metadata) in resources_vec {
             if resource_name.eq(name) {
-                return Some(xor_name.clone());
+                return Some((datamap_chunk.clone(), data_address.clone()));
             }
         }
         None
@@ -418,10 +511,10 @@ impl DirectoryTree {
 
 /// Map each directory path to a vector of the metadata for each file in the directory
 /// The metadata tuple for a file is:
-///   (filename: String, archive_address: XorName, metadata: FileMetadata)
+///   (filename: String, datamap_chunk: String, data_adddress: String, metadata: FileMetadata)
 #[derive(Clone)]
 pub struct DirectoryTreePathMap {
-    pub paths_to_files_map: HashMap<String, Vec<(String, DataAddress, FileMetadata)>>,
+    pub paths_to_files_map: HashMap<String, Vec<(String, String, String, FileMetadata)>>,
 }
 
 // TODO replace OS path separator with '/' when storing web paths
@@ -429,19 +522,48 @@ pub struct DirectoryTreePathMap {
 impl DirectoryTreePathMap {
     pub fn new() -> DirectoryTreePathMap {
         DirectoryTreePathMap {
-            paths_to_files_map: HashMap::<String, Vec<(String, DataAddress, FileMetadata)>>::new(),
+            paths_to_files_map: HashMap::<String, Vec<(String, String, String, FileMetadata)>>::new(
+            ),
         }
     }
 
     pub fn from_public_archive(archive: &PublicArchive) -> DirectoryTreePathMap {
         let mut path_map = DirectoryTreePathMap::new();
         let mut iter = archive.map().iter();
-        while let Some((path_buf, (xor_name, metadata))) = iter.next() {
+        while let Some((path_buf, (data_address, metadata))) = iter.next() {
             // Remove the containing directory to produce a path from the website root, and which starts with '/'
             let mut path_string = String::from(path_buf.to_string_lossy());
             let offset = path_string.find("/").unwrap_or(path_string.len());
             path_string.replace_range(..offset, "");
-            match path_map.add_content_to_map(&path_string, *xor_name, metadata.clone()) {
+            match path_map.add_content_to_map(
+                &path_string,
+                "".to_string(),
+                data_address.to_hex(),
+                metadata.clone(),
+            ) {
+                Ok(_) => (),
+                Err(e) => {
+                    println!("add_content_to_metadata() failed to add path {path_string} - {e}");
+                }
+            }
+        }
+        path_map
+    }
+
+    pub fn from_private_archive(archive: &PrivateArchive) -> DirectoryTreePathMap {
+        let mut path_map = DirectoryTreePathMap::new();
+        let mut iter = archive.map().iter();
+        while let Some((path_buf, (datamap, metadata))) = iter.next() {
+            // Remove the containing directory to produce a path from the website root, and which starts with '/'
+            let mut path_string = String::from(path_buf.to_string_lossy());
+            let offset = path_string.find("/").unwrap_or(path_string.len());
+            path_string.replace_range(..offset, "");
+            match path_map.add_content_to_map(
+                &path_string,
+                datamap.to_hex(),
+                "".to_string(),
+                metadata.clone(),
+            ) {
                 Ok(_) => (),
                 Err(e) => {
                     println!("add_content_to_metadata() failed to add path {path_string} - {e}");
@@ -457,7 +579,8 @@ impl DirectoryTreePathMap {
     pub fn add_content_to_map(
         &mut self,
         resource_website_path: &String,
-        xor_name: DataAddress,
+        datamap_chunk: String,
+        data_address: String,
         metadata: FileMetadata,
     ) -> Result<()> {
         // println!("DEBUG add_content_to_map() path '{resource_website_path}'");
@@ -467,7 +590,12 @@ impl DirectoryTreePathMap {
             // println!(
             //     "DEBUG Splitting at {last_separator_position} into path: '{web_path}' file: '{resource_file_name}'"
             // );
-            let entry_tuple = (resource_file_name.clone(), xor_name, metadata);
+            let entry_tuple = (
+                resource_file_name.clone(),
+                datamap_chunk,
+                data_address,
+                metadata,
+            );
             self.paths_to_files_map
                 .entry(web_path)
                 .and_modify(|vector| vector.push(entry_tuple.clone()))
@@ -505,6 +633,69 @@ pub fn osstr_to_string(file_name: &std::ffi::OsStr) -> Option<String> {
         return Some(String::from(str));
     }
     None
+}
+
+/// Get content from the network using a hex encoded datamap if provided, otherwise a hex encoded address
+pub async fn get_content(
+    client: &DwebClient,
+    datamap_chunk: String,
+    data_address: String,
+) -> Result<Bytes> {
+    let datamap_chunk = if !datamap_chunk.is_empty() {
+        match DataMapChunk::from_hex(&datamap_chunk) {
+            Ok(datamap_chunk) => Some(datamap_chunk),
+            Err(_) => None,
+        }
+    } else {
+        None
+    };
+
+    let data_address = if !data_address.is_empty() {
+        match DataAddress::from_hex(&data_address) {
+            Ok(data_address) => Some(data_address),
+            Err(_) => None,
+        }
+    } else {
+        None
+    };
+
+    let autonomi_result = match datamap_chunk.clone() {
+        Some(datamap_chunk) => {
+            println!(
+                "DEBUG get_content() calling data_get() with datamap_chunk: {}",
+                datamap_chunk.to_hex()
+            );
+            client.client.data_get(&datamap_chunk).await
+        }
+        None => match data_address {
+            Some(data_address) => {
+                println!(
+                    "DEBUG get_content() calling data_get_public() with data_address: {}",
+                    data_address.to_hex()
+                );
+                client.client.data_get_public(&data_address).await
+            }
+            None => {
+                return Err(eyre!(
+                "DEBUG get_content() failed to decode data_address: '{:?}' and datamap_chunk: '{:?}'",
+                data_address,
+                datamap_chunk,
+            ))
+            }
+        },
+    };
+
+    match autonomi_result {
+        Ok(bytes) => Ok(bytes),
+        Err(e) => {
+            let message = format!("get_content() failed to access data from network using data_address: '{:?}' and datamap_chunk: '{:?}' - {e}",
+            data_address,
+            datamap_chunk,
+                );
+            println!("DEBUG {message}");
+            Err(eyre!(message))
+        }
+    }
 }
 
 // Helper which gets a directory version and looks up a web resource.

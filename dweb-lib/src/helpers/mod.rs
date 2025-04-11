@@ -22,8 +22,11 @@ pub mod retry;
 pub mod web;
 
 use blsttc::SecretKey;
-
 use color_eyre::{eyre::eyre, Result};
+
+/// Lengths of hex addresses in Autonomi
+pub const DATA_ADDRESS_LEN: usize = 64;
+pub const HISTORY_ADDRESS_LEN: usize = 96;
 
 /// Get the maini secret key. This is currently derived from a key set in the environment
 /// TODO ?provide a primary method with environment setting as a backup

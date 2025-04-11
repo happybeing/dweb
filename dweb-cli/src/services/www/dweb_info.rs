@@ -15,11 +15,12 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-use actix_web::{dev::HttpServiceFactory, get, web::Data, HttpRequest, HttpResponse, Responder};
+use actix_web::{get, web::Data, HttpRequest, HttpResponse, Responder};
 use qstring::QString;
 
 use dweb::cache::directory_with_port::*;
-use dweb::trove::{directory_tree::DirectoryTree, History};
+use dweb::files::directory_tree::DirectoryTree;
+use dweb::trove::History;
 
 use super::make_error_response_page;
 

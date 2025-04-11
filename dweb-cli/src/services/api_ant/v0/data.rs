@@ -26,7 +26,7 @@ use dweb::helpers::convert::*;
 
 use crate::services::helpers::*;
 
-/// Get data from the network
+/// Get data from the network using a datamap address
 ///
 #[utoipa::path(
     responses(
@@ -73,3 +73,10 @@ pub async fn get_public(
 
     HttpResponseBuilder::new(StatusCode::OK).body(content)
 }
+
+/// Put data to the network including its datamap
+///
+/// Note: for large datasets see the API: /dweb-0/form-upload-file-list
+///
+/// TODO /data-public POST
+fn avoid_comment_error() {}

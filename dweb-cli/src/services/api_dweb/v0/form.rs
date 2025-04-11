@@ -159,9 +159,9 @@ pub struct PutResultList {
 
 /// Multipart form upload of one or more files (as public or private)
 ///
-/// Note: you can use this API to PUT data from memory instead of
-/// a file by using JavaScript. Either with a FormData object, or by
-/// setting properties on an input element.
+/// Note: for large datasets, you can use this API to PUT data from memory
+/// instead of a file by using JavaScript. Either with a FormData object,
+/// or by setting properties on an input element.
 ///
 /// Example form:
 /// ```

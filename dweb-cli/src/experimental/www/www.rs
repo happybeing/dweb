@@ -27,6 +27,7 @@ use actix_web::{
     HttpRequest, HttpResponse,
 };
 
+use dweb::files::directory_tree::get_content;
 use dweb::web::fetch::{directory_version_get, response_redirect, response_with_body};
 use dweb::web::DWEB_SERVICE_WWW;
 
@@ -118,24 +119,26 @@ pub async fn www_handler(
     }
 
     match directory_tree.lookup_file(&(String::from("/") + path.as_str()), true) {
-        Ok((file_address, content_type)) => match client.data_get_public(file_address).await {
-            Ok(content) => {
-                let mut response = HttpResponse::Ok();
-                if let Some(content_type) = content_type {
-                    response.insert_header(("Content-Type", content_type.as_str()));
+        Ok((datamap_chunk, data_address, content_type)) => {
+            match get_content(&client, datamap_chunk, data_address).await {
+                Ok(content) => {
+                    let mut response = HttpResponse::Ok();
+                    if let Some(content_type) = content_type {
+                        response.insert_header(("Content-Type", content_type.as_str()));
+                    }
+                    return response.body(content);
                 }
-                return response.body(content);
+                Err(e) => {
+                    return response_with_body(
+                        StatusCode::BAD_GATEWAY,
+                        Some(String::from(format!(
+                            "DirectoryTree::lookup_file({}) failed: {e}",
+                            path.as_str()
+                        ))),
+                    );
+                }
             }
-            Err(e) => {
-                return response_with_body(
-                    StatusCode::BAD_GATEWAY,
-                    Some(String::from(format!(
-                        "DirectoryTree::lookup_file({}) failed: {e}",
-                        path.as_str()
-                    ))),
-                );
-            }
-        },
+        }
         Err(e) => {
             let status_code = if let Ok(status_code) = StatusCode::from_u16(e.as_u16()) {
                 status_code

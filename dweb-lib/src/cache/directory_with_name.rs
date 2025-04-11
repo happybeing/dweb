@@ -25,7 +25,8 @@ use schnellru::{ByLength, LruMap};
 
 use autonomi::client::files::archive_public::ArchiveAddress;
 
-use crate::trove::{directory_tree::DirectoryTree, HistoryAddress};
+use crate::files::directory_tree::DirectoryTree;
+use crate::trove::HistoryAddress;
 use crate::web::name::DwebHost;
 
 // TODO: tune these values

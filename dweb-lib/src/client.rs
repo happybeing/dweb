@@ -41,6 +41,8 @@ use crate::token::{Rate, ShowCost};
 pub struct ApiControl {
     /// Control number of tries on selected Autonomi calls (0 for unlimited)
     pub tries: u32,
+    /// Use PublicArchive instead of PrivateArchive when storing directories
+    pub use_public_archive: bool,
     /// Do upload of directories one file at a time. Without this a retry will start from scratch.
     pub upload_file_by_file: bool,
     /// Control dweb APIs use of pointers.
@@ -67,6 +69,7 @@ impl Default for ApiControl {
     fn default() -> Self {
         ApiControl {
             tries: 1,
+            use_public_archive: false,
             upload_file_by_file: false,
             ignore_pointers: None,
             show_dweb_costs: ShowCost::Both,

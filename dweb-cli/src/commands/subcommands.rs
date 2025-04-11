@@ -35,6 +35,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
         upload_file_by_file: opt.upload_file_by_file,
         ignore_pointers: opt.ignore_pointers,
         max_fee_per_gas: opt.max_fee_per_gas,
+        use_public_archive: opt.use_old_archive,
         ..Default::default()
     };
 

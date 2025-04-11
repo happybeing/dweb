@@ -87,10 +87,12 @@ pub struct Opt {
     /// Enable Autonomi network logging (to the terminal)
     #[clap(long, name = "client-logs", short = 'l', default_value = "false")]
     pub client_logs: bool,
-    // TODO remove in favour of WebCmds subcommand
-    // /// Local path of static HTML files to publish
-    // #[clap(long = "publish-website")]
-    // pub files_root: Option<PathBuf>,
+    /// Override default and revert to earlier archive format (for publish commands)
+    // Note: 'old' here means us PublicArchive rather than the default which is PrivateArchive, and that
+    // this remains publicly accessible. Using PrivateArchive just means that the archive contains the datamaps
+    // which saves a chunk per file in payment and when fetching.
+    #[clap(long, default_value = "false")]
+    pub use_old_archive: bool,
     // TODO implement remaining CLI options:
     // TODO --wallet-path <path-to-wallet-dir>
     /// Show the cost of dweb API calls after each call in tokens, gas, both or none
@@ -287,7 +289,6 @@ pub enum Subcommands {
         /// You can either specify a path here or include the settings in <FILES-ROOT>/.dweb/dweb-settings.json
         #[clap(long = "dweb-settings", short = 'c', value_name = "JSON-FILE")]
         dweb_settings: Option<PathBuf>,
-        //
         /// Disable the AWV check when publishing a new website to allow for init of a new Autonomi network (during beta)
         #[clap(long, name = "is-new-network", hide = true, default_value = "false")]
         is_new_network: bool,

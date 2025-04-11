@@ -23,10 +23,10 @@ use actix_web::{
     HttpRequest, HttpResponse, HttpResponseBuilder,
 };
 
-use dweb::trove::History;
-use dweb::{helpers::convert::*, trove::directory_tree::DirectoryTree};
-
 use crate::services::helpers::*;
+use dweb::files::directory_tree::{get_content, DirectoryTree};
+use dweb::helpers::convert::*;
+use dweb::trove::History;
 
 /// Get a file from a content History or directory on the network
 ///
@@ -113,17 +113,20 @@ pub async fn file_get(
         }
     };
 
-    let (data_address, content_type) = match directory_tree.lookup_file(&file_path, false) {
-        Ok((data_address, content_type)) => (data_address, content_type),
-        Err(_e) => {
-            return make_error_response_page(
-                None,
-                &mut HttpResponse::NotFound(),
-                "/file error".to_string(),
-                "/file file not found in directory",
-            )
-        }
-    };
+    let (datamap_chunk, data_address, content_type) =
+        match directory_tree.lookup_file(&file_path, false) {
+            Ok((datamap_chunk, data_address, content_type)) => {
+                (datamap_chunk, data_address, content_type)
+            }
+            Err(_e) => {
+                return make_error_response_page(
+                    None,
+                    &mut HttpResponse::NotFound(),
+                    "/file error".to_string(),
+                    "/file file not found in directory",
+                )
+            }
+        };
 
     let content_type = if content_type.is_some() {
         content_type.unwrap().clone()
@@ -131,7 +134,7 @@ pub async fn file_get(
         String::from("text/plain")
     };
 
-    let content = match client.data_get_public(data_address).await {
+    let content = match get_content(&client, datamap_chunk, data_address).await {
         Ok(bytes) => bytes,
         Err(e) => {
             return make_error_response_page(

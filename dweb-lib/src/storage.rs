@@ -14,24 +14,45 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+use std::path::PathBuf;
+
+use autonomi::chunk::DataMapChunk;
 use blsttc::SecretKey;
 use color_eyre::eyre::{eyre, Result};
-use std::path::PathBuf;
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use walkdir::WalkDir;
 
 use autonomi::client::files::archive_public::PublicArchive;
 use autonomi::data::DataAddress;
 use autonomi::files::archive_public::ArchiveAddress;
-use autonomi::files::Metadata as FileMetadata;
+use autonomi::files::{Metadata as FileMetadata, PrivateArchive};
 use autonomi::AttoTokens;
 
 use crate::client::DwebClient;
-use crate::helpers::retry::retry_until_ok;
-use crate::trove::directory_tree::{osstr_to_string, DirectoryTree};
-use crate::trove::directory_tree::{
+use crate::files::directory_tree::{
+    osstr_to_string, DirectoryTree, DWEB_DIRECTORY_HISTORY_DATAMAPCHUNK,
+};
+use crate::files::directory_tree::{
     DWEB_DIRECTORY_HISTORY_CONTENT, DWEB_HISTORY_DIRECTORY, DWEB_SETTINGS_PATH,
 };
+use crate::helpers::retry::retry_until_ok;
 use crate::trove::{History, HistoryAddress};
+
+/// Network data types for dweb APIs
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, ToSchema)]
+pub enum DwebType {
+    PublicFile,
+    PrivateFile,
+    PublicArchive,
+    PrivateArchive,
+    History,
+    Register,
+    Pointer,
+    Scratchpad,
+    Vault,
+    Unknown,
+}
 
 /// Publish a history entry, creating the history if no name is provided
 ///
@@ -62,11 +83,6 @@ pub async fn publish_or_update_files(
         return Err(eyre!(message));
     }
 
-    println!("Uploading files to network...");
-    let (files_cost, mut archive) = publish_files(&client, &files_root, dweb_settings)
-        .await
-        .inspect_err(|e| println!("{}", e))?;
-
     let name = if name.is_none() {
         if let Some(osstr) = files_root.file_name() {
             osstr_to_string(osstr)
@@ -84,17 +100,26 @@ pub async fn publish_or_update_files(
         ));
     };
 
-    let result = if is_publish {
+    // check the history does not exist
+    let (history_cost, mut files_history) = if is_publish {
         println!("Creating History on network...");
-        History::<DirectoryTree>::create_online(
+        match History::<DirectoryTree>::create_online(
             client.clone(),
             name.clone(),
             app_secret_key.clone(),
         )
         .await
+        {
+            Ok((cost, history)) => (cost, history),
+            Err(e) => {
+                let message = format!("Failed to publish new content - {e}");
+                println!("{message}");
+                return Err(eyre!(message));
+            }
+        }
     } else {
         println!("Getting History from network...");
-        History::<DirectoryTree>::from_name(
+        match History::<DirectoryTree>::from_name(
             client.clone(),
             app_secret_key.clone(),
             name.clone(),
@@ -102,13 +127,13 @@ pub async fn publish_or_update_files(
             0,
         )
         .await
-    };
-
-    let (history_cost, mut files_history) = match result {
-        Ok((history_cost, history)) => (history_cost, history),
-        Err(e) => {
-            println!("DEBUG failed - {e}");
-            return Err(e);
+        {
+            Ok((cost, history)) => (cost, history),
+            Err(e) => {
+                let message = format!("Failed to publish update to content - {e}");
+                println!("{message}");
+                return Err(eyre!(message));
+            }
         }
     };
 
@@ -121,17 +146,43 @@ pub async fn publish_or_update_files(
         size: 1,
         extra: None,
     };
-    let data_address = DataAddress::from_hex(DWEB_DIRECTORY_HISTORY_CONTENT).unwrap();
-    archive.add_file(history_file_path, data_address, autonomi_metadata);
 
-    // put the archive
+    println!("Uploading files to network...");
+
+    let (files_cost, archive_bytes, archive_type) = if client.api_control.use_public_archive {
+        let (cost, mut archive) = publish_files_public(&client, &files_root, dweb_settings)
+            .await
+            .inspect_err(|e| println!("{}", e))?;
+
+        let data_address = DataAddress::from_hex(DWEB_DIRECTORY_HISTORY_CONTENT).unwrap();
+        archive.add_file(history_file_path, data_address, autonomi_metadata);
+
+        let bytes = archive
+            .to_bytes()
+            .map_err(|e| eyre!(format!("Failed to serialize archive: {e:?}")))?;
+        (cost, bytes, "PublicArchive")
+    } else {
+        let (cost, mut archive) = publish_files_private(&client, &files_root, dweb_settings)
+            .await
+            .inspect_err(|e| println!("{}", e))?;
+
+        let datamap_chunk = DataMapChunk::from_hex(DWEB_DIRECTORY_HISTORY_DATAMAPCHUNK).unwrap();
+        archive.add_file(history_file_path, datamap_chunk, autonomi_metadata);
+
+        let bytes = archive
+            .to_bytes()
+            .map_err(|e| eyre!(format!("Failed to serialize archive: {e:?}")))?;
+        (cost, bytes, "PrivateArchive")
+    };
+
+    println!("DEBUG storing {archive_type}...");
     let (archive_cost, archive_address) = match retry_until_ok(
         client.api_control.tries,
-        &"archive_put_public()",
-        (client, archive),
-        async move |(client, archive)| match client
+        &"Storing archive as bytes with data_put_public()",
+        (client, archive_bytes),
+        async move |(client, archive_bytes)| match client
             .client
-            .archive_put_public(&archive, client.payment_option())
+            .data_put_public(archive_bytes, client.payment_option())
             .await
         {
             Ok((cost, archive_address)) => {
@@ -141,20 +192,19 @@ pub async fn publish_or_update_files(
                 // );
                 Ok((cost, archive_address))
             }
-            Err(e) => Err(eyre!(
-                "Failed to store the PublicArchive for uploaded files: {e}"
-            )),
+            Err(e) => Err(eyre!("Failed to store the archive of uploaded files: {e}")),
         },
     )
     .await
     {
-        Ok((archive_cost, archive_address)) => (archive_cost, archive_address),
+        Ok((chunk_cost, archive_address)) => (chunk_cost, archive_address),
         Err(e) => {
             let message = format!("max tries reached: {e:?}");
             println!("{message}");
             return Err(eyre!(message));
         }
     };
+    println!("{archive_type}: {archive_address}");
 
     let mut total_cost = files_cost.checked_add(history_cost).or(Some(files_cost));
     total_cost = total_cost.unwrap().checked_add(archive_cost).or(total_cost);
@@ -220,53 +270,156 @@ pub fn report_content_published_or_updated(
     }
 }
 
-/// Upload a directory tree to Autonomi and store the PublicArchive
-/// Returns the network address of the PublicArchive (which can be used to initialise a DirectoryTree).
+/// Upload a directory tree to Autonomi and store the PrivateArchive
+/// Returns the network address of the PrivateArchive (which can be used to initialise a DirectoryTree).
 pub async fn publish_directory(
     client: &DwebClient,
     files_root: &PathBuf,
+    use_public_archive: bool,
     dweb_settings: Option<PathBuf>,
 ) -> Result<(AttoTokens, ArchiveAddress)> {
     println!("DEBUG publish_directory() files_root '{files_root:?}'");
 
-    retry_until_ok(
+    let (files_cost, archive_bytes, archive_type) = if use_public_archive {
+        let (cost, archive) = publish_files_public(&client, &files_root, dweb_settings)
+            .await
+            .inspect_err(|e| println!("{}", e))?;
+
+        let bytes = archive
+            .to_bytes()
+            .map_err(|e| eyre!(format!("Failed to serialize archive: {e:?}")))?;
+        (cost, bytes, "PublicArchive")
+    } else {
+        let (cost, archive) = publish_files_private(&client, &files_root, dweb_settings)
+            .await
+            .inspect_err(|e| println!("{}", e))?;
+
+        let bytes = archive
+            .to_bytes()
+            .map_err(|e| eyre!(format!("Failed to serialize archive: {e:?}")))?;
+        (cost, bytes, "PrivateArchive")
+    };
+
+    println!("DEBUG storing {archive_type}...");
+    let (archive_cost, archive_address) = match retry_until_ok(
         client.api_control.tries,
-        &"archive_put_public()",
-        (client, files_root, dweb_settings),
-        async move |(client, files_root, dweb_settings)| match publish_files(
-            client,
-            files_root,
-            dweb_settings,
-        )
-        .await
+        &"Storing archive as bytes with data_put_public()",
+        (client, archive_bytes),
+        async move |(client, archive_bytes)| match client
+            .client
+            .data_put_public(archive_bytes, client.payment_option())
+            .await
         {
-            Ok((files_cost, archive)) => match client
-                .client
-                .archive_put_public(&archive, client.payment_option())
-                .await
-            {
-                Ok((archive_cost, archive_address)) => {
-                    // println!(
-                    //     "ARCHIVE ADDRESS:\n{}\nCost: {cost} ANT",
-                    //     archive_address.to_hex()
-                    // );
-                    let total_cost = files_cost.checked_add(archive_cost).unwrap_or(files_cost);
-                    Ok((total_cost, archive_address))
-                }
-                Err(e) => Err(eyre!(
-                    "Failed to store the PublicArchive for uploaded files: {e}"
-                )),
-            },
-            Err(e) => Err(eyre!("Failed to store content. {}", e.root_cause())),
+            Ok((cost, archive_address)) => {
+                // println!(
+                //     "ARCHIVE ADDRESS:\n{}\nCost: {cost} ANT",
+                //     archive_address.to_hex()
+                // );
+                Ok((cost, archive_address))
+            }
+            Err(e) => Err(eyre!("Failed to store the archive of uploaded files: {e}")),
         },
     )
     .await
+    {
+        Ok((cost, archive_address)) => (cost, archive_address),
+        Err(e) => {
+            let message = format!("max tries reached: {e:?}");
+            println!("{message}");
+            return Err(eyre!(message));
+        }
+    };
+    println!("{archive_type}: {archive_address}");
+
+    let total_cost = files_cost.checked_add(archive_cost).unwrap_or(files_cost);
+    Ok((total_cost, archive_address))
+}
+
+/// Upload the tree of files with the option to include a dweb settings file.
+/// Each file's datamap chunk is stored in the PrivateArchive but not on the
+/// network. Does not store the PrivateArchive.
+///
+/// Returns the autonomi PrivateArchive if all files have been uploaded.
+pub async fn publish_files_private(
+    client: &DwebClient,
+    files_root: &PathBuf,
+    dweb_settings: Option<PathBuf>,
+) -> Result<(AttoTokens, PrivateArchive)> {
+    if !files_root.is_dir() {
+        return Err(eyre!("Path to files must be a directory: {files_root:?}"));
+    }
+
+    if !files_root.exists() {
+        return Err(eyre!("Path to files not found: {files_root:?}"));
+    }
+
+    if !files_root.read_dir().iter().len() == 0 {
+        return Err(eyre!("Path to files is empty: {files_root:?}"));
+    }
+
+    let (files_cost, mut archive) = match directory_upload_private(client, files_root).await {
+        Ok(result) => result,
+        Err(e) => return Err(eyre!("Error max tries reached - {e}")),
+    };
+
+    let settings_cost = if let Some(dweb_path) = dweb_settings {
+        let dweb_settings_file = dweb_path.to_string_lossy();
+        let dweb_settings_path = PathBuf::from(DWEB_SETTINGS_PATH);
+        println!("Uploading {dweb_settings_file}");
+
+        match retry_until_ok(
+            client.api_control.tries,
+            &"file_content_upload_public()",
+            (client, dweb_path.clone(), client.payment_option()),
+            async move |(client, dweb_path, payment_option)| match client
+                .client
+                .file_content_upload(dweb_path, payment_option)
+                .await
+            {
+                Ok(result) => Ok(result),
+                Err(e) => {
+                    println!("Failed to upload dweb settings - {e}");
+                    return Err(e.into());
+                }
+            },
+        )
+        .await
+        {
+            Ok((cost, datamap_chunk)) => {
+                let autonomi_metadata =
+                    crate::helpers::file::metadata_for_file(&dweb_settings_file);
+                archive.add_file(dweb_settings_path, datamap_chunk, autonomi_metadata);
+                cost
+            }
+            Err(e) => {
+                println!("Error max tries reached - {e}");
+                0.into()
+            }
+        }
+    } else {
+        0.into()
+    };
+
+    // let cost = settings_cost.checked_add(cost).unwrap_or(cost);
+    // println!(
+    //     "publish completed files: {:?}. Cost {cost} ANT",
+    //     archive.map().len()
+    // );
+
+    println!("CONTENT UPLOADED:");
+    for (path, datamap_chunk, _metadata) in archive.iter() {
+        println!("{} {path:?}", datamap_chunk.to_hex());
+    }
+    // println!("Cost: {cost} ANT");
+
+    let total_cost = files_cost.checked_add(settings_cost).unwrap_or(files_cost);
+    Ok((total_cost, archive))
 }
 
 /// Upload the tree of files with the option to include a dweb settings file
 ///
 /// Return the autonomi PublicArchive if all files have been uploaded. Does not store the PublicArchive.
-pub async fn publish_files(
+pub async fn publish_files_public(
     client: &DwebClient,
     files_root: &PathBuf,
     dweb_settings: Option<PathBuf>,
@@ -339,6 +492,113 @@ pub async fn publish_files(
     // println!("Cost: {cost} ANT");
 
     let total_cost = files_cost.checked_add(settings_cost).unwrap_or(files_cost);
+    Ok((total_cost, archive))
+}
+
+/// Upload a directory either using the Autonomi directory upload API or
+/// do each file separately if file_by_file is true. Each file's datamap is
+/// not stored in the PrivateArchive but not on the network.
+pub async fn directory_upload_private(
+    client: &DwebClient,
+    files_root: &PathBuf,
+) -> Result<(AttoTokens, PrivateArchive)> {
+    let file_by_file = client.api_control.upload_file_by_file;
+
+    let method = if file_by_file { " (file by file)" } else { "" };
+
+    println!("Uploading files from directory{method}: {files_root:?}");
+    if !file_by_file {
+        return retry_until_ok(
+            client.api_control.tries,
+            &"dir_content_upload_public()",
+            (client, files_root.clone(), client.payment_option()),
+            async move |(client, files_root, payment_option)| match client
+                .client
+                .dir_content_upload(files_root.clone(), payment_option)
+                .await
+            {
+                Ok((cost, archive)) => Ok((cost, archive)),
+                Err(e) => return Err(eyre!("Failed to upload directory tree: {e}")),
+            },
+        )
+        .await;
+    };
+
+    let mut archive = PrivateArchive::new();
+    let mut total_cost = AttoTokens::zero();
+    for entry in walkdir::WalkDir::new(files_root) {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(e) => {
+                let msg = format!("Error walking directory {files_root:?} - {e}");
+                println!("{msg}");
+                return Err(eyre!(msg));
+            }
+        };
+
+        if !entry.file_type().is_file() {
+            continue;
+        };
+        let file = entry;
+
+        println!("file: {:?}", file.file_name());
+        let file_path = file.into_path();
+        let file_path_str;
+        match file_path.clone().into_os_string().into_string() {
+            Ok(path_str) => file_path_str = path_str.clone(),
+            Err(os_str) => {
+                let msg = format!("Error converting file os_str to str - {os_str:?}");
+                println!("{msg}");
+                return Err(eyre!(msg));
+            }
+        };
+
+        let files_root_str;
+        match files_root.clone().into_os_string().into_string() {
+            Ok(path_str) => files_root_str = path_str.clone(),
+            Err(os_str) => {
+                let msg = format!("Error converting file os_str to str - {os_str:?}");
+                println!("{msg}");
+                return Err(eyre!(msg));
+            }
+        };
+
+        let cost = match retry_until_ok(
+            client.api_control.tries,
+            &"file_content_upload_public()",
+            (client, file_path.clone(), client.payment_option()),
+            async move |(client, file_path, payment_option)| match client
+                .client
+                .file_content_upload(file_path, payment_option)
+                .await
+            {
+                Ok(result) => Ok(result),
+                Err(e) => {
+                    println!("Failed to upload file - {e}");
+                    return Err(e.into());
+                }
+            },
+        )
+        .await
+        {
+            Ok((cost, datamap_chunk)) => {
+                let relative_path = if files_root_str.ends_with("/") {
+                    &file_path_str.as_str()[(files_root_str.len() - 1)..]
+                } else {
+                    &file_path_str.as_str()[files_root_str.len()..]
+                };
+                let autonomi_metadata = crate::helpers::file::metadata_for_file(&file_path_str);
+                archive.add_file(relative_path.into(), datamap_chunk, autonomi_metadata);
+                cost
+            }
+            Err(e) => {
+                println!("Error max tries reached - {e}");
+                0.into()
+            }
+        };
+        total_cost = total_cost.checked_add(cost).unwrap_or(total_cost);
+    }
+
     Ok((total_cost, archive))
 }
 

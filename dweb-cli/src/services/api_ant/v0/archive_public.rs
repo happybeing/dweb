@@ -25,21 +25,24 @@ use actix_web::{
     web::{self, Data},
     HttpRequest, HttpResponse,
 };
-use autonomi::files::PublicArchive;
 use color_eyre::eyre::{eyre, Result};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+use xor_name::XorName;
 
 use autonomi::client::data::DataAddress;
+use autonomi::client::data_types::chunk::{Chunk, DataMapChunk};
 use autonomi::client::files::Metadata as FileMetadata;
 use autonomi::AttoTokens;
+use autonomi::{files::PrivateArchive, files::PublicArchive, Bytes};
 
 use dweb::client::DwebClient;
+use dweb::files::directory_tree::DirectoryTree;
 use dweb::helpers::{convert::*, retry::retry_until_ok, web::*};
-use dweb::trove::directory_tree::DirectoryTree;
+use dweb::storage::DwebType;
 use dweb::trove::History;
 
-use crate::services::api_dweb::v0::{DwebType, PutResult};
+use crate::services::api_dweb::v0::PutResult;
 use crate::services::helpers::*;
 
 // TODO archive_public_post() for POST
@@ -48,12 +51,12 @@ use crate::services::helpers::*;
 
 /// Get a directory tree (PublicArchive)
 ///
-/// Returns a DwebPublicArchive schema containing metadata for files and directories stored in a PublicArchive
+/// Returns a DwebArchive schema containing metadata for files and directories stored in a PublicArchive
 ///
 #[utoipa::path(
     responses(
         (status = 200,
-            description = "The JSON representation of an Autonomi PublicArchive as a DwebPublicArchive schema.", body = [DwebPublicArchive])
+            description = "The JSON representation of an Autonomi PublicArchive as a DwebArchive schema.", body = [DwebArchive])
         ),
     tags = ["Autonomi"],
     params(
@@ -94,7 +97,7 @@ pub async fn get(
         }
     };
 
-    let dweb_archive = DwebPublicArchive::from_public_archive(&public_archive);
+    let dweb_archive = DwebArchive::from_public_archive(&public_archive);
     let json = match serde_json::to_string(&dweb_archive) {
         Ok(json) => json,
         Err(e) => {
@@ -107,7 +110,7 @@ pub async fn get(
         }
     };
 
-    println!("DEBUG DwebPublicArchive as JSON: {json:?}");
+    println!("DEBUG DwebArchive as JSON: {json:?}");
 
     HttpResponse::Ok()
         .insert_header(ContentType(mime::APPLICATION_JSON))
@@ -116,7 +119,7 @@ pub async fn get(
 
 /// Get a versioned directory tree from a dweb History of Autonomi PublicArchive
 ///
-/// Returns a DwebPublicArchive schema containing metadata for files and directories stored in a PublicArchive
+/// Returns a DwebArchive schema containing metadata for files and directories stored in a PublicArchive
 ///
 /// Path parameters refer to the required version and dweb History:
 ///
@@ -130,7 +133,7 @@ pub async fn get(
 #[utoipa::path(
     responses(
         (status = 200,
-            description = "The JSON representation of an Autonomi PublicArchive as a DwebPublicArchive schema.", body = [DwebPublicArchive])
+            description = "The JSON representation of an Autonomi PublicArchive as a DwebArchive schema.", body = [DwebArchive])
         ),
     tags = ["Autonomi"],
     // params(
@@ -238,7 +241,7 @@ pub async fn get_version(
         }
     };
 
-    let mut dweb_archive = DwebPublicArchive::from_public_archive(&public_archive);
+    let mut dweb_archive = DwebArchive::from_public_archive(&public_archive);
     dweb_archive.history_metadata = history_metadata;
     let json = match serde_json::to_string(&dweb_archive) {
         Ok(json) => json,
@@ -252,7 +255,7 @@ pub async fn get_version(
         }
     };
 
-    println!("DEBUG DwebPublicArchive as JSON: {json:?}");
+    println!("DEBUG DwebArchive as JSON: {json:?}");
 
     HttpResponse::Ok()
         .insert_header(ContentType(mime::APPLICATION_JSON))
@@ -267,7 +270,7 @@ pub async fn get_version(
 ///
 ///     [v{version}/]{address_or_name}
 ///
-// TODO Consider change this to be /ant-0/archive-public POST/PUT/GET and use a new struct DwebPublicArchive which can be easily
+// TODO Consider change this to be /ant-0/archive-public POST/PUT/GET and use a new struct DwebArchive which can be easily
 // TODO converted in Rust to/from Archive (and in client to the format needed there). So will use Vec of struct
 // TODO rather than map and will impl utoipa ToSchema
 #[utoipa::path(
@@ -401,7 +404,7 @@ struct QueryParams {
     post,
     params(
         ("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi upload API for each file upload, 0 means unlimited. This overrides the API control setting in the server.")),
-    request_body(content = DwebPublicArchive, content_type = "application/json"),
+    request_body(content = DwebArchive, content_type = "application/json"),
     responses(
         (status = 200, description = "A PutResult featuring either status 200 with cost and data address on the network, or in case of error an error status code and message about the error.<br/>\
         <b>Error StatusCodes</b><br/>\
@@ -414,7 +417,7 @@ struct QueryParams {
 #[post("/archive-public")]
 pub async fn post(
     request: HttpRequest,
-    dweb_archive: web::Json<DwebPublicArchive>,
+    dweb_archive: web::Json<DwebArchive>,
     query_params: web::Query<QueryParams>,
     client: Data<dweb::client::DwebClient>,
 ) -> HttpResponse {
@@ -424,8 +427,7 @@ pub async fn post(
     let public_archive = match dweb_archive.into_inner().to_public_archive() {
         Ok(archive) => archive,
         Err(_e) => {
-            let message =
-                format!("/archive-public POST failed to deserialise body as DwebPublicArchive");
+            let message = format!("/archive-public POST failed to deserialise body as DwebArchive");
             println!("DEBUG {message}");
             return make_error_response_page(
                 None,
@@ -500,7 +502,7 @@ async fn put_archive_public(client: &DwebClient, archive: &PublicArchive, tries:
     }
 }
 
-/// Metadata about the History from which a DwebPublicArchive was obtained
+/// Metadata about the History from which a DwebArchive was obtained
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct DwebHistoryReference {
     /// The address in hexadecimal of the History from which the PublicArchive was retrieved
@@ -513,23 +515,34 @@ pub struct DwebHistoryReference {
 
 /// A representation of the Autonomi PublicArchive for web clients
 #[derive(Serialize, Deserialize, ToSchema)]
-pub struct DwebPublicArchive {
+pub struct DwebArchive {
     /// File and directory entries represented in a PublicArchive. For PUT, directory entries are ignored so not required
-    pub entries: Vec<DwebPublicArchiveEntry>,
+    pub entries: Vec<DwebArchiveEntry>,
     /// Information about a History will only be present only when retrieved from a History using /archive-public-version this
     pub history_metadata: Option<DwebHistoryReference>,
 }
 
-impl DwebPublicArchive {
-    pub fn new() -> DwebPublicArchive {
-        DwebPublicArchive {
+impl DwebArchive {
+    pub fn new() -> DwebArchive {
+        DwebArchive {
             history_metadata: None,
-            entries: Vec::<DwebPublicArchiveEntry>::new(),
+            entries: Vec::<DwebArchiveEntry>::new(),
         }
     }
 
-    pub fn from_public_archive(archive: &PublicArchive) -> DwebPublicArchive {
-        let mut dweb_archive = DwebPublicArchive::new();
+    // pub fn from_dual_archive(archive: DualArchive) -> DwebArchive {
+    //     match archive.dweb_type {
+    //         DwebType::PrivateArchive => Self::from_private_archive(&archive.private_archive),
+    //         DwebType::PublicArchive => Self::from_public_archive(&archive.public_archive),
+    //         _ => {
+    //             println!("DEBUG DwebArchive::from_dual_archive() unable to deserialise unknown DwebType - this is probably a bug",);
+    //             DwebArchive::new()
+    //         }
+    //     }
+    // }
+
+    pub fn from_public_archive(archive: &PublicArchive) -> DwebArchive {
+        let mut dweb_archive = DwebArchive::new();
         let mut directories_added = HashSet::<String>::new();
         let mut files_added = HashSet::<String>::new();
 
@@ -540,10 +553,10 @@ impl DwebPublicArchive {
             let offset = path_string.find("/").unwrap_or(path_string.len());
             path_string.replace_range(..offset, "");
             let mut web_path =
-                dweb::trove::directory_tree::DirectoryTreePathMap::webify_string(&path_string);
+                dweb::files::directory_tree::DirectoryTreePathMap::webify_string(&path_string);
 
             if let Some(last_separator_position) =
-                web_path.rfind(dweb::trove::directory_tree::ARCHIVE_PATH_SEPARATOR)
+                web_path.rfind(dweb::files::directory_tree::ARCHIVE_PATH_SEPARATOR)
             {
                 let file_full_path = web_path.clone();
                 let _file_name = web_path.split_off(last_separator_position + 1);
@@ -554,21 +567,78 @@ impl DwebPublicArchive {
                 if !directories_added.contains(&web_path) {
                     dweb_archive
                         .entries
-                        .push(DwebPublicArchiveEntry::new_directory(web_path.clone()));
+                        .push(DwebArchiveEntry::new_directory(web_path.clone()));
                     directories_added.insert(web_path.clone());
                 }
 
+                let empty_chunk = Chunk::new(Bytes::new());
                 if !files_added.contains(&file_full_path) {
-                    dweb_archive.entries.push(DwebPublicArchiveEntry::new_file(
+                    dweb_archive.entries.push(DwebArchiveEntry::new_file(
                         file_full_path.clone(),
                         xor_name,
+                        &empty_chunk.into(),
                         metadata,
                     ));
                     files_added.insert(file_full_path);
                 }
             } else {
                 println!(
-                    "DEBUG Path separator not found in resource website path: {web_path} - this is probably a bug"
+                    "DEBUG DwebArchive::from_public_archive(): path separator not found in resource website path: {web_path} - this is probably a bug"
+                );
+            }
+        }
+        dweb_archive
+    }
+
+    pub fn from_private_archive(archive: &PrivateArchive) -> DwebArchive {
+        let mut dweb_archive = DwebArchive::new();
+        let mut directories_added = HashSet::<String>::new();
+        let mut files_added = HashSet::<String>::new();
+
+        let mut iter = archive.map().iter();
+        while let Some((path_buf, (datamap_chunk, metadata))) = iter.next() {
+            // Remove the containing directory to produce a path from the website root, and which starts with '/'
+            let mut path_string = String::from(path_buf.to_string_lossy());
+            let offset = path_string.find("/").unwrap_or(path_string.len());
+            path_string.replace_range(..offset, "");
+            let mut web_path =
+                dweb::files::directory_tree::DirectoryTreePathMap::webify_string(&path_string);
+
+            if let Some(last_separator_position) =
+                web_path.rfind(dweb::files::directory_tree::ARCHIVE_PATH_SEPARATOR)
+            {
+                let file_full_path = web_path.clone();
+                let _file_name = web_path.split_off(last_separator_position + 1);
+                // println!(
+                //     "DEBUG Splitting at {last_separator_position} into path: '{web_path}' file: '{_file_name}'"
+                // );
+
+                if !directories_added.contains(&web_path) {
+                    dweb_archive
+                        .entries
+                        .push(DwebArchiveEntry::new_directory(web_path.clone()));
+                    directories_added.insert(web_path.clone());
+                }
+
+                let data_address = match DataAddress::from_hex(&datamap_chunk.address()) {
+                    Ok(data_address) => data_address,
+                    Err(e) => {
+                        println!("DEBUG DwebArchive::from_private_archive() failed to decode datamap_chunk - this is probably a bug");
+                        DataAddress::new(XorName::from_content(&[0]))
+                    }
+                };
+                if !files_added.contains(&file_full_path) {
+                    dweb_archive.entries.push(DwebArchiveEntry::new_file(
+                        file_full_path.clone(),
+                        &data_address,
+                        datamap_chunk,
+                        metadata,
+                    ));
+                    files_added.insert(file_full_path);
+                }
+            } else {
+                println!(
+                    "DEBUG DwebArchive::from_private_archive(): path separator not found in resource website path: {web_path} - this is probably a bug"
                 );
             }
         }
@@ -580,7 +650,7 @@ impl DwebPublicArchive {
 
         for entry in &self.entries {
             match entry.dweb_type {
-                DwebPublicArchiveEntryType::File => {
+                DwebArchiveEntryType::File => {
                     let file_path = PathBuf::from(&entry.full_path);
                     let data_address = match DataAddress::from_hex(&entry.data_address) {
                         Ok(data_address) => data_address,
@@ -616,15 +686,55 @@ impl DwebPublicArchive {
 
         Ok(archive)
     }
+
+    pub fn to_private_archive(&self) -> Result<PrivateArchive> {
+        let mut archive = PrivateArchive::new();
+
+        for entry in &self.entries {
+            match entry.dweb_type {
+                DwebArchiveEntryType::File => {
+                    let file_path = PathBuf::from(&entry.full_path);
+                    let datamap_chunk = match DataMapChunk::from_hex(&entry.datamap) {
+                        Ok(datamap_chunk) => datamap_chunk,
+                        Err(e) => {
+                            let message =
+                                format!("entry has invalid datamap: {}, {e}", entry.datamap);
+                            println!("DEBUG DEBUG DwebEntry::to_private_archive() - {message}");
+                            return Err(eyre!(message));
+                        }
+                    };
+                    let created = json_date_to_metadata_date(&entry.created).unwrap_or(0);
+                    let modified = json_date_to_metadata_date(&entry.modified).unwrap_or(0);
+                    let extra = if entry.extra.is_empty() {
+                        None
+                    } else {
+                        Some(entry.extra.clone())
+                    };
+
+                    let metadata = FileMetadata {
+                        created,
+                        modified,
+                        size: entry.size,
+                        extra,
+                    };
+
+                    archive.add_file(file_path, datamap_chunk, metadata)
+                }
+                _ => {}
+            }
+        }
+
+        Ok(archive)
+    }
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
-pub enum DwebPublicArchiveEntryType {
+pub enum DwebArchiveEntryType {
     File,
     Directory,
 }
 
-/// Metadata for each directory and file present in a DwebPublicArchive
+/// Metadata for each directory and file present in a DwebArchive
 ///
 /// Notes:
 ///
@@ -635,13 +745,15 @@ pub enum DwebPublicArchiveEntryType {
 /// anonimisation for improved privacy. However size should also be present as this
 /// can always be obtained from the file itself.
 #[derive(Serialize, Deserialize, ToSchema)]
-pub struct DwebPublicArchiveEntry {
+pub struct DwebArchiveEntry {
     /// File or directory (required)
-    pub dweb_type: DwebPublicArchiveEntryType,
+    pub dweb_type: DwebArchiveEntryType,
     /// The path of the directory or file from the root of the Archive (required). Must start with '/'
     pub full_path: String,
-    /// Hexadecimal address of the datamap for a file (required)
+    /// Hexadecimal address of the datamap for a file (required for a DwebType::PublicArchive)
     pub data_address: String,
+    /// Hexadecimal representation of the datamap for a file (required for a DwebType::PrivateArchive)
+    pub datamap: String,
     /// File creation date (optional) TODO define format
     pub created: String,
     /// File modification date (optional) TODO define format
@@ -652,12 +764,13 @@ pub struct DwebPublicArchiveEntry {
     pub extra: String,
 }
 
-impl DwebPublicArchiveEntry {
-    pub fn new_directory(full_path: String) -> DwebPublicArchiveEntry {
-        DwebPublicArchiveEntry {
-            dweb_type: DwebPublicArchiveEntryType::Directory,
+impl DwebArchiveEntry {
+    pub fn new_directory(full_path: String) -> DwebArchiveEntry {
+        DwebArchiveEntry {
+            dweb_type: DwebArchiveEntryType::Directory,
             full_path,
             data_address: "".to_string(),
+            datamap: "".to_string(),
             created: "".to_string(),
             modified: "".to_string(),
             size: 0,
@@ -668,12 +781,14 @@ impl DwebPublicArchiveEntry {
     pub fn new_file(
         full_path: String,
         data_address: &DataAddress,
+        datamap_chunk: &DataMapChunk,
         metadata: &FileMetadata,
-    ) -> DwebPublicArchiveEntry {
-        DwebPublicArchiveEntry {
-            dweb_type: DwebPublicArchiveEntryType::File,
+    ) -> DwebArchiveEntry {
+        DwebArchiveEntry {
+            dweb_type: DwebArchiveEntryType::File,
             full_path,
             data_address: data_address.to_hex(),
+            datamap: datamap_chunk.to_hex(),
             created: metadata_date_to_json_datestring(metadata.created),
             modified: metadata_date_to_json_datestring(metadata.modified),
             size: metadata.size,

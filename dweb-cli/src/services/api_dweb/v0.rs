@@ -29,21 +29,9 @@ use autonomi::AttoTokens;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use dweb::storage::DwebType;
 use dweb::token::format_tokens_as_attos;
 
-/// Network data types foor dweb REST APIs
-#[derive(Serialize, Deserialize, ToSchema)]
-pub enum DwebType {
-    PublicFile,
-    PrivateFile,
-    PublicArchive,
-    PrivateArchive,
-    History,
-    Register,
-    Pointer,
-    Scratchpad,
-    Vault,
-}
 /// PutResult is used to return the result of POST or PUT operations for several network data types
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct PutResult {

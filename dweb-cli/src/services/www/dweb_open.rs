@@ -15,7 +15,7 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-use actix_web::{dev::HttpServiceFactory, get, web, web::Data, HttpRequest, HttpResponse};
+use actix_web::{get, web, web::Data, HttpRequest, HttpResponse};
 
 use dweb::api::name_register;
 use dweb::cache::directory_with_port::*;

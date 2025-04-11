@@ -25,9 +25,9 @@ use autonomi::client::key_derivation::{DerivationIndex, MainPubkey};
 use autonomi::files::archive_public::ArchiveAddress;
 
 use dweb::client::DwebClient;
+use dweb::files::directory_tree::DirectoryTree;
 use dweb::helpers::convert::address_tuple_from_address_or_name;
 use dweb::helpers::graph_entry::graph_entry_get;
-use dweb::trove::directory_tree::DirectoryTree;
 use dweb::trove::History;
 
 use crate::cli_options::{EntriesRange, FilesArgs};
@@ -376,7 +376,12 @@ fn print_files(indent: &str, directory: &DirectoryTree, files_args: &FilesArgs) 
 
     if files_args.print_paths || files_args.print_all_details {
         for (path_string, path_map) in directory.directory_map.paths_to_files_map.iter() {
-            for (file_name, xor_name, metadata) in path_map.iter() {
+            for (file_name, _datamap_chunk, data_address, metadata) in path_map.iter() {
+                let data_address = if data_address.is_empty() {
+                    "[private]".to_string()
+                } else {
+                    data_address.clone()
+                };
                 if files_args.print_all_details {
                     let created: DateTime<Utc> =
                         (UNIX_EPOCH + Duration::from_secs(metadata.created)).into();
@@ -388,10 +393,10 @@ fn print_files(indent: &str, directory: &DirectoryTree, files_args: &FilesArgs) 
                     let size = metadata.size;
                     let extra = metadata.extra.clone().unwrap_or(String::from(""));
                     println!(
-                        "{indent}{} c({created}) m({modified}) \"{path_string}{file_name}\" {size} bytes and JSON: \"{extra}\"", xor_name.to_hex()
+                        "{indent}{} c({created}) m({modified}) \"{path_string}{file_name}\" {size} bytes and JSON: \"{extra}\"", data_address
                     );
                 } else {
-                    println!("{indent}{} \"{path_string}{file_name}\"", xor_name.to_hex());
+                    println!("{indent}{} \"{path_string}{file_name}\"", data_address);
                 }
             }
         }
@@ -408,7 +413,7 @@ fn directory_stats(directory: &DirectoryTree) -> Result<(usize, u64)> {
         files_count = files_count + directory_map.len();
 
         for directory_entry in directory_map {
-            total_bytes = total_bytes + directory_entry.2.size
+            total_bytes = total_bytes + directory_entry.3.size
         }
     }
 

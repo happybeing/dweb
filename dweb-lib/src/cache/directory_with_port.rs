@@ -30,12 +30,11 @@ use schnellru::{ByLength, LruMap};
 
 use autonomi::client::files::archive_public::ArchiveAddress;
 
-use crate::{
-    cache::directory_with_name::HISTORY_NAMES,
-    client::DwebClient,
-    helpers::convert::*,
-    trove::{directory_tree::DirectoryTree, HistoryAddress},
-};
+use crate::cache::directory_with_name::HISTORY_NAMES;
+use crate::client::DwebClient;
+use crate::files::directory_tree::DirectoryTree;
+use crate::helpers::convert::*;
+use crate::trove::HistoryAddress;
 
 // TODO: tune cache size values
 const WITH_PORT_CAPACITY: u32 = u16::MAX as u32; // When exceeded, port servers will be forgotten and new versions inaccessible

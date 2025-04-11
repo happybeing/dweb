@@ -15,8 +15,6 @@ You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-pub mod directory_tree;
-
 use std::marker::PhantomData;
 
 use autonomi::client::payment::PaymentOption;
@@ -169,7 +167,7 @@ pub struct History<T: Trove<T> + Clone> {
     // For operations when no version is specified. Typically, None implies most recent
     default_version: Option<u32>,
     // Cached data for the selected version
-    cached_version: Option<TroveVersion<T>>,
+    pub cached_version: Option<TroveVersion<T>>,
 
     // Pretend we hold a Trove so we can restrict some values to type T in the implementation
     phantom: std::marker::PhantomData<T>,
@@ -1116,7 +1114,7 @@ impl<T: Trove<T> + Clone> History<T> {
             )
             .await?;
 
-            println!("DEBUG new_entry: {new_entry:?}");
+            // println!("DEBUG new_entry: {new_entry:?}");
             println!("DEBUG new_entry address: {}", new_entry.address().to_hex());
             match self
                 .client
@@ -1252,8 +1250,8 @@ pub struct TroveVersion<ST: Trove<ST> + Clone> {
     // Version of Some(trove) with address trove_address
     pub version: u32,
 
-    trove_address: ArchiveAddress,
-    trove: Option<ST>,
+    pub trove_address: ArchiveAddress,
+    pub trove: Option<ST>,
 }
 
 impl<ST: Trove<ST> + Clone> TroveVersion<ST> {

@@ -38,7 +38,7 @@
 //!    'v23.awesome-f8b3.www-dweb.au'      - the 23rd version the same website
 //!    'v23.awesome-f2e4.www-dweb.au'      - the 23rd version of a different website
 //!
-//! DwebHosts allow the correct website version to be retrieved from a History<DirectoryTree>
+//! DwebHosts allow the correct website version to be retrieved from a History<Tree>
 //! on Autonomi and the corresponding content to be returned to a standard web browser. They act
 //! as keys for a cache maintained by the local dweb server, but must first be created using
 //! the appropriate dweb APIs.
@@ -90,7 +90,7 @@ pub struct DwebHost {
     pub version: Option<u32>,
 
     #[cfg(feature = "fixed-dweb-hosts")]
-    // Development build feature for non-versioned DirectoryTree references
+    // Development build feature for non-versioned Tree references
     pub is_fixed_dweb_host: bool,
 }
 

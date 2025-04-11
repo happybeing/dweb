@@ -21,7 +21,7 @@ use chrono::offset::Utc;
 use chrono::DateTime;
 use color_eyre::eyre::Result;
 
-use crate::files::directory_tree::DirectoryTreePathMap;
+use crate::files::directory::TreePathMap;
 
 /// Return HTML detailing an HttpRequest including its headers
 pub fn request_as_html(request: &HttpRequest) -> String {
@@ -69,8 +69,8 @@ pub fn json_date_to_metadata_date(date_string: &String) -> Result<u64> {
     Ok(datetime.timestamp() as u64)
 }
 
-// The JSON representation of a DirectoryTree, for the SVAR file manager
-pub fn json_for_svar_file_manager(directory_map: &DirectoryTreePathMap) -> String {
+// The JSON representation of a Tree, for the SVAR file manager
+pub fn json_for_svar_file_manager(directory_map: &TreePathMap) -> String {
     let mut json_string = "[".to_string();
     let mut is_first_item = true;
 

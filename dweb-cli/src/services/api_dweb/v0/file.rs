@@ -24,7 +24,7 @@ use actix_web::{
 };
 
 use crate::services::helpers::*;
-use dweb::files::directory_tree::{get_content, DirectoryTree};
+use dweb::files::directory::{get_content, Tree};
 use dweb::helpers::convert::*;
 use dweb::trove::History;
 
@@ -64,7 +64,7 @@ pub async fn file_get(
         archive_address.unwrap()
     } else {
         let history_address = history_address.unwrap();
-        let mut history = match History::<DirectoryTree>::from_history_address(
+        let mut history = match History::<Tree>::from_history_address(
             client.clone(),
             history_address,
             false,
@@ -98,10 +98,10 @@ pub async fn file_get(
     };
 
     println!(
-        "DEBUG DirectoryTree::from_archive_address() with address: {}",
+        "DEBUG Tree::from_archive_address() with address: {}",
         archive_address.to_hex()
     );
-    let directory_tree = match DirectoryTree::from_archive_address(&client, archive_address).await {
+    let directory_tree = match Tree::from_archive_address(&client, archive_address).await {
         Ok(directory_tree) => directory_tree,
         Err(e) => {
             return make_error_response_page(

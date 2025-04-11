@@ -17,7 +17,7 @@
 
 //! Caching of dweb URLs and DWEB-NAMEs is used to both reduce network access for repeated
 //! requests and to provide a local DNS based on DWEB-NAME, where each DWEB-NAME corresponds
-//! do a DirectoryTree history (History<DirectoryTree>).
+//! do a Tree history (History<Tree>).
 
 use std::sync::{LazyLock, Mutex};
 
@@ -25,7 +25,7 @@ use schnellru::{ByLength, LruMap};
 
 use autonomi::client::files::archive_public::ArchiveAddress;
 
-use crate::files::directory_tree::DirectoryTree;
+use crate::files::directory::Tree;
 use crate::trove::HistoryAddress;
 use crate::web::name::DwebHost;
 
@@ -40,7 +40,7 @@ const VERSIONS_CAPACITY: u32 = 1000; // When exceeded, particular versions will 
 // are negligible.
 
 /// A cache of DirectoryVersionWithName, the metadata needed to access a specific version
-/// of a DirectoryTree corrsponding to a DwebHost string.
+/// of a Tree corrsponding to a DwebHost string.
 ///
 /// Key:     DwebHost.dweb_host_string, ie [vVERSION.]DWEB-NAME.www-dweb.au
 ///
@@ -78,14 +78,14 @@ pub static HISTORY_NAMES: LazyLock<Mutex<LruMap<String, HistoryAddress>>> = Lazy
 pub struct DirectoryVersionWithName {
     /// The 'v[VERSION].DWEB-NAME.www-dweb.au' part of a dweb URL (see dweb::web::name)
     dweb_host_string: String,
-    /// Address of a History<trove::DirectoryTree> on Autonomi (saves lookup based on DWEB-NAME.www-dweb.au)
+    /// Address of a History<trove::Tree> on Autonomi (saves lookup based on DWEB-NAME.www-dweb.au)
     pub history_address: HistoryAddress,
     /// A version of 0 implies use most recent version (highest available)
     version: Option<u32>,
     /// Directory / website metadata
     pub archive_address: ArchiveAddress,
     /// Directory / website metadata
-    pub directory_tree: Option<DirectoryTree>,
+    pub directory_tree: Option<Tree>,
 
     #[cfg(feature = "fixed-dweb-hosts")]
     is_fixed_webname: bool,
@@ -96,7 +96,7 @@ impl DirectoryVersionWithName {
         web_name: &DwebHost,
         history_address: HistoryAddress,
         archive_address: ArchiveAddress,
-        directory_tree: Option<DirectoryTree>,
+        directory_tree: Option<Tree>,
     ) -> DirectoryVersionWithName {
         DirectoryVersionWithName {
             dweb_host_string: web_name.dweb_host_string.clone(),

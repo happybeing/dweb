@@ -19,7 +19,7 @@ use actix_web::{get, web::Data, HttpRequest, HttpResponse, Responder};
 use qstring::QString;
 
 use dweb::cache::directory_with_port::*;
-use dweb::files::directory_tree::DirectoryTree;
+use dweb::files::directory::Tree;
 use dweb::trove::History;
 
 use super::make_error_response_page;
@@ -77,7 +77,7 @@ pub async fn dweb_info(
             let pointer_max_version;
             let mut graph_max_version = "not checked".to_string();
             let client = client.as_ref().clone();
-            match History::<DirectoryTree>::from_history_address(
+            match History::<Tree>::from_history_address(
                 client.clone(),
                 history_address,
                 false,
@@ -103,7 +103,7 @@ pub async fn dweb_info(
             };
 
             if use_graph {
-                match History::<DirectoryTree>::from_history_address(
+                match History::<Tree>::from_history_address(
                     client.clone(),
                     history_address,
                     use_graph,

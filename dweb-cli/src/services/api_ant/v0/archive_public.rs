@@ -37,7 +37,7 @@ use autonomi::AttoTokens;
 use autonomi::{files::PrivateArchive, files::PublicArchive, Bytes};
 
 use dweb::client::DwebClient;
-use dweb::files::directory_tree::DirectoryTree;
+use dweb::files::directory::Tree;
 use dweb::helpers::{convert::*, retry::retry_until_ok, web::*};
 use dweb::storage::DwebType;
 use dweb::trove::History;
@@ -125,7 +125,7 @@ pub async fn get(
 ///
 ///     [v{VERSION-NUMBER}/]{ADDRESS-OR-NAME}
 ///
-/// VERSION-NUMBER      Optional version when ADDRESS-OR-NAME refers to a <code>History<DirectoryTree></code>
+/// VERSION-NUMBER      Optional version when ADDRESS-OR-NAME refers to a <code>History<Tree></code>
 ///
 /// ADDRESS-OR-NAME     A hexadecimal address or a short name referring to a History or PublicArchive
 ///
@@ -181,7 +181,7 @@ pub async fn get_version(
         archive_address.unwrap()
     } else {
         let history_address = history_address.unwrap();
-        let mut history = match History::<DirectoryTree>::from_history_address(
+        let mut history = match History::<Tree>::from_history_address(
             client.clone(),
             history_address,
             false,
@@ -276,12 +276,12 @@ pub async fn get_version(
 #[utoipa::path(
     responses(
         (status = 200,
-            description = "The JSON representation of a DirectoryTree formatted for an SVAR file manager component.
-            <p>Note: this may be changed to return a JSON representation of a DirectoryTree.", body = str)
+            description = "The JSON representation of a Tree formatted for an SVAR file manager component.
+            <p>Note: this may be changed to return a JSON representation of a Tree.", body = str)
         ),
     tags = ["Dweb"],
     params(
-        ("params", description = "[v{version}/]{address_or_name}<br/><br/>Optional version (integer > 0), an address_or_name which refers to a History<DirectoryTree>"),
+        ("params", description = "[v{version}/]{address_or_name}<br/><br/>Optional version (integer > 0), an address_or_name which refers to a History<Tree>"),
     )
 )]
 #[get("/directory-load/{params:.*}")]
@@ -323,7 +323,7 @@ pub async fn api_directory_load(
         archive_address.unwrap()
     } else {
         let history_address = history_address.unwrap();
-        let mut history = match History::<DirectoryTree>::from_history_address(
+        let mut history = match History::<Tree>::from_history_address(
             client.clone(),
             history_address,
             false,
@@ -363,10 +363,10 @@ pub async fn api_directory_load(
     };
 
     println!(
-        "DEBUG DirectoryTree::from_archive_address() with address: {}",
+        "DEBUG Tree::from_archive_address() with address: {}",
         archive_address.to_hex()
     );
-    let directory_tree = match DirectoryTree::from_archive_address(&client, archive_address).await {
+    let directory_tree = match Tree::from_archive_address(&client, archive_address).await {
         Ok(directory_tree) => directory_tree,
         Err(e) => {
             let message = format!("/directory-load failed to get directory Archive - {e}");
@@ -553,10 +553,10 @@ impl DwebArchive {
             let offset = path_string.find("/").unwrap_or(path_string.len());
             path_string.replace_range(..offset, "");
             let mut web_path =
-                dweb::files::directory_tree::DirectoryTreePathMap::webify_string(&path_string);
+                dweb::files::directory::TreePathMap::webify_string(&path_string);
 
             if let Some(last_separator_position) =
-                web_path.rfind(dweb::files::directory_tree::ARCHIVE_PATH_SEPARATOR)
+                web_path.rfind(dweb::files::directory::ARCHIVE_PATH_SEPARATOR)
             {
                 let file_full_path = web_path.clone();
                 let _file_name = web_path.split_off(last_separator_position + 1);
@@ -602,10 +602,10 @@ impl DwebArchive {
             let offset = path_string.find("/").unwrap_or(path_string.len());
             path_string.replace_range(..offset, "");
             let mut web_path =
-                dweb::files::directory_tree::DirectoryTreePathMap::webify_string(&path_string);
+                dweb::files::directory::TreePathMap::webify_string(&path_string);
 
             if let Some(last_separator_position) =
-                web_path.rfind(dweb::files::directory_tree::ARCHIVE_PATH_SEPARATOR)
+                web_path.rfind(dweb::files::directory::ARCHIVE_PATH_SEPARATOR)
             {
                 let file_full_path = web_path.clone();
                 let _file_name = web_path.split_off(last_separator_position + 1);

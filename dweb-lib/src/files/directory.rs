@@ -34,7 +34,7 @@ use crate::files::archive::DualArchive;
 use crate::storage::DwebType;
 use crate::trove::{History, Trove};
 
-// The Trove type for a DirectoryTree
+// The Trove type for a Tree
 const FILE_TREE_TYPE: &str = "ee383f084cffaab845617b1c43ffaee8b5c17e8fbbb3ad3d379c96b5b844f24e";
 
 // Default favicon.ico file, fixed by content addressing
@@ -52,7 +52,7 @@ const ADDRESS_DEFAULT_FAVICON: &str =
 // Early Safepress icon, blue cube inside a cube. Nice resolution
 // const ADDRESS_DEFAULT_FAVICON: &str = "";
 
-/// Separator used in PublicArchive/PrivateArchive and DirectoryTree::directory_map
+/// Separator used in PublicArchive/PrivateArchive and Tree::directory_map
 pub const ARCHIVE_PATH_SEPARATOR: char = '/';
 
 /// Manage settings as a JSON string
@@ -69,8 +69,8 @@ pub const ARCHIVE_PATH_SEPARATOR: char = '/';
 //
 // The app sections will contain settings forthird-party applications which are not
 // needed by dweb, but may be used to change the behaviour of a client app when it
-// accesses the DirectoryTree, or provide information about the client used to create or
-// the DirectoryTree.
+// accesses the Tree, or provide information about the client used to create or
+// the Tree.
 //
 #[derive(Clone)]
 pub struct JsonSettings {
@@ -163,14 +163,14 @@ impl DwebSettings {
     }
 }
 
-/// DirectoryTree is a directory tree of files stored on Autonomi. It supports
+/// Tree is a directory tree of files stored on Autonomi. It supports
 /// optional metadata for a website which is stored in the Autonomi Archive
 /// as a special file.
 ///
-/// See also, History<DirectoryTree> which provides a persistent history of all versions
+/// See also, History<Tree> which provides a persistent history of all versions
 /// of the tree or website which have been stored.
 #[derive(Clone)]
-pub struct DirectoryTree {
+pub struct Tree {
     // We use a different map structure than Archive here and can consume either Autonomi
     // PublicArchive or PrivateArchive in the form of a dweb::archive::DualArchive
     //
@@ -179,13 +179,13 @@ pub struct DirectoryTree {
     // as explained in the docs for dweb::archive::DualArchive.
     //
     /// Map using directory as key:
-    pub directory_map: DirectoryTreePathMap,
+    pub directory_map: TreePathMap,
 
     /// Holds the Autonomi archive type for serialisation
     pub archive: DualArchive,
 
     /// Optional settings for dweb or third party apps. These are stored as a JSON formatted
-    /// file in the Archive, updated whenever the DirectoryTree is stored on or retrieved
+    /// file in the Archive, updated whenever the Tree is stored on or retrieved
     /// from the network.
     //
     // TODO document usage of dweb_settings JSON for metadata created by and accessible
@@ -196,7 +196,7 @@ pub struct DirectoryTree {
     pub dweb_settings: DwebSettings,
 }
 
-impl Trove<DirectoryTree> for DirectoryTree {
+impl Trove<Tree> for Tree {
     fn trove_type() -> DataAddress {
         DataAddress::from_hex(FILE_TREE_TYPE).unwrap() // An error here is a bug that should be fixed
     }
@@ -205,22 +205,22 @@ impl Trove<DirectoryTree> for DirectoryTree {
     ///
     /// A PrivateArchive is used in preference to PublicArchive even for public data.
     /// See dweb::archive::DualArchive for an explanation.
-    fn to_bytes(directory_tree: &DirectoryTree) -> Result<Bytes> {
+    fn to_bytes(directory_tree: &Tree) -> Result<Bytes> {
         match directory_tree.archive.to_bytes_as_private() {
             Ok(bytes) => Ok(bytes),
-            Err(e) => Err(eyre!("Failed to serialise DirectoryTree::archive - {e}")),
+            Err(e) => Err(eyre!("Failed to serialise Tree::archive - {e}")),
         }
     }
 
-    async fn from_bytes(client: &DwebClient, bytes: Bytes) -> Result<DirectoryTree> {
+    async fn from_bytes(client: &DwebClient, bytes: Bytes) -> Result<Tree> {
         match DualArchive::from_bytes(bytes) {
-            Ok(archive) => Ok(DirectoryTree::from_dual_archive(client, archive).await),
-            Err(e) => Err(eyre!("Failed to serialise DirectoryTree::archive - {e}")),
+            Ok(archive) => Ok(Tree::from_dual_archive(client, archive).await),
+            Err(e) => Err(eyre!("Failed to serialise Tree::archive - {e}")),
         }
     }
 }
 
-// TODO consider how to use DirectoryTree for a virtual file store:
+// TODO consider how to use Tree for a virtual file store:
 // TODO - currently it is given a file tree to upload in one operation, based on a local path
 // TODO A virtual file store would:
 // TODO - have a std::fs style interface which return fs style error codes
@@ -228,21 +228,21 @@ impl Trove<DirectoryTree> for DirectoryTree {
 // TODO - have methods to upload / get files, subtrees / the whole tree
 /// Work in progress and subject to breaking changes
 /// TODO consider how to handle use as a virtual file store (see comments above this in the code)
-impl DirectoryTree {
-    // pub fn new(website_settings: Option<DwebSettings>) -> DirectoryTree {
-    //     DirectoryTree {
+impl Tree {
+    // pub fn new(website_settings: Option<DwebSettings>) -> Tree {
+    //     Tree {
     //         archive: &PublicArchive::new(),
-    //         directory_map: DirectoryTreePathMap::new(),
+    //         directory_map: TreePathMap::new(),
     //         dweb_settings: website_settings,
     //     }
     // }
 
-    /// Get an archive from the network and use it to create a new DirectoryTree
+    /// Get an archive from the network and use it to create a new Tree
     // TODO was directory_tree_download()
     pub async fn from_archive_address(
         client: &DwebClient,
         archive_address: ArchiveAddress,
-    ) -> Result<DirectoryTree> {
+    ) -> Result<Tree> {
         println!(
             "DEBUG directory_tree_download() at {}",
             archive_address.to_hex()
@@ -278,7 +278,7 @@ impl DirectoryTree {
     pub async fn from_public_archive(
         client: &DwebClient,
         public_archive: PublicArchive,
-    ) -> DirectoryTree {
+    ) -> Tree {
         Self::from_dual_archive(
             client,
             DualArchive {
@@ -296,7 +296,7 @@ impl DirectoryTree {
     pub async fn from_private_archive(
         client: &DwebClient,
         private_archive: PrivateArchive,
-    ) -> DirectoryTree {
+    ) -> Tree {
         Self::from_dual_archive(
             client,
             DualArchive {
@@ -313,32 +313,32 @@ impl DirectoryTree {
     /// If the archive contains a DwebSettings file this will be read from the network
     ///
     /// Check the value of DualArchive.dweb_type to determine the type or archive. On failure it will be DwebType::Uknown
-    pub async fn from_dual_archive(client: &DwebClient, archive: DualArchive) -> DirectoryTree {
+    pub async fn from_dual_archive(client: &DwebClient, archive: DualArchive) -> Tree {
         let dweb_type = archive.dweb_type;
         let mut directory_tree = match dweb_type {
-            DwebType::PrivateArchive => DirectoryTree {
-                directory_map: DirectoryTreePathMap::from_private_archive(&archive.private_archive),
+            DwebType::PrivateArchive => Tree {
+                directory_map: TreePathMap::from_private_archive(&archive.private_archive),
                 archive,
                 dweb_settings: DwebSettings::default(),
             },
-            DwebType::PublicArchive => DirectoryTree {
-                directory_map: DirectoryTreePathMap::from_public_archive(&archive.public_archive),
+            DwebType::PublicArchive => Tree {
+                directory_map: TreePathMap::from_public_archive(&archive.public_archive),
                 archive,
                 dweb_settings: DwebSettings::default(),
             },
             _ => {
                 let message =
-                    format!("DirectoryTree cannot initialise using unknown DualArchive.dweb_type");
+                    format!("Tree cannot initialise using unknown DualArchive.dweb_type");
                 println!("DEBUG {message}");
-                DirectoryTree {
-                    directory_map: DirectoryTreePathMap::new(),
+                Tree {
+                    directory_map: TreePathMap::new(),
                     archive,
                     dweb_settings: DwebSettings::default(),
                 }
             }
         };
         directory_tree.update_dweb_settings(client).await;
-        println!("DEBUG DirectoryTree initialised using {dweb_type:?}",);
+        println!("DEBUG Tree initialised using {dweb_type:?}",);
         directory_tree
     }
 
@@ -363,7 +363,7 @@ impl DirectoryTree {
 
     /// Looks up a file or website resource in a version of a History
     ///
-    /// First gets a DirectoryTree version, using cached data if held by the history
+    /// First gets a Tree version, using cached data if held by the history
     /// If version is None attempts obtain the default (most recent version)
     ///
     /// as_website controls special handling for a website. See `lookup_file()`
@@ -374,7 +374,7 @@ impl DirectoryTree {
     ///
     // TODOxxx update to handle public/private archive getting using address or datamap
     pub async fn history_lookup_file(
-        history: &mut History<DirectoryTree>,
+        history: &mut History<Tree>,
         resource_path: &String,
         as_website: bool,
         version: Option<u32>,
@@ -429,7 +429,7 @@ impl DirectoryTree {
         let mut path_and_address = None;
         if let Some(resources) = self.directory_map.paths_to_files_map.get(&resource_path) {
             if second_part.len() > 0 {
-                println!("DEBUG DirectoryTree looking up '{}'", second_part);
+                println!("DEBUG Tree looking up '{}'", second_part);
                 match Self::lookup_name_in_vec(&second_part, resources) {
                     Some((datamap_chunk, data_address)) => {
                         path_and_address = Some((second_part, datamap_chunk, data_address))
@@ -513,22 +513,22 @@ impl DirectoryTree {
 /// The metadata tuple for a file is:
 ///   (filename: String, datamap_chunk: String, data_adddress: String, metadata: FileMetadata)
 #[derive(Clone)]
-pub struct DirectoryTreePathMap {
+pub struct TreePathMap {
     pub paths_to_files_map: HashMap<String, Vec<(String, String, String, FileMetadata)>>,
 }
 
 // TODO replace OS path separator with '/' when storing web paths
 // TODO canonicalise path strings when adding them
-impl DirectoryTreePathMap {
-    pub fn new() -> DirectoryTreePathMap {
-        DirectoryTreePathMap {
+impl TreePathMap {
+    pub fn new() -> TreePathMap {
+        TreePathMap {
             paths_to_files_map: HashMap::<String, Vec<(String, String, String, FileMetadata)>>::new(
             ),
         }
     }
 
-    pub fn from_public_archive(archive: &PublicArchive) -> DirectoryTreePathMap {
-        let mut path_map = DirectoryTreePathMap::new();
+    pub fn from_public_archive(archive: &PublicArchive) -> TreePathMap {
+        let mut path_map = TreePathMap::new();
         let mut iter = archive.map().iter();
         while let Some((path_buf, (data_address, metadata))) = iter.next() {
             // Remove the containing directory to produce a path from the website root, and which starts with '/'
@@ -550,8 +550,8 @@ impl DirectoryTreePathMap {
         path_map
     }
 
-    pub fn from_private_archive(archive: &PrivateArchive) -> DirectoryTreePathMap {
-        let mut path_map = DirectoryTreePathMap::new();
+    pub fn from_private_archive(archive: &PrivateArchive) -> TreePathMap {
+        let mut path_map = TreePathMap::new();
         let mut iter = archive.map().iter();
         while let Some((path_buf, (datamap, metadata))) = iter.next() {
             // Remove the containing directory to produce a path from the website root, and which starts with '/'
@@ -710,9 +710,9 @@ pub async fn get_content(
 //     println!("DEBUG history_address: {}", history_address.to_hex());
 //     println!("DEBUG resource_path    : {resource_path}");
 
-//     match History::<DirectoryTree>::from_history_address(client.clone(), history_address).await {
+//     match History::<Tree>::from_history_address(client.clone(), history_address).await {
 //         Ok(mut history) => {
-//             return DirectoryTree::history_lookup_file(
+//             return Tree::history_lookup_file(
 //                 &mut history,
 //                 resource_path,
 //                 version,

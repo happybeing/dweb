@@ -32,7 +32,7 @@ use autonomi::client::files::archive_public::ArchiveAddress;
 
 use crate::cache::directory_with_name::HISTORY_NAMES;
 use crate::client::DwebClient;
-use crate::files::directory_tree::DirectoryTree;
+use crate::files::directory::Tree;
 use crate::helpers::convert::*;
 use crate::trove::HistoryAddress;
 
@@ -73,14 +73,14 @@ pub static DIRECTORY_VERSIONS_WITH_PORT: LazyLock<Mutex<LruMap<String, Directory
 pub struct DirectoryVersionWithPort {
     /// The port on which a listener has been started - used for redirection of a URL by another listener
     pub port: u16,
-    /// Address of a History<trove::DirectoryTree> on Autonomi
+    /// Address of a History<trove::Tree> on Autonomi
     pub history_address: Option<HistoryAddress>,
     /// A version of 0 implies use most recent version (highest available)
     pub version: Option<u32>,
     /// Directory / website metadata
     pub archive_address: ArchiveAddress,
     /// Directory / website metadata
-    pub directory_tree: DirectoryTree,
+    pub directory_tree: Tree,
 
     #[cfg(feature = "fixed-dweb-hosts")]
     is_fixed_webname: bool,
@@ -103,7 +103,7 @@ impl DirectoryVersionWithPort {
         history_address: Option<HistoryAddress>,
         version: Option<u32>,
         archive_address: ArchiveAddress,
-        directory_tree: DirectoryTree,
+        directory_tree: Tree,
     ) -> DirectoryVersionWithPort {
         DirectoryVersionWithPort {
             port,
@@ -144,10 +144,10 @@ pub async fn lookup_or_create_directory_version_with_port(
         };
     };
 
-    // Get the archive address and DirectoryTree
+    // Get the archive address and Tree
     let archive_address = if archive_address.is_none() {
         let min_entry = version.unwrap_or(1);
-        match crate::trove::History::<DirectoryTree>::from_history_address(
+        match crate::trove::History::<Tree>::from_history_address(
             client.clone(),
             history_address.unwrap(),
             false,
@@ -191,7 +191,7 @@ pub async fn lookup_or_create_directory_version_with_port(
     };
 
     // Not in the cache, so create and add to cache
-    let directory_tree = match DirectoryTree::from_archive_address(client, archive_address).await {
+    let directory_tree = match Tree::from_archive_address(client, archive_address).await {
         Ok(directory_tree) => directory_tree,
         Err(e) => {
             let msg = format!("Failed to fetch archive from network - {e}");

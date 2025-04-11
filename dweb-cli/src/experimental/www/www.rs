@@ -27,7 +27,7 @@ use actix_web::{
     HttpRequest, HttpResponse,
 };
 
-use dweb::files::directory_tree::get_content;
+use dweb::files::directory::get_content;
 use dweb::web::fetch::{directory_version_get, response_redirect, response_with_body};
 use dweb::web::DWEB_SERVICE_WWW;
 
@@ -132,7 +132,7 @@ pub async fn www_handler(
                     return response_with_body(
                         StatusCode::BAD_GATEWAY,
                         Some(String::from(format!(
-                            "DirectoryTree::lookup_file({}) failed: {e}",
+                            "Tree::lookup_file({}) failed: {e}",
                             path.as_str()
                         ))),
                     );
@@ -148,7 +148,7 @@ pub async fn www_handler(
             return response_with_body(
                 status_code,
                 Some(String::from(format!(
-                    "DirectoryTree::lookup_file({}) failed",
+                    "Tree::lookup_file({}) failed",
                     path.as_str()
                 ))),
             );

@@ -125,7 +125,7 @@ impl std::fmt::Display for HistoryAddress {
 ///
 /// For write access, both the owning secret key and the name must be provided.
 ///
-/// Example, using the built-in dweb::trove::DirectoryTree struct you can store and access
+/// Example, using the built-in dweb::trove::Tree struct you can store and access
 /// every published version of a tree of files, which might represent a website.
 ///
 /// Notes:
@@ -599,7 +599,7 @@ impl<T: Trove<T> + Clone> History<T> {
 
     /// Get the main secret key for all histories belonging to an owner
     fn history_main_secret_key(owner_secret_key: SecretKey) -> SecretKey {
-        // If I need to wipe the History<DirectoryTree> address space clean, tweak
+        // If I need to wipe the History<Tree> address space clean, tweak
         // and re-upload the awv site type use the new value for FILE_TREE_TYPE
         let derivation_index: [u8; 32] = Self::trove_type().xorname().to_vec().try_into().unwrap();
         MainSecretKey::new(owner_secret_key.clone())
@@ -690,7 +690,7 @@ impl<T: Trove<T> + Clone> History<T> {
         }
     }
 
-    /// Download a `DirectoryTree` from the network
+    /// Download a `Tree` from the network
     async fn trove_download(&self, data_address: ArchiveAddress) -> Result<T> {
         return History::<T>::raw_trove_download(&self.client, data_address).await;
     }

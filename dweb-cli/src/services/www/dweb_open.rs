@@ -36,7 +36,7 @@ use super::make_error_response_page;
 ///
 /// url: <code>http://127.0.0.1:8080/dweb-open/[v<VERSION-NUMBER>/]<ADDRESS-OR-NAME><REMOTE-PATH></code>
 ///
-/// VERSION-NUMBER      Optional version when ADDRESS-OR-NAME refers to a <code>History<DirectoryTree></code>
+/// VERSION-NUMBER      Optional version when ADDRESS-OR-NAME refers to a <code>History<Tree></code>
 ///
 /// ADDRESS-OR-NAME     A hexadecimal address or a short name referring to a History or PublicArchive
 ///
@@ -45,8 +45,8 @@ use super::make_error_response_page;
 #[utoipa::path(
     responses(
         (status = 200,
-            description = "The JSON representation of a DirectoryTree formatted for an SVAR file manager component.
-            <p>Note: this may be changed to return a JSON representation of a DirectoryTree.", body = str)
+            description = "The JSON representation of a Tree formatted for an SVAR file manager component.
+            <p>Note: this may be changed to return a JSON representation of a Tree.", body = str)
         ),
     tags = ["Linking"],
 )]
@@ -91,12 +91,12 @@ pub async fn dweb_open(
 #[utoipa::path(
     responses(
         (status = 200,
-            description = "The JSON representation of a DirectoryTree formatted for an SVAR file manager component.
-            <p>Note: this may be changed to return a JSON representation of a DirectoryTree.", body = str)
+            description = "The JSON representation of a Tree formatted for an SVAR file manager component.
+            <p>Note: this may be changed to return a JSON representation of a Tree.", body = str)
         ),
     tags = ["Linking"],
     params(
-        ("VERSION-NUMBER" = Option<u64>, description = "Optional version (integer > 0) of the History<DirectoryTree>"),
+        ("VERSION-NUMBER" = Option<u64>, description = "Optional version (integer > 0) of the History<Tree>"),
         ("DWEB-NAME", description = "The short name to register for the HISTORY-ADDRESS"),
         ("HISTORY-ADDRESS", description = "A hexadecimal address or a short name referring to a content History"),
         ("REMOTE-PATH" = Option<String>, description = "Optional path to the resource you wish to open. Must begin with \"/\"")

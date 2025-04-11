@@ -30,10 +30,8 @@ use autonomi::files::{Metadata as FileMetadata, PrivateArchive};
 use autonomi::AttoTokens;
 
 use crate::client::DwebClient;
-use crate::files::directory_tree::{
-    osstr_to_string, DirectoryTree, DWEB_DIRECTORY_HISTORY_DATAMAPCHUNK,
-};
-use crate::files::directory_tree::{
+use crate::files::directory::{osstr_to_string, Tree, DWEB_DIRECTORY_HISTORY_DATAMAPCHUNK};
+use crate::files::directory::{
     DWEB_DIRECTORY_HISTORY_CONTENT, DWEB_HISTORY_DIRECTORY, DWEB_SETTINGS_PATH,
 };
 use crate::helpers::retry::retry_until_ok;
@@ -103,12 +101,8 @@ pub async fn publish_or_update_files(
     // check the history does not exist
     let (history_cost, mut files_history) = if is_publish {
         println!("Creating History on network...");
-        match History::<DirectoryTree>::create_online(
-            client.clone(),
-            name.clone(),
-            app_secret_key.clone(),
-        )
-        .await
+        match History::<Tree>::create_online(client.clone(), name.clone(), app_secret_key.clone())
+            .await
         {
             Ok((cost, history)) => (cost, history),
             Err(e) => {
@@ -119,7 +113,7 @@ pub async fn publish_or_update_files(
         }
     } else {
         println!("Getting History from network...");
-        match History::<DirectoryTree>::from_name(
+        match History::<Tree>::from_name(
             client.clone(),
             app_secret_key.clone(),
             name.clone(),
@@ -271,7 +265,7 @@ pub fn report_content_published_or_updated(
 }
 
 /// Upload a directory tree to Autonomi and store the PrivateArchive
-/// Returns the network address of the PrivateArchive (which can be used to initialise a DirectoryTree).
+/// Returns the network address of the PrivateArchive (which can be used to initialise a Tree).
 pub async fn publish_directory(
     client: &DwebClient,
     files_root: &PathBuf,

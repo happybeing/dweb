@@ -25,7 +25,7 @@ use autonomi::client::key_derivation::{DerivationIndex, MainPubkey};
 use autonomi::files::archive_public::ArchiveAddress;
 
 use dweb::client::DwebClient;
-use dweb::files::directory_tree::DirectoryTree;
+use dweb::files::directory::Tree;
 use dweb::helpers::convert::address_tuple_from_address_or_name;
 use dweb::helpers::graph_entry::graph_entry_get;
 use dweb::trove::History;
@@ -52,7 +52,7 @@ pub async fn handle_inspect_history(
         }
     };
 
-    let mut history = match History::<DirectoryTree>::from_history_address(
+    let mut history = match History::<Tree>::from_history_address(
         client.clone(),
         history_address,
         true,
@@ -115,7 +115,7 @@ pub async fn handle_inspect_history(
             let archive_address = ArchiveAddress::from_hex(&archive_address_hex)?;
             if include_files {
                 println!("    entry {index} - fetching content at {archive_address_hex}");
-                match DirectoryTree::from_archive_address(&client, archive_address).await {
+                match Tree::from_archive_address(&client, archive_address).await {
                     Ok(directory) => {
                         let _ = print_files("      ", &directory, &files_args);
                     }
@@ -140,7 +140,7 @@ pub async fn handle_inspect_history(
 
 fn print_history(
     _client: &DwebClient,
-    history: &History<DirectoryTree>,
+    history: &History<Tree>,
     full: bool,
     shorten_hex_strings: bool,
 ) {
@@ -148,11 +148,11 @@ fn print_history(
 
     let mut type_string = format!(
         "{}",
-        hex::encode(History::<DirectoryTree>::trove_type().xorname())
+        hex::encode(History::<Tree>::trove_type().xorname())
     );
 
     let mut pointer_string = if let Ok(pointer_address) =
-        History::<DirectoryTree>::pointer_address_from_history_address(history.history_address())
+        History::<Tree>::pointer_address_from_history_address(history.history_address())
     {
         pointer_address.to_hex()
     } else {
@@ -171,9 +171,9 @@ fn print_history(
     };
 
     if shorten_hex_strings {
-        type_string = format!("{}", History::<DirectoryTree>::trove_type());
+        type_string = format!("{}", History::<Tree>::trove_type());
         pointer_string = if let Ok(pointer_address) =
-            History::<DirectoryTree>::pointer_address_from_history_address(
+            History::<Tree>::pointer_address_from_history_address(
                 history.history_address(),
             ) {
             format!("{}", pointer_address.xorname())
@@ -263,7 +263,7 @@ pub async fn print_graphentry(
     graph_keys: bool,
     full: bool,
     shorten_hex_strings: bool,
-    history: Option<&History<DirectoryTree>>,
+    history: Option<&History<Tree>>,
 ) -> Result<()> {
     let history = if graph_keys { None } else { history };
     if full {
@@ -299,7 +299,7 @@ async fn graph_entry_print_parents(
     indent: &str,
     graph_entry: &GraphEntry,
     shorten_hex_strings: bool,
-    history: Option<&History<DirectoryTree>>,
+    history: Option<&History<Tree>>,
 ) -> Result<()> {
     print!("{indent}  parents    : ");
     let mut parents = graph_entry.parents.iter();
@@ -325,7 +325,7 @@ fn graph_entry_print_descendents(
     indent: &str,
     graph_entry: &GraphEntry,
     shorten_hex_strings: bool,
-    history: Option<&History<DirectoryTree>>,
+    history: Option<&History<Tree>>,
 ) {
     print!("{indent}  descendents: ");
     let mut descendents = graph_entry.descendants.iter();
@@ -368,7 +368,7 @@ fn graph_entry_print_signature(indent: &str, graph_entry: &GraphEntry, shorten_h
     println!("{indent}  signature  : {hex_string}");
 }
 
-fn print_files(indent: &str, directory: &DirectoryTree, files_args: &FilesArgs) -> Result<()> {
+fn print_files(indent: &str, directory: &Tree, files_args: &FilesArgs) -> Result<()> {
     let directory_stats = directory_stats(directory)?;
 
     let _ = print_counts(indent, directory, directory_stats.0);
@@ -405,7 +405,7 @@ fn print_files(indent: &str, directory: &DirectoryTree, files_args: &FilesArgs) 
     Ok(())
 }
 
-fn directory_stats(directory: &DirectoryTree) -> Result<(usize, u64)> {
+fn directory_stats(directory: &Tree) -> Result<(usize, u64)> {
     let mut files_count: usize = 0;
     let mut total_bytes: u64 = 0;
 
@@ -420,7 +420,7 @@ fn directory_stats(directory: &DirectoryTree) -> Result<(usize, u64)> {
     Ok((files_count, total_bytes))
 }
 
-fn print_counts(indent: &str, directory: &DirectoryTree, count_files: usize) -> Result<()> {
+fn print_counts(indent: &str, directory: &Tree, count_files: usize) -> Result<()> {
     println!(
         "{indent}directories: {}",
         directory.directory_map.paths_to_files_map.len()
@@ -441,7 +441,7 @@ pub async fn handle_inspect_files(
     files_args: FilesArgs,
 ) -> Result<()> {
     println!("fetching directory at {}", archive_address.to_hex());
-    match DirectoryTree::from_archive_address(&client, archive_address).await {
+    match Tree::from_archive_address(&client, archive_address).await {
         Ok(directory) => {
             let _ = print_files("", &directory, &files_args);
         }

@@ -23,7 +23,7 @@ pub(crate) mod dweb_version;
 use actix_web::{http::StatusCode, web::Data, HttpRequest, HttpResponse};
 
 use dweb::cache::directory_with_port::DirectoryVersionWithPort;
-use dweb::files::directory_tree::get_content;
+use dweb::files::directory::get_content;
 use dweb::web::fetch::response_with_body;
 
 use super::helpers::*;
@@ -100,7 +100,7 @@ pub async fn www_handler(
                     return response_with_body(
                         StatusCode::BAD_GATEWAY,
                         Some(String::from(format!(
-                            "DirectoryTree::lookup_file({}) failed: {e}",
+                            "Tree::lookup_file({}) failed: {e}",
                             path.as_str()
                         ))),
                     );
@@ -116,7 +116,7 @@ pub async fn www_handler(
             return response_with_body(
                 status_code,
                 Some(String::from(format!(
-                    "DirectoryTree::lookup_file({}) failed",
+                    "Tree::lookup_file({}) failed",
                     path.as_str()
                 ))),
             );

@@ -16,4 +16,4 @@
 */
 
 pub mod archive;
-pub mod directory_tree;
+pub mod directory;

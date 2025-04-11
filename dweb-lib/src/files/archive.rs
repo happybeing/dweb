@@ -30,7 +30,7 @@ use crate::storage::DwebType;
 
 /// A single type to handle Autonomi PublicArchive and PrivateArchive
 ///
-/// Note: A DirectoryTree uses and adds to the features of a DualArchive and
+/// Note: A Tree uses and adds to the features of a DualArchive and
 /// is better suited for typical use cases. Both provide simplified handling
 /// of the two Atonomi archive types.
 ///

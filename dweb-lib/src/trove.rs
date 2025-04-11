@@ -390,10 +390,10 @@ impl<T: Trove<T> + Clone> History<T> {
         ignore_pointer: bool,
         minimum_entry_index: u32,
     ) -> Result<History<T>> {
-        // println!(
-        //     "DEBUG History::from_history_address({})",
-        //     history_address.to_hex()
-        // );
+        println!(
+            "DEBUG History::from_history_address({})",
+            history_address.to_hex()
+        );
         let ignore_pointer = client.api_control.ignore_pointers.unwrap_or(ignore_pointer);
 
         // Check it exists to avoid accidental creation (and payment)
@@ -454,6 +454,10 @@ impl<T: Trove<T> + Clone> History<T> {
             };
         }
 
+        println!(
+            "DEBUG from_history_address() returning History with num_entries: {}",
+            history.num_entries
+        );
         history.update_default_version();
         Ok(history)
     }

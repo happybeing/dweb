@@ -189,7 +189,7 @@ pub fn request_as_html(request: &HttpRequest) -> String {
 #[get("/awf/{datamap_address:.*}")]
 async fn test_fetch_file(
     datamap_address: web::Path<String>,
-    client_data: Data<dweb::client::DwebClient>,
+    client: Data<dweb::client::DwebClient>,
 ) -> impl Responder {
     println!("test_fetch_file()...");
 
@@ -203,7 +203,7 @@ async fn test_fetch_file(
         }
     };
 
-    match client_data.data_get_public(file_address).await {
+    match client.client.data_get_public(&file_address).await {
         Ok(bytes) => HttpResponse::Ok().body(bytes),
         Err(e) => {
             return response_with_body(StatusCode::NOT_FOUND, Some(format!("{e}")));

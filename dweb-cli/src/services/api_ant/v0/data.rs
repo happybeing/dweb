@@ -26,49 +26,59 @@ use dweb::helpers::convert::*;
 
 use crate::services::helpers::*;
 
-/// Get data from the network using a datamap address
-///
+/// Get data from the network using a hex encoded datamap or data address
 #[utoipa::path(
     responses(
         (status = 200, description = "Success"),
-        (status = StatusCode::BAD_REQUEST, description = "The data_address is not a valid address"),
+        (status = StatusCode::BAD_REQUEST, description = "The datamap_or_address is not a valid address"),
         (status = StatusCode::NOT_FOUND, description = "The data was not found or a network error occured"),
         ),
     tags = ["Autonomi"],
     params(
-        ("data_address", description = "The hexadecimal address of a datamap on Autonomi"),
-    ),
+        ("datamap_or_address", description = "the hex encoded datamap or data address of public or private data"),
+    )
 )]
-#[get("/data-public/{data_address}")]
-pub async fn get_public(
+#[get("/data/{datamap_or_address}")]
+pub async fn get(
     request: HttpRequest,
     params: web::Path<String>,
     client: Data<dweb::client::DwebClient>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
 
-    let data_address = match str_to_data_address(&params.into_inner()) {
-        Ok(data_address) => data_address,
-        Err(e) => {
-            return make_error_response_page(
-                None,
-                &mut HttpResponse::BadRequest(),
-                "/data error".to_string(),
-                &format!("/data address not valid - {e}"),
-            );
-        }
-    };
+    let (datamap_chunk, _, data_address) = tuple_from_datamap_address_or_name(&params.into_inner());
 
-    let content = match client.data_get_public(data_address).await {
-        Ok(bytes) => bytes,
-        Err(e) => {
-            return make_error_response_page(
-                None,
-                &mut HttpResponse::NotFound(),
-                "/data error".to_string(),
-                &format!("/data failed to get file from network - {e}"),
-            );
+    let content = if datamap_chunk.is_some() {
+        match client.client.data_get(&datamap_chunk.unwrap()).await {
+            Ok(bytes) => bytes,
+            Err(e) => {
+                return make_error_response_page(
+                    None,
+                    &mut HttpResponse::NotFound(),
+                    "/data error".to_string(),
+                    &format!("/data failed to get file from network - {e}"),
+                );
+            }
         }
+    } else if data_address.is_some() {
+        match client.client.data_get_public(&data_address.unwrap()).await {
+            Ok(bytes) => bytes,
+            Err(e) => {
+                return make_error_response_page(
+                    None,
+                    &mut HttpResponse::NotFound(),
+                    "/data error".to_string(),
+                    &format!("/data failed to get file from network - {e}"),
+                );
+            }
+        }
+    } else {
+        return make_error_response_page(
+            None,
+            &mut HttpResponse::BadRequest(),
+            "/data error".to_string(),
+            "/data datamap_or_address not valid",
+        );
     };
 
     HttpResponseBuilder::new(StatusCode::OK).body(content)

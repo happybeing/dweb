@@ -65,13 +65,13 @@ use crate::services::helpers::*;
 #[get("/archive/{datamap_or_address}")]
 pub async fn get(
     request: HttpRequest,
-    datamap_address_or_name: web::Path<String>,
+    datamap_or_address: web::Path<String>,
     client: Data<dweb::client::DwebClient>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
 
     let (datamap_chunk, _history_address, archive_address) =
-        tuple_from_datamap_address_or_name(&datamap_address_or_name);
+        tuple_from_datamap_address_or_name(&datamap_or_address);
 
     let tree = match Tree::from_datamap_or_address(&client, datamap_chunk, archive_address).await {
         Ok(archive) => archive,

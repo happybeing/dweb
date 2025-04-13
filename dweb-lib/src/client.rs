@@ -143,8 +143,4 @@ impl DwebClient {
     pub fn payment_option(&self) -> PaymentOption {
         PaymentOption::from(&self.wallet)
     }
-
-    pub async fn data_get_public(&self, address: DataAddress) -> Result<Bytes, GetError> {
-        self.client.data_get_public(&address).await
-    }
 }

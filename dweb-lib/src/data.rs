@@ -30,7 +30,7 @@ pub async fn autonomi_get_file_public(
 ) -> Result<Bytes, GetError> {
     println!("DEBUG autonomi_get_file_public()");
     println!("DEBUG calling client.data_get_public()");
-    match client.data_get_public(*file_address).await {
+    match client.client.data_get_public(file_address).await {
         Ok(content) => {
             println!("DEBUG Ok() return");
             Ok(content)

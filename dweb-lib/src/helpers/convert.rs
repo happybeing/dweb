@@ -129,7 +129,7 @@ pub fn tuple_from_datamap_address_or_name(
 ) -> (
     Option<DataMapChunk>,
     Option<HistoryAddress>,
-    Option<ArchiveAddress>,
+    Option<DataAddress>,
 ) {
     if let Ok(datamap) = str_to_datamap_chunk(datamap_address_or_name) {
         return (Some(datamap), None, None);
@@ -139,7 +139,7 @@ pub fn tuple_from_datamap_address_or_name(
         return (None, Some(history_address), None);
     }
 
-    if let Ok(data_address) = ArchiveAddress::from_hex(datamap_address_or_name) {
+    if let Ok(data_address) = DataAddress::from_hex(datamap_address_or_name) {
         return (None, None, Some(data_address));
     }
 

@@ -206,7 +206,7 @@ pub async fn get_version(
                 return make_error_response_page(
                     None,
                     &mut HttpResponse::BadRequest(),
-                    "/archive-public-version GET error".to_string(),
+                    "/archive-version GET error".to_string(),
                     &message,
                 );
             }
@@ -256,9 +256,6 @@ pub async fn get_version(
 ///
 ///     [v{version}/]{address_or_name}
 ///
-// TODO Consider change this to be /ant-0/archive-public POST/PUT/GET and use a new struct DwebArchive which can be easily
-// TODO converted in Rust to/from Archive (and in client to the format needed there). So will use Vec of struct
-// TODO rather than map and will impl utoipa ToSchema
 #[utoipa::path(
     responses(
         (status = 200,
@@ -380,6 +377,67 @@ struct QueryParams {
     tries: Option<u32>,
 }
 
+/// Upload a PrivateArchive using POST request body
+///
+#[utoipa::path(
+    post,
+    params(
+        ("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi upload API for each file upload, 0 means unlimited. This overrides the API control setting in the server.")),
+    request_body(content = DwebArchive, content_type = "application/json"),
+    responses(
+        (status = 200, description = "A PutResult featuring either status 200 with cost and data address on the network, or in case of error an error status code and message about the error.<br/>\
+        <b>Error StatusCodes</b><br/>\
+        &nbsp;&nbsp;&nbsp;INTERNAL_SERVER_ERROR: Error reading file or storing in memory<br/>\
+        &nbsp;&nbsp;&nbsp;BAD_GATEWAY: Autonomi network error", body = PutResult,
+            example = json!("{\"file_name\": \"\", \"status\": \"200\", \"cost_in_attos\": \"12\", \"data_address\": \"a9cd8dd0c9f2b9dc71ad548d1f37fcba6597d5eb1be0b8c63793802cc6c7de27\", \"data_map\": \"\", \"message\": \"\" }")),
+    ),
+    tags = ["Autonomi"],
+)]
+#[post("/archive-private")]
+pub async fn post_private(
+    request: HttpRequest,
+    dweb_archive: web::Json<DwebArchive>,
+    query_params: web::Query<QueryParams>,
+    client: Data<dweb::client::DwebClient>,
+) -> HttpResponse {
+    println!("DEBUG {}", request.path());
+    let tries = query_params.tries.unwrap_or(client.api_control.tries);
+
+    let private_archive = match dweb_archive.into_inner().to_private_archive() {
+        Ok(archive) => archive,
+        Err(_e) => {
+            let message =
+                format!("/archive-private POST failed to deserialise body as DwebArchive");
+            println!("DEBUG {message}");
+            return make_error_response_page(
+                None,
+                &mut HttpResponse::BadRequest(),
+                "/archive POST error".to_string(),
+                &message,
+            );
+        }
+    };
+
+    let put_result = put_archive_private(&client, &private_archive, tries).await;
+
+    let json = match serde_json::to_string(&put_result) {
+        Ok(json) => json,
+        Err(e) => {
+            return make_error_response_page(
+                Some(StatusCode::INTERNAL_SERVER_ERROR),
+                &mut HttpResponse::NotFound(),
+                "/archive-private POST error".to_string(),
+                &format!("archive::post_private() failed to encode JSON result - {e}"),
+            )
+        }
+    };
+
+    println!("DEBUG put_result as JSON: {json:?}");
+    HttpResponse::Ok()
+        .insert_header(ContentType(mime::APPLICATION_JSON))
+        .body(json)
+}
+
 /// Upload a PublicArchive using POST request body
 ///
 #[utoipa::path(
@@ -397,7 +455,7 @@ struct QueryParams {
     tags = ["Autonomi"],
 )]
 #[post("/archive-public")]
-pub async fn post(
+pub async fn post_public(
     request: HttpRequest,
     dweb_archive: web::Json<DwebArchive>,
     query_params: web::Query<QueryParams>,
@@ -429,7 +487,7 @@ pub async fn post(
                 Some(StatusCode::INTERNAL_SERVER_ERROR),
                 &mut HttpResponse::NotFound(),
                 "/archive-public POST error".to_string(),
-                &format!("archive_post() failed to encode JSON result - {e}"),
+                &format!("archive::post_public() failed to encode JSON result - {e}"),
             )
         }
     };
@@ -438,6 +496,54 @@ pub async fn post(
     HttpResponse::Ok()
         .insert_header(ContentType(mime::APPLICATION_JSON))
         .body(json)
+}
+
+async fn put_archive_private(
+    client: &DwebClient,
+    archive: &PrivateArchive,
+    tries: u32,
+) -> PutResult {
+    let payment_option = client.payment_option().clone();
+    let result = retry_until_ok(
+        tries,
+        &"archive_put_private()",
+        (archive, payment_option),
+        async move |(archive, payment_option)| match client
+            .client
+            .archive_put(archive, payment_option.clone())
+            .await
+        {
+            Ok(result) => Ok(result),
+            Err(e) => Err(eyre!(e)),
+        },
+    )
+    .await;
+
+    match result {
+        Ok(result) => {
+            println!("DEBUG put_archive_public() stored PublicArchive on the network at address");
+            let mut put_result = PutResult::new(
+                DwebType::PrivateArchive,
+                StatusCode::OK,
+                "success".to_string(),
+                result.0,
+            );
+
+            put_result.data_map = result.1.to_hex();
+            put_result
+        }
+        Err(e) => {
+            let status_message =
+                format!("put_archive_private() failed store PrivateArchive on the network - {e}");
+            println!("DEBUG {status_message}");
+            return PutResult::new(
+                DwebType::PrivateArchive,
+                StatusCode::BAD_GATEWAY,
+                status_message,
+                AttoTokens::zero(),
+            );
+        }
+    }
 }
 
 async fn put_archive_public(client: &DwebClient, archive: &PublicArchive, tries: u32) -> PutResult {
@@ -467,7 +573,7 @@ async fn put_archive_public(client: &DwebClient, archive: &PublicArchive, tries:
                 result.0,
             );
 
-            put_result.data_map = result.1.to_hex();
+            put_result.data_address = result.1.to_hex();
             put_result
         }
         Err(e) => {
@@ -512,10 +618,12 @@ impl DwebArchive {
         }
     }
 
+    /// Create a DwebArchive from a dweb::files::directory::Tree
     pub fn from_tree(tree: &Tree) -> DwebArchive {
         Self::from_dual_archive(&tree.archive)
     }
 
+    /// Create a DwebArchive from a DualArchive (which may wrap either PublicArchive or PrivateArchive)
     pub fn from_dual_archive(archive: &DualArchive) -> DwebArchive {
         match archive.dweb_type {
             DwebType::PrivateArchive => Self::from_private_archive(&archive.private_archive),
@@ -527,6 +635,7 @@ impl DwebArchive {
         }
     }
 
+    /// Create a DwebArchive from a PublicArchive
     pub fn from_public_archive(archive: &PublicArchive) -> DwebArchive {
         let mut dweb_archive = DwebArchive::new();
         let mut directories_added = HashSet::<String>::new();
@@ -574,6 +683,7 @@ impl DwebArchive {
         dweb_archive
     }
 
+    /// Create a DwebArchive from a PrivateArchive
     pub fn from_private_archive(archive: &PrivateArchive) -> DwebArchive {
         let mut dweb_archive = DwebArchive::new();
         let mut directories_added = HashSet::<String>::new();
@@ -628,6 +738,7 @@ impl DwebArchive {
         dweb_archive
     }
 
+    /// Return as a new PrivateArchive. Assumes all files added are public files (ie have valid data addresses)
     pub fn to_public_archive(&self) -> Result<PublicArchive> {
         let mut archive = PublicArchive::new();
 
@@ -670,6 +781,7 @@ impl DwebArchive {
         Ok(archive)
     }
 
+    /// Return as a new PrivateArchive. Assumes all files added are private files (ie have valid datamaps)
     pub fn to_private_archive(&self) -> Result<PrivateArchive> {
         let mut archive = PrivateArchive::new();
 

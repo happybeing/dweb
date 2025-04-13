@@ -22,7 +22,8 @@ use std::{
 use bytes::Bytes;
 use color_eyre::eyre::{eyre, Result};
 
-use autonomi::client::{data_types::chunk::DataMapChunk, files::RenameError};
+use autonomi::chunk::DataMapChunk;
+use autonomi::client::files::RenameError;
 use autonomi::data::DataAddress;
 use autonomi::files::{Metadata, PrivateArchive, PublicArchive};
 
@@ -49,6 +50,10 @@ use crate::storage::DwebType;
 /// for both. A dweb_type can be set to indicate which internal object is being
 /// used, and this type will be set automatically by deserialisation methods.
 ///
+
+/// Separator used in PublicArchive/PrivateArchive and Tree::directory_map
+pub const ARCHIVE_PATH_SEPARATOR: char = '/';
+
 #[derive(Clone)]
 pub struct DualArchive {
     pub dweb_type: DwebType,

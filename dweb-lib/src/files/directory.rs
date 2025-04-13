@@ -30,7 +30,7 @@ use autonomi::client::files::Metadata as FileMetadata;
 use autonomi::files::archive_public::ArchiveAddress;
 
 use crate::client::DwebClient;
-use crate::files::archive::DualArchive;
+use crate::files::archive::{DualArchive, ARCHIVE_PATH_SEPARATOR};
 use crate::storage::DwebType;
 use crate::trove::{History, Trove};
 
@@ -51,9 +51,6 @@ const ADDRESS_DEFAULT_FAVICON: &str =
 
 // Early Safepress icon, blue cube inside a cube. Nice resolution
 // const ADDRESS_DEFAULT_FAVICON: &str = "";
-
-/// Separator used in PublicArchive/PrivateArchive and Tree::directory_map
-pub const ARCHIVE_PATH_SEPARATOR: char = '/';
 
 /// Manage settings as a JSON string
 //
@@ -275,10 +272,7 @@ impl Tree {
     /// Initialise from an PublicArchive
     ///
     /// If the archive contains a DwebSettings file this will be read from the network
-    pub async fn from_public_archive(
-        client: &DwebClient,
-        public_archive: PublicArchive,
-    ) -> Tree {
+    pub async fn from_public_archive(client: &DwebClient, public_archive: PublicArchive) -> Tree {
         Self::from_dual_archive(
             client,
             DualArchive {
@@ -327,8 +321,7 @@ impl Tree {
                 dweb_settings: DwebSettings::default(),
             },
             _ => {
-                let message =
-                    format!("Tree cannot initialise using unknown DualArchive.dweb_type");
+                let message = format!("Tree cannot initialise using unknown DualArchive.dweb_type");
                 println!("DEBUG {message}");
                 Tree {
                     directory_map: TreePathMap::new(),
@@ -351,7 +344,7 @@ impl Tree {
         if let Some((datamap_chunk, data_address, _metadata)) =
             self.archive.lookup_file(&dweb_settings_path)
         {
-            if let Ok(bytes) = get_content(client, datamap_chunk, data_address).await {
+            if let Ok(bytes) = get_content_using_hex(client, datamap_chunk, data_address).await {
                 if let Ok(parsed_settings) = DwebSettings::from_bytes(&bytes) {
                     self.dweb_settings = parsed_settings;
                     return true;
@@ -636,11 +629,10 @@ pub fn osstr_to_string(file_name: &std::ffi::OsStr) -> Option<String> {
 }
 
 /// Get content from the network using a hex encoded datamap if provided, otherwise a hex encoded address
-pub async fn get_content(
-    client: &DwebClient,
+pub fn datamap_and_address_from_hex(
     datamap_chunk: String,
     data_address: String,
-) -> Result<Bytes> {
+) -> (Option<DataMapChunk>, Option<DataAddress>) {
     let datamap_chunk = if !datamap_chunk.is_empty() {
         match DataMapChunk::from_hex(&datamap_chunk) {
             Ok(datamap_chunk) => Some(datamap_chunk),
@@ -659,10 +651,29 @@ pub async fn get_content(
         None
     };
 
+    (datamap_chunk, data_address)
+}
+
+/// Get content from the network using a hex encoded datamap if provided, otherwise a hex encoded address
+pub async fn get_content_using_hex(
+    client: &DwebClient,
+    datamap_chunk: String,
+    data_address: String,
+) -> Result<Bytes> {
+    let (datamap_chunk, data_address) = datamap_and_address_from_hex(datamap_chunk, data_address);
+    get_content(client, datamap_chunk, data_address).await
+}
+
+/// Get content from the network using a DataMapChunk if provided, otherwise expects a DataAddress
+pub async fn get_content(
+    client: &DwebClient,
+    datamap_chunk: Option<DataMapChunk>,
+    data_address: Option<DataAddress>,
+) -> Result<Bytes> {
     let autonomi_result = match datamap_chunk.clone() {
         Some(datamap_chunk) => {
             println!(
-                "DEBUG get_content() calling data_get() with datamap_chunk: {}",
+                "DEBUG get_content_using_hex() calling data_get() with datamap_chunk: {}",
                 datamap_chunk.to_hex()
             );
             client.client.data_get(&datamap_chunk).await
@@ -670,14 +681,14 @@ pub async fn get_content(
         None => match data_address {
             Some(data_address) => {
                 println!(
-                    "DEBUG get_content() calling data_get_public() with data_address: {}",
+                    "DEBUG get_content_using_hex() calling data_get_public() with data_address: {}",
                     data_address.to_hex()
                 );
                 client.client.data_get_public(&data_address).await
             }
             None => {
                 return Err(eyre!(
-                "DEBUG get_content() failed to decode data_address: '{:?}' and datamap_chunk: '{:?}'",
+                "DEBUG get_content_using_hex() failed to decode data_address: '{:?}' and datamap_chunk: '{:?}'",
                 data_address,
                 datamap_chunk,
             ))
@@ -688,7 +699,7 @@ pub async fn get_content(
     match autonomi_result {
         Ok(bytes) => Ok(bytes),
         Err(e) => {
-            let message = format!("get_content() failed to access data from network using data_address: '{:?}' and datamap_chunk: '{:?}' - {e}",
+            let message = format!("get_content_using_hex() failed to access data from network using data_address: '{:?}' or datamap_chunk: '{:?}' - {e}",
             data_address,
             datamap_chunk,
                 );

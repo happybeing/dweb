@@ -27,7 +27,7 @@ use actix_web::{
     HttpRequest, HttpResponse,
 };
 
-use dweb::files::directory::get_content;
+use dweb::files::directory::get_content_using_hex;
 use dweb::web::fetch::{directory_version_get, response_redirect, response_with_body};
 use dweb::web::DWEB_SERVICE_WWW;
 
@@ -120,7 +120,7 @@ pub async fn www_handler(
 
     match directory_tree.lookup_file(&(String::from("/") + path.as_str()), true) {
         Ok((datamap_chunk, data_address, content_type)) => {
-            match get_content(&client, datamap_chunk, data_address).await {
+            match get_content_using_hex(&client, datamap_chunk, data_address).await {
                 Ok(content) => {
                     let mut response = HttpResponse::Ok();
                     if let Some(content_type) = content_type {

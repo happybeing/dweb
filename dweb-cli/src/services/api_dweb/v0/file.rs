@@ -24,7 +24,7 @@ use actix_web::{
 };
 
 use crate::services::helpers::*;
-use dweb::files::directory::{get_content, Tree};
+use dweb::files::directory::{get_content_using_hex, Tree};
 use dweb::helpers::convert::*;
 use dweb::trove::History;
 
@@ -64,24 +64,20 @@ pub async fn file_get(
         archive_address.unwrap()
     } else {
         let history_address = history_address.unwrap();
-        let mut history = match History::<Tree>::from_history_address(
-            client.clone(),
-            history_address,
-            false,
-            0,
-        )
-        .await
-        {
-            Ok(history) => history,
-            Err(e) => {
-                return make_error_response_page(
-                    None,
-                    &mut HttpResponse::NotFound(),
-                    "/file error".to_string(),
-                    &format!("/file failed to get directory History - {e}"),
-                )
-            }
-        };
+        let mut history =
+            match History::<Tree>::from_history_address(client.clone(), history_address, false, 0)
+                .await
+            {
+                Ok(history) => history,
+                Err(e) => {
+                    return make_error_response_page(
+                        None,
+                        &mut HttpResponse::NotFound(),
+                        "/file error".to_string(),
+                        &format!("/file failed to get directory History - {e}"),
+                    )
+                }
+            };
 
         let ignore_pointer = false;
         match history.get_version_entry_value(0, ignore_pointer).await {
@@ -134,7 +130,7 @@ pub async fn file_get(
         String::from("text/plain")
     };
 
-    let content = match get_content(&client, datamap_chunk, data_address).await {
+    let content = match get_content_using_hex(&client, datamap_chunk, data_address).await {
         Ok(bytes) => bytes,
         Err(e) => {
             return make_error_response_page(

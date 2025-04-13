@@ -30,8 +30,8 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use xor_name::XorName;
 
+use autonomi::chunk::{Chunk, DataMapChunk};
 use autonomi::client::data::DataAddress;
-use autonomi::client::data_types::chunk::{Chunk, DataMapChunk};
 use autonomi::client::files::Metadata as FileMetadata;
 use autonomi::AttoTokens;
 use autonomi::{files::PrivateArchive, files::PublicArchive, Bytes};
@@ -181,26 +181,23 @@ pub async fn get_version(
         archive_address.unwrap()
     } else {
         let history_address = history_address.unwrap();
-        let mut history = match History::<Tree>::from_history_address(
-            client.clone(),
-            history_address,
-            false,
-            0,
-        )
-        .await
-        {
-            Ok(history) => history,
-            Err(e) => {
-                let message =
-                    format!("/archive-public-version GET failed to get directory History - {e}");
-                return make_error_response_page(
-                    None,
-                    &mut HttpResponse::NotFound(),
-                    "/archive-public-version GET error".to_string(),
-                    &message,
-                );
-            }
-        };
+        let mut history =
+            match History::<Tree>::from_history_address(client.clone(), history_address, false, 0)
+                .await
+            {
+                Ok(history) => history,
+                Err(e) => {
+                    let message = format!(
+                        "/archive-public-version GET failed to get directory History - {e}"
+                    );
+                    return make_error_response_page(
+                        None,
+                        &mut HttpResponse::NotFound(),
+                        "/archive-public-version GET error".to_string(),
+                        &message,
+                    );
+                }
+            };
 
         let ignore_pointer = false;
         let version = version.unwrap_or(0);
@@ -323,25 +320,21 @@ pub async fn api_directory_load(
         archive_address.unwrap()
     } else {
         let history_address = history_address.unwrap();
-        let mut history = match History::<Tree>::from_history_address(
-            client.clone(),
-            history_address,
-            false,
-            0,
-        )
-        .await
-        {
-            Ok(history) => history,
-            Err(e) => {
-                let message = format!("/directory-load failed to get directory History - {e}");
-                return make_error_response_page(
-                    None,
-                    &mut HttpResponse::NotFound(),
-                    "/directory-load error".to_string(),
-                    &message,
-                );
-            }
-        };
+        let mut history =
+            match History::<Tree>::from_history_address(client.clone(), history_address, false, 0)
+                .await
+            {
+                Ok(history) => history,
+                Err(e) => {
+                    let message = format!("/directory-load failed to get directory History - {e}");
+                    return make_error_response_page(
+                        None,
+                        &mut HttpResponse::NotFound(),
+                        "/directory-load error".to_string(),
+                        &message,
+                    );
+                }
+            };
 
         let ignore_pointer = false;
         let version = version.unwrap_or(0);
@@ -552,11 +545,10 @@ impl DwebArchive {
             let mut path_string = String::from(path_buf.to_string_lossy());
             let offset = path_string.find("/").unwrap_or(path_string.len());
             path_string.replace_range(..offset, "");
-            let mut web_path =
-                dweb::files::directory::TreePathMap::webify_string(&path_string);
+            let mut web_path = dweb::files::directory::TreePathMap::webify_string(&path_string);
 
             if let Some(last_separator_position) =
-                web_path.rfind(dweb::files::directory::ARCHIVE_PATH_SEPARATOR)
+                web_path.rfind(dweb::files::archive::ARCHIVE_PATH_SEPARATOR)
             {
                 let file_full_path = web_path.clone();
                 let _file_name = web_path.split_off(last_separator_position + 1);
@@ -601,11 +593,10 @@ impl DwebArchive {
             let mut path_string = String::from(path_buf.to_string_lossy());
             let offset = path_string.find("/").unwrap_or(path_string.len());
             path_string.replace_range(..offset, "");
-            let mut web_path =
-                dweb::files::directory::TreePathMap::webify_string(&path_string);
+            let mut web_path = dweb::files::directory::TreePathMap::webify_string(&path_string);
 
             if let Some(last_separator_position) =
-                web_path.rfind(dweb::files::directory::ARCHIVE_PATH_SEPARATOR)
+                web_path.rfind(dweb::files::archive::ARCHIVE_PATH_SEPARATOR)
             {
                 let file_full_path = web_path.clone();
                 let _file_name = web_path.split_off(last_separator_position + 1);
@@ -623,7 +614,7 @@ impl DwebArchive {
                 let data_address = match DataAddress::from_hex(&datamap_chunk.address()) {
                     Ok(data_address) => data_address,
                     Err(e) => {
-                        println!("DEBUG DwebArchive::from_private_archive() failed to decode datamap_chunk - this is probably a bug");
+                        println!("DEBUG DwebArchive::from_private_archive() failed to decode datamap_chunk - this is probably a bug - {e}");
                         DataAddress::new(XorName::from_content(&[0]))
                     }
                 };

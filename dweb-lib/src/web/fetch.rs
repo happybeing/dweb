@@ -26,7 +26,7 @@ use url::Url;
 use autonomi::client::files::archive_public::ArchiveAddress;
 
 use crate::client::DwebClient;
-use crate::files::directory::{get_content, Tree};
+use crate::files::directory::{get_content_using_hex, Tree};
 use crate::trove::{History, HistoryAddress};
 use crate::web::name::decode_dweb_host;
 use crate::web::name::DwebHost;
@@ -86,7 +86,7 @@ pub async fn fetch(client: &DwebClient, url: Url, as_website: bool) -> HttpRespo
                         String::from("text/plain")
                     };
 
-                    match get_content(client, datamap_chunk, data_address).await {
+                    match get_content_using_hex(client, datamap_chunk, data_address).await {
                         Ok(bytes) => Some(
                             HttpResponseBuilder::new(StatusCode::OK)
                                 .insert_header((header::CONTENT_TYPE, content_type.as_str()))
@@ -294,12 +294,7 @@ pub async fn get_directory_tree_for_address_string(
     address: &String,
     // Optional version when the address is a HistoryAddress
     version: Option<u32>,
-) -> Result<(
-    Option<HistoryAddress>,
-    ArchiveAddress,
-    Option<u32>,
-    Tree,
-)> {
+) -> Result<(Option<HistoryAddress>, ArchiveAddress, Option<u32>, Tree)> {
     println!("DEBUG get_directory_tree_for_address_string({address}, {version:?})...");
 
     let (history_address, archive_address) = address_tuple_from_address(address);

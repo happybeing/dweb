@@ -23,7 +23,7 @@ pub(crate) mod dweb_version;
 use actix_web::{http::StatusCode, web::Data, HttpRequest, HttpResponse};
 
 use dweb::cache::directory_with_port::DirectoryVersionWithPort;
-use dweb::files::directory::get_content;
+use dweb::files::directory::get_content_using_hex;
 use dweb::web::fetch::response_with_body;
 
 use super::helpers::*;
@@ -88,7 +88,7 @@ pub async fn www_handler(
         .lookup_file(&path, true)
     {
         Ok((datamap_chunk, data_address, content_type)) => {
-            match get_content(&client, datamap_chunk, data_address).await {
+            match get_content_using_hex(&client, datamap_chunk, data_address).await {
                 Ok(content) => {
                     let mut response = HttpResponse::Ok();
                     if let Some(content_type) = content_type {

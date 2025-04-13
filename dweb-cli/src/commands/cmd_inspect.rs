@@ -26,7 +26,7 @@ use autonomi::files::archive_public::ArchiveAddress;
 
 use dweb::client::DwebClient;
 use dweb::files::directory::Tree;
-use dweb::helpers::convert::address_tuple_from_address_or_name;
+use dweb::helpers::convert::tuple_from_address_or_name;
 use dweb::helpers::graph_entry::graph_entry_get;
 use dweb::trove::History;
 
@@ -43,7 +43,7 @@ pub async fn handle_inspect_history(
     shorten_hex_strings: bool,
     files_args: FilesArgs,
 ) -> Result<()> {
-    let history_address = match address_tuple_from_address_or_name(address_or_name) {
+    let history_address = match tuple_from_address_or_name(address_or_name) {
         (Some(history_address), _) => history_address,
         (None, _) => {
             let msg = format!("Not a valid HISTORY-ADDRESS or recognised name: {address_or_name}");
@@ -52,21 +52,16 @@ pub async fn handle_inspect_history(
         }
     };
 
-    let mut history = match History::<Tree>::from_history_address(
-        client.clone(),
-        history_address,
-        true,
-        0,
-    )
-    .await
-    {
-        Ok(history) => history,
-        Err(e) => {
-            let message = format!("Failed to get History from network - {e}");
-            println!("{message}");
-            return Err(eyre!(message));
-        }
-    };
+    let mut history =
+        match History::<Tree>::from_history_address(client.clone(), history_address, true, 0).await
+        {
+            Ok(history) => history,
+            Err(e) => {
+                let message = format!("Failed to get History from network - {e}");
+                println!("{message}");
+                return Err(eyre!(message));
+            }
+        };
 
     print_history(&client, &history, print_history_full, shorten_hex_strings);
     if let Some(entries_range) = entries_range {
@@ -146,10 +141,7 @@ fn print_history(
 ) {
     println!("history address  : {}", history.history_address().to_hex());
 
-    let mut type_string = format!(
-        "{}",
-        hex::encode(History::<Tree>::trove_type().xorname())
-    );
+    let mut type_string = format!("{}", hex::encode(History::<Tree>::trove_type().xorname()));
 
     let mut pointer_string = if let Ok(pointer_address) =
         History::<Tree>::pointer_address_from_history_address(history.history_address())
@@ -173,9 +165,8 @@ fn print_history(
     if shorten_hex_strings {
         type_string = format!("{}", History::<Tree>::trove_type());
         pointer_string = if let Ok(pointer_address) =
-            History::<Tree>::pointer_address_from_history_address(
-                history.history_address(),
-            ) {
+            History::<Tree>::pointer_address_from_history_address(history.history_address())
+        {
             format!("{}", pointer_address.xorname())
         } else {
             String::from(

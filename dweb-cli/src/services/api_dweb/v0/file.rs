@@ -40,7 +40,7 @@ use dweb::trove::History;
         ("file_path", description = "The full path of a file in the referenced directory"),
     ),
 )]
-#[get("/file/{address_or_name}/{file_path:.*}")]
+#[get("/file/{datamap_address_or_name}/{file_path:.*}")]
 pub async fn file_get(
     request: HttpRequest,
     params: web::Path<(String, String)>,
@@ -48,21 +48,20 @@ pub async fn file_get(
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
 
-    let (address_or_name, file_path) = params.into_inner();
-    let (history_address, archive_address) = address_tuple_from_address_or_name(&address_or_name);
-    if history_address.is_none() && archive_address.is_none() {
+    let (datamap_address_or_name, file_path) = params.into_inner();
+    let (datamap_chunk, history_address, mut archive_address) =
+        tuple_from_datamap_address_or_name(&datamap_address_or_name);
+    if datamap_chunk.is_none() && history_address.is_none() && archive_address.is_none() {
         return make_error_response_page(
             None,
             &mut HttpResponse::BadRequest(),
             "/file error".to_string(),
-            &format!("Unrecognised DWEB-NAME or invalid address: '{address_or_name}'"),
+            &format!("Unrecognised DWEB-NAME or invalid datamap chunk or data address: '{datamap_address_or_name}'"),
         );
     }
 
     let client = client.into_inner().as_ref().clone();
-    let archive_address = if archive_address.is_some() {
-        archive_address.unwrap()
-    } else {
+    archive_address = if history_address.is_some() {
         let history_address = history_address.unwrap();
         let mut history =
             match History::<Tree>::from_history_address(client.clone(), history_address, false, 0)
@@ -81,33 +80,32 @@ pub async fn file_get(
 
         let ignore_pointer = false;
         match history.get_version_entry_value(0, ignore_pointer).await {
-            Ok(archive_address) => archive_address,
+            Ok(archive_address) => Some(archive_address),
             Err(e) => {
                 return make_error_response_page(
                     None,
                     &mut HttpResponse::BadRequest(),
                     "/file error".to_string(),
                     &format!("/file directory History failed to get most recent version - {e}"),
-                )
+                );
             }
         }
+    } else {
+        archive_address
     };
 
-    println!(
-        "DEBUG Tree::from_archive_address() with address: {}",
-        archive_address.to_hex()
-    );
-    let directory_tree = match Tree::from_archive_address(&client, archive_address).await {
-        Ok(directory_tree) => directory_tree,
-        Err(e) => {
-            return make_error_response_page(
-                None,
-                &mut HttpResponse::NotFound(),
-                "/file error".to_string(),
-                &format!("/file failed to get directory Archive - {e}"),
-            )
-        }
-    };
+    let directory_tree =
+        match Tree::from_datamap_or_address(&client, datamap_chunk, archive_address).await {
+            Ok(directory_tree) => directory_tree,
+            Err(e) => {
+                return make_error_response_page(
+                    None,
+                    &mut HttpResponse::NotFound(),
+                    "/file error".to_string(),
+                    &format!("/file failed to get directory Archive - {e}"),
+                )
+            }
+        };
 
     let (datamap_chunk, data_address, content_type) =
         match directory_tree.lookup_file(&file_path, false) {

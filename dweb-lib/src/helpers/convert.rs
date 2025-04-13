@@ -18,6 +18,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 use color_eyre::eyre::{eyre, Result};
 use xor_name::XorName;
 
+use autonomi::chunk::DataMapChunk;
 use autonomi::client::data::DataAddress;
 use autonomi::client::files::archive_public::ArchiveAddress;
 use autonomi::GraphEntryAddress;
@@ -26,7 +27,18 @@ use autonomi::PointerAddress;
 use crate::cache::directory_with_name::HISTORY_NAMES;
 use crate::trove::HistoryAddress;
 
-// The following functions copied from sn_cli with minor changes (eg to message text)
+use super::HISTORY_ADDRESS_LEN;
+
+/// Parse a hex DataMapChunk
+pub fn str_to_datamap_chunk(str: &str) -> Result<DataMapChunk> {
+    if str.len() > HISTORY_ADDRESS_LEN {
+        if let Ok(datamap_chunk) = DataMapChunk::from_hex(str) {
+            return Ok(datamap_chunk);
+        };
+    }
+
+    Err(eyre!("Invalid DataMapChunk hex string: '{str}'"))
+}
 
 /// Parse a hex HistoryAddress
 pub fn str_to_history_address(str: &str) -> Result<HistoryAddress> {
@@ -110,9 +122,39 @@ pub fn address_tuple_from_address(
     return (None, None);
 }
 
-/// Parse a string which is a recognised DWEB-NAME, HISTORY-ADDRESS or ARCHIVE-ADDRESS
+/// Parse a string which is DATAMAP, HISTORY-ADDRESS, ARCHIVE-ADDRESS or recognised DWEB-NAME
 /// For now the only recognised DWEB-NAME is 'awesome'
-pub fn address_tuple_from_address_or_name(
+pub fn tuple_from_datamap_address_or_name(
+    datamap_address_or_name: &str,
+) -> (
+    Option<DataMapChunk>,
+    Option<HistoryAddress>,
+    Option<ArchiveAddress>,
+) {
+    if let Ok(datamap) = str_to_datamap_chunk(datamap_address_or_name) {
+        return (Some(datamap), None, None);
+    }
+
+    if let Ok(history_address) = str_to_history_address(datamap_address_or_name) {
+        return (None, Some(history_address), None);
+    }
+
+    if let Ok(data_address) = ArchiveAddress::from_hex(datamap_address_or_name) {
+        return (None, None, Some(data_address));
+    }
+
+    if let Ok(lock) = &mut HISTORY_NAMES.lock() {
+        if let Some(history_address) = lock.get(datamap_address_or_name).copied() {
+            return (None, Some(history_address), None);
+        }
+    }
+
+    return (None, None, None);
+}
+
+/// Parse a string which is a recognised HISTORY-ADDRESS, ARCHIVE-ADDRESS or recognised DWEB-NAME
+/// For now the only recognised DWEB-NAME is 'awesome'
+pub fn tuple_from_address_or_name(
     address_or_name: &str,
 ) -> (Option<HistoryAddress>, Option<ArchiveAddress>) {
     if let Ok(address) = str_to_history_address(address_or_name) {

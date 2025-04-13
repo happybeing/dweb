@@ -19,7 +19,7 @@ use actix_web::{get, web, web::Data, HttpRequest, HttpResponse};
 
 use dweb::api::name_register;
 use dweb::cache::directory_with_port::*;
-use dweb::helpers::convert::address_tuple_from_address_or_name;
+use dweb::helpers::convert::tuple_from_address_or_name;
 use dweb::web::fetch::response_redirect;
 use dweb::web::LOCALHOST_STR;
 
@@ -145,7 +145,7 @@ pub async fn handle_dweb_open(
     let (version, as_name, address_or_name, remote_path) = decoded_params;
     let version = version.clone();
 
-    let (history_address, archive_address) = address_tuple_from_address_or_name(&address_or_name);
+    let (history_address, archive_address) = tuple_from_address_or_name(&address_or_name);
     if history_address.is_none() && archive_address.is_none() {
         return make_error_response_page(
             None,

@@ -28,15 +28,15 @@ use actix_web::{
 use color_eyre::eyre::{eyre, Result};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-use xor_name::XorName;
 
-use autonomi::chunk::{Chunk, DataMapChunk};
+use autonomi::chunk::DataMapChunk;
 use autonomi::client::data::DataAddress;
 use autonomi::client::files::Metadata as FileMetadata;
 use autonomi::AttoTokens;
-use autonomi::{files::PrivateArchive, files::PublicArchive, Bytes};
+use autonomi::{files::PrivateArchive, files::PublicArchive};
 
 use dweb::client::DwebClient;
+use dweb::files::archive::DualArchive;
 use dweb::files::directory::Tree;
 use dweb::helpers::{convert::*, retry::retry_until_ok, web::*};
 use dweb::storage::DwebType;
@@ -49,62 +49,52 @@ use crate::services::helpers::*;
 // TODO remove /directory-load and update Fileman example to use it
 // TODO replicate archive_public.rs for PrivateArchive
 
-/// Get a directory tree (PublicArchive)
+/// Get a directory tree (from PublicArchive or PrivateArchive)
 ///
-/// Returns a DwebArchive schema containing metadata for files and directories stored in a PublicArchive
-///
+/// Returns a DwebArchive schema containing metadata for files and directories
 #[utoipa::path(
     responses(
         (status = 200,
-            description = "The JSON representation of an Autonomi PublicArchive as a DwebArchive schema.", body = [DwebArchive])
+            description = "The JSON representation (DwebArchive schema) of an Autonomi PublicArchive or PrivateArchive.", body = [DwebArchive])
         ),
     tags = ["Autonomi"],
     params(
-        ("archive_address", description = "the network address of an Autonomi PublicArchive as a hexadecimal string"),
+        ("datamap_or_address", description = "the hex encoded datamap chunk or data address of an Autonomi archive"),
     )
 )]
-#[get("/archive-public/{archive_address}")]
+#[get("/archive/{datamap_or_address}")]
 pub async fn get(
     request: HttpRequest,
-    archive_address: web::Path<String>,
+    datamap_address_or_name: web::Path<String>,
     client: Data<dweb::client::DwebClient>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
 
-    let archive_address = match DataAddress::from_hex(&archive_address.into_inner()) {
-        Ok(archive_address) => archive_address,
-        Err(_e) => {
-            return make_error_response_page(
-                None,
-                &mut HttpResponse::BadRequest(),
-                "/archive-public GET".to_string(),
-                "/archive-public GET invalid archive_address parameter",
-            )
-        }
-    };
+    let (datamap_chunk, _history_address, archive_address) =
+        tuple_from_datamap_address_or_name(&datamap_address_or_name);
 
-    let public_archive = match client.client.archive_get_public(&archive_address).await {
+    let tree = match Tree::from_datamap_or_address(&client, datamap_chunk, archive_address).await {
         Ok(archive) => archive,
         Err(e) => {
-            let message = format!("/archive-public GET archive_get_public() failed - {e}");
+            let message = format!("/archive GET archive_get() failed - {e}");
             println!("DEBUG {message}");
             return make_error_response_page(
                 None,
                 &mut HttpResponse::BadRequest(),
-                "/archive-public GET error".to_string(),
+                "/archive GET error".to_string(),
                 &message,
             );
         }
     };
 
-    let dweb_archive = DwebArchive::from_public_archive(&public_archive);
+    let dweb_archive = DwebArchive::from_tree(&tree);
     let json = match serde_json::to_string(&dweb_archive) {
         Ok(json) => json,
         Err(e) => {
             return make_error_response_page(
                 Some(StatusCode::INTERNAL_SERVER_ERROR),
                 &mut HttpResponse::NotFound(),
-                "/archive-public GET error".to_string(),
+                "/archive GET error".to_string(),
                 &format!("archive GET failed to encode JSON result - {e}"),
             )
         }
@@ -117,9 +107,9 @@ pub async fn get(
         .body(json)
 }
 
-/// Get a versioned directory tree from a dweb History of Autonomi PublicArchive
+/// Get a versioned directory tree from a dweb History of PublicArchive or PrivateArchive
 ///
-/// Returns a DwebArchive schema containing metadata for files and directories stored in a PublicArchive
+/// Returns JSON containing metadata for files and directories stored in a PublicArchive or PrivateArchive
 ///
 /// Path parameters refer to the required version and dweb History:
 ///
@@ -127,21 +117,21 @@ pub async fn get(
 ///
 /// VERSION-NUMBER      Optional version when ADDRESS-OR-NAME refers to a <code>History<Tree></code>
 ///
-/// ADDRESS-OR-NAME     A hexadecimal address or a short name referring to a History or PublicArchive
+/// ADDRESS-OR-NAME     A hexadecimal address or a short name referring to a History or an Autonomi archive
 ///
-/// url: <code>http://127.0.0.1:8080/archive-public-version/[v<VERSION-NUMBER>/]<ADDRESS-OR-NAME></code>
+/// url: <code>http://127.0.0.1:8080/archive-version/[v<VERSION-NUMBER>/]<ADDRESS-OR-NAME></code>
 #[utoipa::path(
     responses(
         (status = 200,
-            description = "The JSON representation of an Autonomi PublicArchive as a DwebArchive schema.", body = [DwebArchive])
+            description = "The JSON representation (DwebArchive schema) of an Autonomi PublicArchive or PrivateArchive.", body = [DwebArchive])
         ),
     tags = ["Autonomi"],
     // params(
-    //     ("params" = String, Path, description = "Optional version (integer > 0) of a PublicArchive History"),
-    //     ("ADDRESS-OR-NAME", description = "A hexadecimal address or a short name referring to a PublicArchive History"),
+    //     ("params" = String, Path, description = "Optional version (integer > 0) of an archive History"),
+    //     ("ADDRESS-OR-NAME", description = "A hexadecimal address or a short name referring to an archive History"),
     // )
 )]
-#[get("/archive-public-version/{params:.*}")]
+#[get("/archive-version/{params:.*}")]
 pub async fn get_version(
     request: HttpRequest,
     params: web::Path<String>,
@@ -156,8 +146,8 @@ pub async fn get_version(
             return make_error_response_page(
                 None,
                 &mut HttpResponse::BadRequest(),
-                "/archive-public-version GET".to_string(),
-                "/archive-public-version GET invalid parameters",
+                "/archive-version GET".to_string(),
+                "/archive-version GET invalid parameters",
             )
         }
     };
@@ -166,19 +156,19 @@ pub async fn get_version(
     let version = version.clone();
     let mut history_metadata = None;
 
-    let (history_address, archive_address) = address_tuple_from_address_or_name(&address_or_name);
+    let (history_address, archive_address) = tuple_from_address_or_name(&address_or_name);
     if history_address.is_none() && archive_address.is_none() {
         return make_error_response_page(
             None,
             &mut HttpResponse::BadRequest(),
-            "/archive-public-version GET error".to_string(),
-            &format!("/archive-public-version GET parameter error - unrecognised DWEB-NAME or invalid address: '{address_or_name}'"),
+            "/archive-version GET error".to_string(),
+            &format!("/archive-version GET parameter error - unrecognised DWEB-NAME or invalid address: '{address_or_name}'"),
         );
     }
 
     let client = client.into_inner().as_ref().clone();
     let archive_address = if archive_address.is_some() {
-        archive_address.unwrap()
+        archive_address
     } else {
         let history_address = history_address.unwrap();
         let mut history =
@@ -187,13 +177,12 @@ pub async fn get_version(
             {
                 Ok(history) => history,
                 Err(e) => {
-                    let message = format!(
-                        "/archive-public-version GET failed to get directory History - {e}"
-                    );
+                    let message =
+                        format!("/archive-version GET failed to get directory History - {e}");
                     return make_error_response_page(
                         None,
                         &mut HttpResponse::NotFound(),
-                        "/archive-public-version GET error".to_string(),
+                        "/archive-version GET error".to_string(),
                         &message,
                     );
                 }
@@ -211,9 +200,9 @@ pub async fn get_version(
             .get_version_entry_value(version, ignore_pointer)
             .await
         {
-            Ok(archive_address) => archive_address,
+            Ok(archive_address) => Some(archive_address),
             Err(e) => {
-                let message = format!("/archive-public-version GET invalid parameters - {e}");
+                let message = format!("/archive-version GET invalid parameters - {e}");
                 return make_error_response_page(
                     None,
                     &mut HttpResponse::BadRequest(),
@@ -224,21 +213,21 @@ pub async fn get_version(
         }
     };
 
-    let public_archive = match client.client.archive_get_public(&archive_address).await {
+    let tree = match Tree::from_datamap_or_address(&client, None, archive_address).await {
         Ok(archive) => archive,
         Err(e) => {
-            let message = format!("/archive-public-version GET archive_get_public() failed - {e}");
+            let message = format!("/archive-version GET archive_get() failed - {e}");
             println!("DEBUG {message}");
             return make_error_response_page(
                 None,
                 &mut HttpResponse::BadRequest(),
-                "/archive-public-version GET error".to_string(),
+                "/archive-version GET error".to_string(),
                 &message,
             );
         }
     };
 
-    let mut dweb_archive = DwebArchive::from_public_archive(&public_archive);
+    let mut dweb_archive = DwebArchive::from_tree(&tree);
     dweb_archive.history_metadata = history_metadata;
     let json = match serde_json::to_string(&dweb_archive) {
         Ok(json) => json,
@@ -246,8 +235,8 @@ pub async fn get_version(
             return make_error_response_page(
                 Some(StatusCode::INTERNAL_SERVER_ERROR),
                 &mut HttpResponse::NotFound(),
-                "/archive-public-version GET error".to_string(),
-                &format!("archive GET failed to encode JSON result - {e}"),
+                "/archive-version GET error".to_string(),
+                &format!("archive version GET failed to encode JSON result - {e}"),
             )
         }
     };
@@ -305,7 +294,7 @@ pub async fn api_directory_load(
     let (version, _as_name, address_or_name, _remote_path) = decoded_params;
     let version = version.clone();
 
-    let (history_address, archive_address) = address_tuple_from_address_or_name(&address_or_name);
+    let (history_address, archive_address) = tuple_from_address_or_name(&address_or_name);
     if history_address.is_none() && archive_address.is_none() {
         return make_error_response_page(
             None,
@@ -523,16 +512,20 @@ impl DwebArchive {
         }
     }
 
-    // pub fn from_dual_archive(archive: DualArchive) -> DwebArchive {
-    //     match archive.dweb_type {
-    //         DwebType::PrivateArchive => Self::from_private_archive(&archive.private_archive),
-    //         DwebType::PublicArchive => Self::from_public_archive(&archive.public_archive),
-    //         _ => {
-    //             println!("DEBUG DwebArchive::from_dual_archive() unable to deserialise unknown DwebType - this is probably a bug",);
-    //             DwebArchive::new()
-    //         }
-    //     }
-    // }
+    pub fn from_tree(tree: &Tree) -> DwebArchive {
+        Self::from_dual_archive(&tree.archive)
+    }
+
+    pub fn from_dual_archive(archive: &DualArchive) -> DwebArchive {
+        match archive.dweb_type {
+            DwebType::PrivateArchive => Self::from_private_archive(&archive.private_archive),
+            DwebType::PublicArchive => Self::from_public_archive(&archive.public_archive),
+            _ => {
+                println!("DEBUG DwebArchive::from_dual_archive() unable to deserialise unknown DwebType - this is probably a bug",);
+                DwebArchive::new()
+            }
+        }
+    }
 
     pub fn from_public_archive(archive: &PublicArchive) -> DwebArchive {
         let mut dweb_archive = DwebArchive::new();
@@ -563,12 +556,11 @@ impl DwebArchive {
                     directories_added.insert(web_path.clone());
                 }
 
-                let empty_chunk = Chunk::new(Bytes::new());
                 if !files_added.contains(&file_full_path) {
                     dweb_archive.entries.push(DwebArchiveEntry::new_file(
                         file_full_path.clone(),
-                        xor_name,
-                        &empty_chunk.into(),
+                        Some(*xor_name),
+                        None,
                         metadata,
                     ));
                     files_added.insert(file_full_path);
@@ -612,17 +604,17 @@ impl DwebArchive {
                 }
 
                 let data_address = match DataAddress::from_hex(&datamap_chunk.address()) {
-                    Ok(data_address) => data_address,
+                    Ok(data_address) => Some(data_address),
                     Err(e) => {
-                        println!("DEBUG DwebArchive::from_private_archive() failed to decode datamap_chunk - this is probably a bug - {e}");
-                        DataAddress::new(XorName::from_content(&[0]))
+                        println!("DEBUG DwebArchive::from_private_archive() failed to decode datamap_chunk - {e}");
+                        None
                     }
                 };
                 if !files_added.contains(&file_full_path) {
                     dweb_archive.entries.push(DwebArchiveEntry::new_file(
                         file_full_path.clone(),
-                        &data_address,
-                        datamap_chunk,
+                        data_address,
+                        Some(datamap_chunk.clone()),
                         metadata,
                     ));
                     files_added.insert(file_full_path);
@@ -771,15 +763,43 @@ impl DwebArchiveEntry {
 
     pub fn new_file(
         full_path: String,
-        data_address: &DataAddress,
-        datamap_chunk: &DataMapChunk,
+        data_address: Option<DataAddress>,
+        datamap_chunk: Option<DataMapChunk>,
+        metadata: &FileMetadata,
+    ) -> DwebArchiveEntry {
+        let data_address = if let Some(data_address) = data_address {
+            data_address.to_hex()
+        } else {
+            "".to_string()
+        };
+        let datamap = if let Some(datamap_chunk) = datamap_chunk {
+            datamap_chunk.to_hex()
+        } else {
+            "".to_string()
+        };
+        DwebArchiveEntry {
+            dweb_type: DwebArchiveEntryType::File,
+            full_path,
+            data_address,
+            datamap,
+            created: metadata_date_to_json_datestring(metadata.created),
+            modified: metadata_date_to_json_datestring(metadata.modified),
+            size: metadata.size,
+            extra: metadata.extra.clone().unwrap_or("".to_string()).clone(),
+        }
+    }
+
+    pub fn new_file_from_hex(
+        full_path: String,
+        data_address: String,
+        datamap_chunk: String,
         metadata: &FileMetadata,
     ) -> DwebArchiveEntry {
         DwebArchiveEntry {
             dweb_type: DwebArchiveEntryType::File,
             full_path,
-            data_address: data_address.to_hex(),
-            datamap: datamap_chunk.to_hex(),
+            data_address,
+            datamap: datamap_chunk,
             created: metadata_date_to_json_datestring(metadata.created),
             modified: metadata_date_to_json_datestring(metadata.modified),
             size: metadata.size,

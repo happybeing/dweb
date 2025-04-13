@@ -235,13 +235,60 @@ impl Tree {
     // }
 
     /// Get an archive from the network and use it to create a new Tree
+    pub async fn from_datamap_or_address(
+        client: &DwebClient,
+        datamap_chunk: Option<DataMapChunk>,
+        archive_address: Option<ArchiveAddress>,
+    ) -> Result<Tree> {
+        if let Some(datamap_chunk) = datamap_chunk {
+            return Self::from_datamap_chunk(&client, datamap_chunk).await;
+        } else if let Some(archive_address) = archive_address {
+            return Self::from_archive_address(&client, archive_address).await;
+        }
+
+        Err(eyre!("from_datamap_or_address() invalid parameters"))
+    }
+    /// Get an archive from the network and use it to create a new Tree
+    // TODO was directory_tree_download()
+    pub async fn from_datamap_chunk(
+        client: &DwebClient,
+        datamap_chunk: DataMapChunk,
+    ) -> Result<Tree> {
+        println!("DEBUG from_datamap_chunk() at {}", datamap_chunk.to_hex());
+
+        match client.client.data_get(&datamap_chunk).await {
+            Ok(data) => match DualArchive::from_bytes(data) {
+                Ok(dual_archive) => {
+                    println!(
+                        "DEBUG Retrieved {:?} of {} files",
+                        dual_archive.dweb_type,
+                        dual_archive.files().len()
+                    );
+                    let mut directory_tree = Self::from_dual_archive(client, dual_archive).await;
+                    directory_tree.update_dweb_settings(client).await;
+                    Ok(directory_tree)
+                }
+                Err(e) => {
+                    let message = format!("DEBUG failed to deseralise archive - {e}");
+                    println!("DEBUG {message}");
+                    return Err(eyre!(message));
+                }
+            },
+            Err(e) => {
+                println!("FAILED to get archive data {e}");
+                Err(e.into())
+            }
+        }
+    }
+
+    /// Get an archive from the network and use it to create a new Tree
     // TODO was directory_tree_download()
     pub async fn from_archive_address(
         client: &DwebClient,
         archive_address: ArchiveAddress,
     ) -> Result<Tree> {
         println!(
-            "DEBUG directory_tree_download() at {}",
+            "DEBUG from_archive_address() at {}",
             archive_address.to_hex()
         );
         match client.client.data_get_public(&archive_address).await {

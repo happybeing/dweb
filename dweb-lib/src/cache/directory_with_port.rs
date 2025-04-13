@@ -126,7 +126,7 @@ pub async fn lookup_or_create_directory_version_with_port(
     address_or_name: &String,
     version: Option<u32>,
 ) -> Result<(DirectoryVersionWithPort, bool)> {
-    let (history_address, archive_address) = address_tuple_from_address_or_name(address_or_name);
+    let (history_address, archive_address) = tuple_from_address_or_name(address_or_name);
 
     let mut history_address = history_address;
 

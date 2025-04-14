@@ -63,7 +63,7 @@ use crate::services::helpers::*;
     )
 )]
 #[get("/archive/{datamap_or_address}")]
-pub async fn get(
+pub async fn archive_get(
     request: HttpRequest,
     datamap_or_address: web::Path<String>,
     client: Data<dweb::client::DwebClient>,

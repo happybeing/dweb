@@ -135,8 +135,8 @@ pub async fn serve_with_ports(
                 scope(dweb::api::ANT_API_ROUTE)
                     .service(api_ant::v0::archive::post_public)
                     .service(api_ant::v0::archive::post_private)
-                    .service(api_ant::v0::data::get)
-                    .service(api_ant::v0::archive::get)
+                    .service(api_ant::v0::data::data_get)
+                    .service(api_ant::v0::archive::archive_get)
                     .service(api_ant::v0::archive::get_version),
             )
             // dweb APIs

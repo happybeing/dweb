@@ -39,7 +39,7 @@ use crate::services::helpers::*;
     )
 )]
 #[get("/data/{datamap_or_address}")]
-pub async fn get(
+pub async fn data_get(
     request: HttpRequest,
     params: web::Path<String>,
     client: Data<dweb::client::DwebClient>,

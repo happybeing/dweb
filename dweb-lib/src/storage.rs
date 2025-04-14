@@ -40,6 +40,7 @@ use crate::trove::{History, HistoryAddress};
 /// Network data types for dweb APIs
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, ToSchema)]
 pub enum DwebType {
+    Chunk,
     PublicFile,
     PrivateFile,
     PublicArchive,

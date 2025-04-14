@@ -521,7 +521,7 @@ async fn put_archive_private(
 
     match result {
         Ok(result) => {
-            println!("DEBUG put_archive_public() stored PublicArchive on the network at address");
+            println!("DEBUG put_archive_private() stored PublicArchive on the network");
             let mut put_result = PutResult::new(
                 DwebType::PrivateArchive,
                 StatusCode::OK,

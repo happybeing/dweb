@@ -132,7 +132,7 @@ pub async fn archive_get(
     // )
 )]
 #[get("/archive-version/{params:.*}")]
-pub async fn get_version(
+pub async fn archive_get_version(
     request: HttpRequest,
     params: web::Path<String>,
     client: Data<dweb::client::DwebClient>,
@@ -394,7 +394,7 @@ struct QueryParams {
     tags = ["Autonomi"],
 )]
 #[post("/archive-private")]
-pub async fn post_private(
+pub async fn archive_post_private(
     request: HttpRequest,
     dweb_archive: web::Json<DwebArchive>,
     query_params: web::Query<QueryParams>,
@@ -455,7 +455,7 @@ pub async fn post_private(
     tags = ["Autonomi"],
 )]
 #[post("/archive-public")]
-pub async fn post_public(
+pub async fn archive_post_public(
     request: HttpRequest,
     dweb_archive: web::Json<DwebArchive>,
     query_params: web::Query<QueryParams>,

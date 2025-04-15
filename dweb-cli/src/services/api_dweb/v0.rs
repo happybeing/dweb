@@ -124,7 +124,7 @@ impl PutResult {
 /// Get the proxy identifier and version of the dweb API
 #[utoipa::path(
     responses(
-        (status = 200, description = "Returns the base route for the dweb APIs (e.g. '/dweb-0').
+        (status = StatusCode::OK, description = "Returns the base route for the dweb APIs (e.g. '/dweb-0').
         This identifies the server as the 'dweb' proxy, and the version of the dweb API being served (e.g. '0').", body = str)
 
     ),

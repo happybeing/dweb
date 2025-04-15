@@ -26,7 +26,7 @@ use dweb::web::name::{register_name, register_name_from_string};
 /// Test url: [http://127.0.0.1:8080/dweb-0/name-register/smart-ant/8650c4284430522a638a6fa37dd3e8d610c65b300f89f0199a95a1a9eab0455287f8c8d137fad390654bd9f19b868a5c](http://127.0.0.1:8080/dweb-0/name-register/smart-ant/8650c4284430522a638a6fa37dd3e8d610c65b300f89f0199a95a1a9eab0455287f8c8d137fad390654bd9f19b868a5c)
 #[utoipa::path(
     responses(
-        (status = 200,
+        (status = StatusCode::OK,
             description = "Success", body = str)
         ),
     tags = ["Dweb"],
@@ -59,7 +59,7 @@ use dweb::web::name::{recognised_dwebnames, RecognisedName};
 /// Test url: [http://127.0.0.1:8080/dweb-0/name-list](http://127.0.0.1:8080/dweb-0/name-list)
 #[utoipa::path(
     responses(
-        (status = 200,
+        (status = StatusCode::OK,
             description = "JSON list of names", body = Vec<RecognisedName>, example = json!("[{\"key\":\"awesome\",\"history_address\":\"8650c4284430522a638a6fa37dd3e8d610c65b300f89f0199a95a1a9eab0455287f8c8d137fad390654bd9f19b868a5c\"}]"))
         ),
     tags = ["Dweb"],

@@ -32,7 +32,7 @@ use dweb::trove::History;
 ///
 #[utoipa::path(
     responses(
-        (status = 200)
+        (status = StatusCode::OK)
         ),
     tags = ["Dweb"],
     params(

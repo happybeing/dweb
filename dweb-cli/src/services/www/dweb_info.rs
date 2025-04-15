@@ -35,7 +35,7 @@ use super::make_error_response_page;
 /// url: <code>http://127.0.0.1:<PORT-NUMBER>/dweb-info</code>
 #[utoipa::path(
     responses(
-        (status = 200,
+        (status = StatusCode::OK,
             description = "HTML summary of the directory or website History", body = str)
         ),
     tags = ["Manual"],

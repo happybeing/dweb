@@ -18,7 +18,6 @@
 // use actix_multipart::form::bytes::Bytes;
 use actix_web::{
     get,
-    http::header::ContentType,
     http::StatusCode,
     post,
     web::{self, Data},
@@ -39,7 +38,7 @@ use crate::services::helpers::*;
 /// Get data from the network using a hex encoded datamap or data address
 #[utoipa::path(
     responses(
-        (status = 200, description = "Success"),
+        (status = StatusCode::OK, description = "Success"),
         (status = StatusCode::BAD_REQUEST, description = "The datamap_or_address is not a valid address"),
         (status = StatusCode::NOT_FOUND, description = "The data was not found or a network error occured"),
         ),
@@ -104,7 +103,7 @@ fn avoid_comment_error1() {}
 /// Get a chunk from the network using a hex encoded chunk address
 #[utoipa::path(
     responses(
-        (status = 200, description = "Success"),
+        (status = StatusCode::OK, description = "Success"),
         (status = StatusCode::BAD_REQUEST, description = "The chunk_address is not valid"),
         (status = StatusCode::NOT_FOUND, description = "The data was not found or a network error occured"),
         ),
@@ -157,12 +156,12 @@ pub async fn chunk_get(
         ("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi upload API for each file upload, 0 means unlimited. This overrides the API control setting in the server.")),
     request_body(content = DwebChunk, content_type = "application/json"),
     responses(
-        (status = 200, description = "Success"),
+        (status = StatusCode::OK, description = "Success"),
         (status = StatusCode::BAD_REQUEST, description = "The chunk_address is not valid"),
         (status = 413, description = "The POST request body content was too large"),
         ),
     responses(
-        (status = StatusCode::CREATED, description = "A PutResult featuring either status 200 with cost and data address on the network, or in case of error an error status code and message about the error.<br/>\
+        (status = StatusCode::CREATED, description = "A PutResult featuring either status 201 with cost and data address on the network, or in case of error an error status code and message about the error.<br/>\
         <b>Error StatusCodes</b><br/>\
         &nbsp;&nbsp;&nbsp;500 INTERNAL_SERVER_ERROR: Error reading posted data or storing in memory<br/>\
         &nbsp;&nbsp;&nbsp;502 BAD_GATEWAY: Autonomi network error<br/>\

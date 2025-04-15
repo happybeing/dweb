@@ -44,7 +44,7 @@ use super::make_error_response_page;
 ///
 #[utoipa::path(
     responses(
-        (status = 200,
+        (status = StatusCode::OK,
             description = "The JSON representation of a Tree formatted for an SVAR file manager component.
             <p>Note: this may be changed to return a JSON representation of a Tree.", body = str)
         ),
@@ -90,7 +90,7 @@ pub async fn dweb_open(
 ///
 #[utoipa::path(
     responses(
-        (status = 200,
+        (status = StatusCode::OK,
             description = "The JSON representation of a Tree formatted for an SVAR file manager component.
             <p>Note: this may be changed to return a JSON representation of a Tree.", body = str)
         ),

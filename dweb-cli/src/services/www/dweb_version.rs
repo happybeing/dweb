@@ -34,7 +34,7 @@ use super::make_error_response_page;
 /// Switch to most recent: <code>http://127.0.0.1:<PORT-NUMBER>/dweb-version/latest</code>
 #[utoipa::path(
     responses(
-        (status = 200,
+        (status = StatusCode::OK,
             description = "Content fetched from the requested version", body = str)
         ),
     tags = ["Manual"],

@@ -54,7 +54,7 @@ use crate::services::helpers::*;
 /// Returns a DwebArchive schema containing metadata for files and directories
 #[utoipa::path(
     responses(
-        (status = 200,
+        (status = StatusCode::OK,
             description = "The JSON representation (DwebArchive schema) of an Autonomi PublicArchive or PrivateArchive.", body = [DwebArchive])
         ),
     tags = ["Autonomi"],
@@ -122,7 +122,7 @@ pub async fn archive_get(
 /// url: <code>http://127.0.0.1:8080/archive-version/[v<VERSION-NUMBER>/]<ADDRESS-OR-NAME></code>
 #[utoipa::path(
     responses(
-        (status = 200,
+        (status = StatusCode::OK,
             description = "The JSON representation (DwebArchive schema) of an Autonomi PublicArchive or PrivateArchive.", body = [DwebArchive])
         ),
     tags = ["Autonomi"],
@@ -258,7 +258,7 @@ pub async fn archive_get_version(
 ///
 #[utoipa::path(
     responses(
-        (status = 200,
+        (status = StatusCode::OK,
             description = "The JSON representation of a Tree formatted for an SVAR file manager component.
             <p>Note: this may be changed to return a JSON representation of a Tree.", body = str)
         ),
@@ -385,7 +385,7 @@ struct QueryParams {
         ("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi upload API for each file upload, 0 means unlimited. This overrides the API control setting in the server.")),
     request_body(content = DwebArchive, content_type = "application/json"),
     responses(
-        (status = StatusCode::CREATED, description = "A PutResult featuring either status 200 with cost and data address on the network, or in case of error an error status code and message about the error.<br/>\
+        (status = StatusCode::CREATED, description = "A PutResult featuring either status 201 with cost and data address on the network, or in case of error an error status code and message about the error.<br/>\
         <b>Error StatusCodes</b><br/>\
         &nbsp;&nbsp;&nbsp;INTERNAL_SERVER_ERROR: Error reading file or storing in memory<br/>\
         &nbsp;&nbsp;&nbsp;BAD_GATEWAY: Autonomi network error", body = PutResult,

@@ -162,12 +162,12 @@ pub async fn chunk_get(
         (status = 413, description = "The POST request body content was too large"),
         ),
     responses(
-        (status = 200, description = "A PutResult featuring either status 200 with cost and data address on the network, or in case of error an error status code and message about the error.<br/>\
+        (status = StatusCode::CREATED, description = "A PutResult featuring either status 200 with cost and data address on the network, or in case of error an error status code and message about the error.<br/>\
         <b>Error StatusCodes</b><br/>\
         &nbsp;&nbsp;&nbsp;500 INTERNAL_SERVER_ERROR: Error reading posted data or storing in memory<br/>\
         &nbsp;&nbsp;&nbsp;502 BAD_GATEWAY: Autonomi network error<br/>\
         &nbsp;&nbsp;&nbsp;413 CONTENT_TOO_LARGE: The POST request body content was too large<br/>", body = PutResult,
-            example = json!("{\"file_name\": \"\", \"status\": \"200\", \"cost_in_attos\": \"12\", \"data_address\": \"a9cd8dd0c9f2b9dc71ad548d1f37fcba6597d5eb1be0b8c63793802cc6c7de27\", \"data_map\": \"\", \"message\": \"\" }")),
+            example = json!("{\"file_name\": \"\", \"status\": \"201\", \"cost_in_attos\": \"12\", \"data_address\": \"a9cd8dd0c9f2b9dc71ad548d1f37fcba6597d5eb1be0b8c63793802cc6c7de27\", \"data_map\": \"\", \"message\": \"\" }")),
     ),
     tags = ["Autonomi"],
 )]
@@ -224,7 +224,7 @@ pub async fn chunk_post(
             );
             let mut put_result = PutResult::new(
                 DwebType::Chunk,
-                StatusCode::OK,
+                StatusCode::CREATED,
                 "success".to_string(),
                 result.0,
             );
@@ -251,22 +251,7 @@ pub async fn chunk_post(
         }
     };
 
-    let json = match serde_json::to_string(&put_result) {
-        Ok(json) => json,
-        Err(e) => {
-            return make_error_response_page(
-                Some(StatusCode::INTERNAL_SERVER_ERROR),
-                &mut HttpResponse::NotFound(),
-                "/archive-public POST error".to_string(),
-                &format!("archive::post_public() failed to encode JSON result - {e}"),
-            )
-        }
-    };
-
-    println!("DEBUG put_result as JSON: {json:?}");
-    HttpResponse::Ok()
-        .insert_header(ContentType(mime::APPLICATION_JSON))
-        .body(json)
+    put_result.make_response("/chunk POST error", "/chunk POST")
 }
 
 #[derive(Deserialize, ToSchema)]

@@ -385,11 +385,11 @@ struct QueryParams {
         ("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi upload API for each file upload, 0 means unlimited. This overrides the API control setting in the server.")),
     request_body(content = DwebArchive, content_type = "application/json"),
     responses(
-        (status = 200, description = "A PutResult featuring either status 200 with cost and data address on the network, or in case of error an error status code and message about the error.<br/>\
+        (status = StatusCode::CREATED, description = "A PutResult featuring either status 200 with cost and data address on the network, or in case of error an error status code and message about the error.<br/>\
         <b>Error StatusCodes</b><br/>\
         &nbsp;&nbsp;&nbsp;INTERNAL_SERVER_ERROR: Error reading file or storing in memory<br/>\
         &nbsp;&nbsp;&nbsp;BAD_GATEWAY: Autonomi network error", body = PutResult,
-            example = json!("{\"file_name\": \"\", \"status\": \"200\", \"cost_in_attos\": \"12\", \"data_address\": \"a9cd8dd0c9f2b9dc71ad548d1f37fcba6597d5eb1be0b8c63793802cc6c7de27\", \"data_map\": \"\", \"message\": \"\" }")),
+            example = json!("{\"file_name\": \"\", \"status\": \"201\", \"cost_in_attos\": \"12\", \"data_address\": \"a9cd8dd0c9f2b9dc71ad548d1f37fcba6597d5eb1be0b8c63793802cc6c7de27\", \"data_map\": \"\", \"message\": \"\" }")),
     ),
     tags = ["Autonomi"],
 )]
@@ -418,24 +418,9 @@ pub async fn archive_post_private(
         }
     };
 
-    let put_result = put_archive_private(&client, &private_archive, tries).await;
-
-    let json = match serde_json::to_string(&put_result) {
-        Ok(json) => json,
-        Err(e) => {
-            return make_error_response_page(
-                Some(StatusCode::INTERNAL_SERVER_ERROR),
-                &mut HttpResponse::NotFound(),
-                "/archive-private POST error".to_string(),
-                &format!("archive::post_private() failed to encode JSON result - {e}"),
-            )
-        }
-    };
-
-    println!("DEBUG put_result as JSON: {json:?}");
-    HttpResponse::Ok()
-        .insert_header(ContentType(mime::APPLICATION_JSON))
-        .body(json)
+    put_archive_private(&client, &private_archive, tries)
+        .await
+        .make_response("/archive-private POST error", "archive::post_private()")
 }
 
 /// Upload a PublicArchive using POST request body
@@ -446,11 +431,11 @@ pub async fn archive_post_private(
         ("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi upload API for each file upload, 0 means unlimited. This overrides the API control setting in the server.")),
     request_body(content = DwebArchive, content_type = "application/json"),
     responses(
-        (status = 200, description = "A PutResult featuring either status 200 with cost and data address on the network, or in case of error an error status code and message about the error.<br/>\
+        (status = StatusCode::CREATED, description = "A PutResult featuring either status 201 with cost and data address on the network, or in case of error an error status code and message about the error.<br/>\
         <b>Error StatusCodes</b><br/>\
         &nbsp;&nbsp;&nbsp;INTERNAL_SERVER_ERROR: Error reading file or storing in memory<br/>\
         &nbsp;&nbsp;&nbsp;BAD_GATEWAY: Autonomi network error", body = PutResult,
-            example = json!("{\"file_name\": \"\", \"status\": \"200\", \"cost_in_attos\": \"12\", \"data_address\": \"a9cd8dd0c9f2b9dc71ad548d1f37fcba6597d5eb1be0b8c63793802cc6c7de27\", \"data_map\": \"\", \"message\": \"\" }")),
+            example = json!("{\"file_name\": \"\", \"status\": \"201\", \"cost_in_attos\": \"12\", \"data_address\": \"a9cd8dd0c9f2b9dc71ad548d1f37fcba6597d5eb1be0b8c63793802cc6c7de27\", \"data_map\": \"\", \"message\": \"\" }")),
     ),
     tags = ["Autonomi"],
 )]
@@ -524,7 +509,7 @@ async fn put_archive_private(
             println!("DEBUG put_archive_private() stored PublicArchive on the network");
             let mut put_result = PutResult::new(
                 DwebType::PrivateArchive,
-                StatusCode::OK,
+                StatusCode::CREATED,
                 "success".to_string(),
                 result.0,
             );
@@ -568,7 +553,7 @@ async fn put_archive_public(client: &DwebClient, archive: &PublicArchive, tries:
             println!("DEBUG put_archive_public() stored PublicArchive on the network at address");
             let mut put_result = PutResult::new(
                 DwebType::PublicArchive,
-                StatusCode::OK,
+                StatusCode::CREATED,
                 "success".to_string(),
                 result.0,
             );

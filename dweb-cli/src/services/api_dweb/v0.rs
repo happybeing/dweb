@@ -22,8 +22,8 @@ pub mod name;
 
 use actix_web::{
     get,
-    http::{header, StatusCode},
-    HttpRequest, HttpResponse, Responder,
+    http::{header, header::ContentType, StatusCode},
+    HttpRequest, HttpResponse, HttpResponseBuilder, Responder,
 };
 use autonomi::AttoTokens;
 use serde::{Deserialize, Serialize};
@@ -31,6 +31,8 @@ use utoipa::ToSchema;
 
 use dweb::storage::DwebType;
 use dweb::token::format_tokens_as_attos;
+
+use crate::services::helpers::*;
 
 /// PutResult is used to return the result of POST or PUT operations for several network data types
 #[derive(Serialize, Deserialize, ToSchema)]
@@ -78,6 +80,44 @@ impl PutResult {
             file_name: "".to_string(),
             full_path: "".to_string(),
         }
+    }
+
+    /// Create an OK or error response based on the status_code in the PUT result
+    ///
+    /// If the response is OK, it will return the PutResult as a JSON encoded payload
+    ///
+    /// The error_heading (e.g. "/archive-private POST error") and error_source (e.g. "archive::post_private()")
+    /// are used for non OK responses to construct a descriptive HTML response, at least for now. These should
+    /// be provided even in case of an OK response though, in case there is an error
+    /// serialising the PutResult as JSON (unlikely though that is).
+    pub fn make_response(&self, error_heading: &str, error_caller: &str) -> HttpResponse {
+        let json = match serde_json::to_string(&self) {
+            Ok(json) => json,
+            Err(e) => {
+                return make_error_response_page(
+                    Some(StatusCode::INTERNAL_SERVER_ERROR),
+                    &mut HttpResponse::NotFound(),
+                    error_heading.to_string(),
+                    &format!("{error_caller} failed to encode JSON result - {e}"),
+                )
+            }
+        };
+
+        println!("DEBUG put_result as JSON: {json:?}");
+
+        let status_code = StatusCode::from_u16(self.status).unwrap_or(StatusCode::BAD_GATEWAY);
+        if !status_code.is_success() {
+            return make_error_response_page(
+                Some(status_code),
+                &mut HttpResponseBuilder::new(status_code),
+                error_heading.to_string(),
+                &format!("{error_caller} {}", self.status_message),
+            );
+        }
+
+        HttpResponseBuilder::new(status_code)
+            .insert_header(ContentType(mime::APPLICATION_JSON))
+            .body(json)
     }
 }
 

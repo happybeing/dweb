@@ -24,13 +24,12 @@ use actix_web::{
     web::Data,
     HttpRequest, HttpResponse,
 };
-use autonomi::AttoTokens;
 use color_eyre::eyre::eyre;
 use serde::{Deserialize, Serialize};
 use utoipa::{schema, ToSchema};
 
-use dweb::client::DwebClient;
 use dweb::helpers::retry::retry_until_ok;
+use dweb::{client::DwebClient, token::format_tokens_as_attos};
 
 use super::{DwebType, PutResult};
 use crate::services::helpers::*;
@@ -112,23 +111,6 @@ pub async fn data_put(
     put_result.make_response("/form-upload-file PUT error", "data_put()")
 }
 
-fn make_failed_put_file_result(
-    file_name: String,
-    status: StatusCode,
-    status_message: String,
-) -> PutResult {
-    let mut put_result = PutResult::new(
-        DwebType::PublicFile,
-        status,
-        status_message,
-        AttoTokens::zero(),
-    );
-
-    put_result.file_name = file_name;
-
-    put_result
-}
-
 #[derive(Debug, MultipartForm, ToSchema)]
 struct UploadFormList {
     // #[multipart(rename = "file")]
@@ -200,16 +182,16 @@ pub async fn data_put_list(
         put_list.put_results.push(put_result);
     }
 
-    let error_heading = "/form-upload-file-list PUT error";
-    let error_caller = "data_put_list()";
+    let rest_operation = "/form-upload-file-list PUT error";
+    let rest_handler = "data_put_list()";
     let json = match serde_json::to_string(&put_list) {
         Ok(json) => json,
         Err(e) => {
             return make_error_response_page(
                 Some(StatusCode::INTERNAL_SERVER_ERROR),
                 &mut HttpResponse::NotFound(),
-                error_heading.to_string(),
-                &format!("{error_caller}) failed to encode JSON result - {e}"),
+                rest_operation.to_string(),
+                &format!("{rest_handler}) failed to encode JSON result - {e}"),
             )
         }
     };
@@ -222,20 +204,24 @@ pub async fn data_put_list(
 }
 
 async fn put_file_public(client: &DwebClient, file: &mut TempFile, tries: u32) -> PutResult {
+    let dweb_type = DwebType::PublicFile;
+
     // TODO update if Autonomi supports streamed uploads
     let mut content = Vec::<u8>::new();
     let file_name = file.file_name.clone().unwrap_or("unknown".to_string());
     let content_len = match file.file.read_to_end(&mut content) {
         Ok(content_len) => content_len,
         Err(e) => {
-            let message =
+            let status_message =
                 format!("put_file_public() failed to read file '{file_name}' into buffer - {e}");
-            println!("DEBUG {message}");
-            return make_failed_put_file_result(
+            println!("DEBUG {status_message}");
+            return PutResult {
+                dweb_type,
+                status_code: StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+                status_message,
                 file_name,
-                StatusCode::INTERNAL_SERVER_ERROR,
-                message,
-            );
+                ..Default::default()
+            };
         }
     };
 
@@ -259,40 +245,50 @@ async fn put_file_public(client: &DwebClient, file: &mut TempFile, tries: u32) -
     match result {
         Ok(result) => {
             println!("DEBUG put_file_public() stored '{file_name}' {content_len} bytes on the network at address");
-            let mut put_result = PutResult::new(
-                DwebType::PublicFile,
-                StatusCode::CREATED,
-                "success".to_string(),
-                result.0,
-            );
-            put_result.file_name = file_name;
-            put_result.data_address = result.1.to_hex();
-            put_result
+            PutResult {
+                dweb_type,
+                status_code: StatusCode::CREATED.as_u16(),
+                status_message: "success".to_string(),
+                cost_in_attos: format_tokens_as_attos(result.0.as_atto()),
+                file_name,
+                network_address: result.1.to_hex(),
+                ..Default::default()
+            }
         }
         Err(e) => {
-            let message =
+            let status_message =
                 format!("put_file_public() failed store file '{file_name}' on the network - {e}");
-            println!("DEBUG {message}");
-            return make_failed_put_file_result(file_name, StatusCode::BAD_GATEWAY, message);
+            println!("DEBUG {status_message}");
+            PutResult {
+                dweb_type,
+                status_code: StatusCode::BAD_GATEWAY.as_u16(),
+                status_message,
+                file_name,
+                ..Default::default()
+            }
         }
     }
 }
 
 async fn put_file_private(client: &DwebClient, file: &mut TempFile, tries: u32) -> PutResult {
+    let dweb_type = DwebType::PrivateFile;
+
     // TODO update if Autonomi supports streamed data_put() (or file_put_public())
     let mut content = Vec::<u8>::new();
     let file_name = file.file_name.clone().unwrap_or("unknown".to_string());
     let content_len = match file.file.read_to_end(&mut content) {
         Ok(content_len) => content_len,
         Err(e) => {
-            let message =
+            let status_message =
                 format!("put_file_private() failed to read file '{file_name}' into buffer - {e}");
-            println!("DEBUG {message}");
-            return make_failed_put_file_result(
+            println!("DEBUG {status_message}");
+            return PutResult {
+                dweb_type,
+                status_code: StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+                status_message,
                 file_name,
-                StatusCode::INTERNAL_SERVER_ERROR,
-                message,
-            );
+                ..Default::default()
+            };
         }
     };
 
@@ -316,22 +312,27 @@ async fn put_file_private(client: &DwebClient, file: &mut TempFile, tries: u32) 
     match result {
         Ok(result) => {
             println!("DEBUG put_file_private() stored '{file_name}' {content_len} bytes on the network at address");
-            let mut put_result = PutResult::new(
-                DwebType::PrivateFile,
-                StatusCode::CREATED,
-                "success".to_string(),
-                result.0,
-            );
-
-            put_result.file_name = file_name;
-            put_result.data_map = result.1.to_hex();
-            put_result
+            PutResult {
+                dweb_type,
+                status_code: StatusCode::CREATED.as_u16(),
+                status_message: "success".to_string(),
+                cost_in_attos: format_tokens_as_attos(result.0.as_atto()),
+                file_name,
+                data_map: result.1.to_hex(),
+                ..Default::default()
+            }
         }
         Err(e) => {
-            let message =
+            let status_message =
                 format!("put_file_private() failed store file '{file_name}' on the network - {e}");
-            println!("DEBUG {message}");
-            return make_failed_put_file_result(file_name, StatusCode::BAD_GATEWAY, message);
+            println!("DEBUG {status_message}");
+            PutResult {
+                dweb_type,
+                status_code: StatusCode::BAD_GATEWAY.as_u16(),
+                status_message,
+                file_name,
+                ..Default::default()
+            }
         }
     }
 }

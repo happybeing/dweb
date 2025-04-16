@@ -32,7 +32,6 @@ use utoipa::ToSchema;
 use autonomi::chunk::DataMapChunk;
 use autonomi::client::data::DataAddress;
 use autonomi::client::files::Metadata as FileMetadata;
-use autonomi::AttoTokens;
 use autonomi::{files::PrivateArchive, files::PublicArchive};
 
 use dweb::client::DwebClient;
@@ -401,6 +400,9 @@ pub async fn archive_post_private(
     client: Data<dweb::client::DwebClient>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
+    let rest_operation = "/archive-private POST";
+    let rest_handler = "archive_post_private()";
+
     let tries = query_params.tries.unwrap_or(client.api_control.tries);
 
     let private_archive = match dweb_archive.into_inner().to_private_archive() {
@@ -410,9 +412,9 @@ pub async fn archive_post_private(
                 format!("/archive-private POST failed to deserialise body as DwebArchive");
             println!("DEBUG {message}");
             return make_error_response_page(
-                None,
+                Some(StatusCode::BAD_REQUEST),
                 &mut HttpResponse::BadRequest(),
-                "/archive POST error".to_string(),
+                rest_operation.to_string(),
                 &message,
             );
         }
@@ -420,7 +422,7 @@ pub async fn archive_post_private(
 
     put_archive_private(&client, &private_archive, tries)
         .await
-        .make_response("/archive-private POST error", "archive::post_private()")
+        .response(rest_handler)
 }
 
 /// Upload a PublicArchive using POST request body
@@ -448,6 +450,8 @@ pub async fn archive_post_public(
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
     let tries = query_params.tries.unwrap_or(client.api_control.tries);
+    let rest_operation = "/archive-public POST";
+    let rest_handler = "archive_post_public()";
 
     let public_archive = match dweb_archive.into_inner().to_public_archive() {
         Ok(archive) => archive,
@@ -455,32 +459,17 @@ pub async fn archive_post_public(
             let message = format!("/archive-public POST failed to deserialise body as DwebArchive");
             println!("DEBUG {message}");
             return make_error_response_page(
-                None,
+                Some(StatusCode::BAD_REQUEST),
                 &mut HttpResponse::BadRequest(),
-                "/archive POST error".to_string(),
+                rest_operation.to_string(),
                 &message,
             );
         }
     };
 
-    let put_result = put_archive_public(&client, &public_archive, tries).await;
-
-    let json = match serde_json::to_string(&put_result) {
-        Ok(json) => json,
-        Err(e) => {
-            return make_error_response_page(
-                Some(StatusCode::INTERNAL_SERVER_ERROR),
-                &mut HttpResponse::NotFound(),
-                "/archive-public POST error".to_string(),
-                &format!("archive::post_public() failed to encode JSON result - {e}"),
-            )
-        }
-    };
-
-    println!("DEBUG put_result as JSON: {json:?}");
-    HttpResponse::Ok()
-        .insert_header(ContentType(mime::APPLICATION_JSON))
-        .body(json)
+    put_archive_public(&client, &public_archive, tries)
+        .await
+        .response(rest_handler)
 }
 
 async fn put_archive_private(
@@ -488,6 +477,8 @@ async fn put_archive_private(
     archive: &PrivateArchive,
     tries: u32,
 ) -> PutResult {
+    let dweb_type = DwebType::PrivateArchive;
+
     let payment_option = client.payment_option().clone();
     let result = retry_until_ok(
         tries,
@@ -507,31 +498,31 @@ async fn put_archive_private(
     match result {
         Ok(result) => {
             println!("DEBUG put_archive_private() stored PublicArchive on the network");
-            let mut put_result = PutResult::new(
-                DwebType::PrivateArchive,
-                StatusCode::CREATED,
-                "success".to_string(),
-                result.0,
-            );
-
-            put_result.data_map = result.1.to_hex();
-            put_result
+            PutResult {
+                dweb_type,
+                status_code: StatusCode::CREATED.as_u16(),
+                status_message: "success".to_string(),
+                data_map: result.1.to_hex(),
+                ..Default::default()
+            }
         }
         Err(e) => {
             let status_message =
                 format!("put_archive_private() failed store PrivateArchive on the network - {e}");
             println!("DEBUG {status_message}");
-            return PutResult::new(
-                DwebType::PrivateArchive,
-                StatusCode::BAD_GATEWAY,
+            PutResult {
+                dweb_type,
+                status_code: StatusCode::BAD_GATEWAY.as_u16(),
                 status_message,
-                AttoTokens::zero(),
-            );
+                ..Default::default()
+            }
         }
     }
 }
 
 async fn put_archive_public(client: &DwebClient, archive: &PublicArchive, tries: u32) -> PutResult {
+    let dweb_type = DwebType::PublicArchive;
+
     let payment_option = client.payment_option().clone();
     let result = retry_until_ok(
         tries,
@@ -551,26 +542,24 @@ async fn put_archive_public(client: &DwebClient, archive: &PublicArchive, tries:
     match result {
         Ok(result) => {
             println!("DEBUG put_archive_public() stored PublicArchive on the network at address");
-            let mut put_result = PutResult::new(
-                DwebType::PublicArchive,
-                StatusCode::CREATED,
-                "success".to_string(),
-                result.0,
-            );
-
-            put_result.data_address = result.1.to_hex();
-            put_result
+            PutResult {
+                dweb_type,
+                status_code: StatusCode::CREATED.as_u16(),
+                status_message: "success".to_string(),
+                network_address: result.1.to_hex(),
+                ..Default::default()
+            }
         }
         Err(e) => {
             let status_message =
                 format!("put_archive_public() failed store PublicArchive on the network - {e}");
             println!("DEBUG {status_message}");
-            return PutResult::new(
-                DwebType::PublicArchive,
-                StatusCode::BAD_GATEWAY,
+            PutResult {
+                dweb_type,
+                status_code: StatusCode::BAD_GATEWAY.as_u16(),
                 status_message,
-                AttoTokens::zero(),
-            );
+                ..Default::default()
+            }
         }
     }
 }

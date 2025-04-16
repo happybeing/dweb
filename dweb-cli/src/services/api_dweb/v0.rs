@@ -25,12 +25,10 @@ use actix_web::{
     http::{header, header::ContentType, StatusCode},
     HttpRequest, HttpResponse, HttpResponseBuilder, Responder,
 };
-use autonomi::AttoTokens;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use dweb::storage::DwebType;
-use dweb::token::format_tokens_as_attos;
 
 use crate::services::helpers::*;
 
@@ -40,8 +38,11 @@ pub struct PutResult {
     /// DwebType of the data stored
     pub dweb_type: DwebType,
 
+    /// REST operation description (e.g. "/pointer POST")
+    pub rest_operation: String,
+
     /// The HTTP status code returned for this upload
-    pub status: u16,
+    pub status_code: u16,
     /// Information about the operation, such as "success" or an explanation of an error.
     ///
     /// Either "success" or an explanatory error message.
@@ -56,62 +57,94 @@ pub struct PutResult {
     /// Hex encoded address of a data map or of other stored data. Only returned when uploading data as public
     ///
     /// Returned for public data of type: PublicFile, PublicArchive, History, Register, Pointer, Scratchpad, Vault
-    pub data_address: String,
+    pub network_address: String,
     /// Hex encoded data map for the uploaded data. Only returned when uploading data as private.
     ///
     /// This data_map has not been stored and will be needed in order to access the data later.
     pub data_map: String,
 }
 
-impl PutResult {
-    pub fn new(
-        dweb_type: DwebType,
-        status: StatusCode,
-        status_message: String,
-        cost_in_attos: AttoTokens,
-    ) -> PutResult {
+impl Default for PutResult {
+    fn default() -> PutResult {
         PutResult {
-            dweb_type,
-            status: status.as_u16(),
-            status_message,
-            cost_in_attos: format_tokens_as_attos(cost_in_attos.as_atto()),
-            data_address: "".to_string(),
+            dweb_type: DwebType::Unknown,
+            rest_operation: "".to_string(),
+            status_code: StatusCode::IM_A_TEAPOT.as_u16(),
+            status_message: "".to_string(),
+            cost_in_attos: "0.0".to_string(),
+            network_address: "".to_string(),
             data_map: "".to_string(),
             file_name: "".to_string(),
             full_path: "".to_string(),
         }
     }
+}
 
-    /// Create an OK or error response based on the status_code in the PUT result
+impl PutResult {
+    /// Return an HttpResponse containing the PutResult
     ///
-    /// If the response is OK, it will return the PutResult as a JSON encoded payload
+    /// The rest_handler string (e.g. "archive::post_private()") is only for debugging
+    /// and used only if there is a problem inside this function.
+    pub fn response(&self, rest_handler: &str) -> HttpResponse {
+        let json = match serde_json::to_string(&self) {
+            Ok(json) => json,
+            Err(e) => {
+                return make_error_response_page(
+                    Some(StatusCode::INTERNAL_SERVER_ERROR),
+                    &mut HttpResponse::InternalServerError(),
+                    self.rest_operation.clone(),
+                    &format!("{rest_handler} failed to encode JSON result - {e}"),
+                )
+            }
+        };
+
+        println!("DEBUG PutResult as JSON: {json:?}");
+
+        let status_code = StatusCode::from_u16(self.status_code).unwrap_or(StatusCode::BAD_GATEWAY);
+        if !status_code.is_success() {
+            return make_error_response_page(
+                Some(status_code),
+                &mut HttpResponseBuilder::new(status_code),
+                self.rest_operation.to_string(),
+                &format!("{rest_handler} {}", self.status_message),
+            );
+        }
+
+        HttpResponseBuilder::new(status_code)
+            .insert_header(ContentType(mime::APPLICATION_JSON))
+            .body(json)
+    }
+
+    /// Create a response based on the HTTP status code in the PUT result
     ///
-    /// The error_heading (e.g. "/archive-private POST error") and error_source (e.g. "archive::post_private()")
-    /// are used for non OK responses to construct a descriptive HTML response, at least for now. These should
+    /// If the response is success it will return the PutResult as a JSON encoded payload
+    ///
+    /// The rest_operation (e.g. "/archive-private POST error") and error_source (e.g. "archive::post_private()")
+    /// are used for error responses to construct a descriptive HTML response, at least for now. These should
     /// be provided even in case of an OK response though, in case there is an error
     /// serialising the PutResult as JSON (unlikely though that is).
-    pub fn make_response(&self, error_heading: &str, error_caller: &str) -> HttpResponse {
+    pub fn make_response(&self, rest_operation: &str, rest_handler: &str) -> HttpResponse {
         let json = match serde_json::to_string(&self) {
             Ok(json) => json,
             Err(e) => {
                 return make_error_response_page(
                     Some(StatusCode::INTERNAL_SERVER_ERROR),
                     &mut HttpResponse::NotFound(),
-                    error_heading.to_string(),
-                    &format!("{error_caller} failed to encode JSON result - {e}"),
+                    rest_operation.to_string(),
+                    &format!("{rest_handler} failed to encode JSON result - {e}"),
                 )
             }
         };
 
         println!("DEBUG put_result as JSON: {json:?}");
 
-        let status_code = StatusCode::from_u16(self.status).unwrap_or(StatusCode::BAD_GATEWAY);
+        let status_code = StatusCode::from_u16(self.status_code).unwrap_or(StatusCode::BAD_GATEWAY);
         if !status_code.is_success() {
             return make_error_response_page(
                 Some(status_code),
                 &mut HttpResponseBuilder::new(status_code),
-                error_heading.to_string(),
-                &format!("{error_caller} {}", self.status_message),
+                rest_operation.to_string(),
+                &format!("{rest_handler} {}", self.status_message),
             );
         }
 

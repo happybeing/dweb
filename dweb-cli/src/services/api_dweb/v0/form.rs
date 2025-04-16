@@ -31,7 +31,7 @@ use utoipa::{schema, ToSchema};
 use dweb::helpers::retry::retry_until_ok;
 use dweb::{client::DwebClient, token::format_tokens_as_attos};
 
-use super::{DwebType, PutResult};
+use super::{DwebType, MutateResult};
 use crate::services::helpers::*;
 
 #[derive(Deserialize, ToSchema)]
@@ -82,10 +82,10 @@ struct UploadForm {
         ("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi upload API for each file upload, 0 means unlimited. This overrides the API control setting in the server.")),
     request_body(content = UploadForm, content_type = "multipart/form-data"),
     responses(
-        (status = StatusCode::CREATED, description = "A PutResult featuring either status 201 with cost and data address on the network, or in case of error an error status code and message about the error.<br/>\
+        (status = StatusCode::CREATED, description = "A MutateResult featuring either status 201 with cost and data address on the network, or in case of error an error status code and message about the error.<br/>\
         <b>Error StatusCodes</b><br/>\
         &nbsp;&nbsp;&nbsp;INTERNAL_SERVER_ERROR: Error reading file or storing in memory<br/>\
-        &nbsp;&nbsp;&nbsp;BAD_GATEWAY: Autonomi network error", body = PutResult,
+        &nbsp;&nbsp;&nbsp;BAD_GATEWAY: Autonomi network error", body = MutateResult,
             example = json!("{\"file_name\": \"somefile.txt\", \"status\": \"201\", \"cost_in_attos\": \"12\", \"data_address\": \"a9cd8dd0c9f2b9dc71ad548d1f37fcba6597d5eb1be0b8c63793802cc6c7de27\", \"data_map\": \"\", \"message\": \"\" }")),
     ),
     tags = ["Dweb"],
@@ -102,13 +102,13 @@ pub async fn data_put(
     let tries = query_params.tries.unwrap_or(client.api_control.tries);
 
     println!("DEBUG {}", request.path());
-    let put_result = if make_public {
+    let mutate_result = if make_public {
         put_file_public(&client, &mut form.file, tries).await
     } else {
         put_file_private(&client, &mut form.file, tries).await
     };
 
-    put_result.make_response("/form-upload-file PUT error", "data_put()")
+    mutate_result.make_response("/form-upload-file PUT error", "data_put()")
 }
 
 #[derive(Debug, MultipartForm, ToSchema)]
@@ -120,8 +120,8 @@ struct UploadFormList {
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
-pub struct PutResultList {
-    put_results: Vec<PutResult>,
+pub struct MutateResultList {
+    mutate_results: Vec<MutateResult>,
 }
 
 /// Multipart form upload of one or more files (as public or private)
@@ -146,11 +146,11 @@ pub struct PutResultList {
         ("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi upload API for each file upload, 0 means unlimited. This overrides the API control setting in the server.")),
     request_body(content = UploadFormList, content_type = "multipart/form-data"),
     responses(
-        (status = StatusCode::CREATED, description = "Returned if any successful storage occurs. A PutResultList is returned featuring a PutResult for each upload either status 201 with cost and data address on the network, or in case of error an error status code and message about the error. Inspect the individual PutResult.status_code values to see which have been successful.<br/>\
+        (status = StatusCode::CREATED, description = "Returned if any successful storage occurs. A MutateResultList is returned featuring a MutateResult for each upload either status 201 with cost and data address on the network, or in case of error an error status code and message about the error. Inspect the individual MutateResult.status_code values to see which have been successful.<br/>\
         <b>Error StatusCodes</b><br/>\
         &nbsp;&nbsp;&nbsp;INTERNAL_SERVER_ERROR: Error reading file or storing in memory<br/>\
-        &nbsp;&nbsp;&nbsp;BAD_GATEWAY: Autonomi network error", body = [PutResultList],
-            example = json!("{\"put_results\": [{\"file_name\": \"somefile.txt\", \"status\": \"201\", \"cost_in_attos\": \"12\", \"data_address\": \"a9cd8dd0c9f2b9dc71ad548d1f37fcba6597d5eb1be0b8c63793802cc6c7de27\", \"data_map\": \"\", \"message\": \"\" }]}")),
+        &nbsp;&nbsp;&nbsp;BAD_GATEWAY: Autonomi network error", body = [MutateResultList],
+            example = json!("{\"mutate_results\": [{\"file_name\": \"somefile.txt\", \"status\": \"201\", \"cost_in_attos\": \"12\", \"data_address\": \"a9cd8dd0c9f2b9dc71ad548d1f37fcba6597d5eb1be0b8c63793802cc6c7de27\", \"data_map\": \"\", \"message\": \"\" }]}")),
     ),
     tags = ["Dweb"],
 )]
@@ -166,20 +166,20 @@ pub async fn data_put_list(
     let make_public = path_params.into_inner();
     let tries = query_params.tries.unwrap_or(client.api_control.tries);
 
-    let mut put_list = PutResultList {
-        put_results: Vec::<PutResult>::new(),
+    let mut put_list = MutateResultList {
+        mutate_results: Vec::<MutateResult>::new(),
     };
     for mut file in form.files {
         println!(
             "DEBUG data_put_list() file: {:?}, size: {}",
             file.file_name, file.size
         );
-        let put_result = if make_public {
+        let mutate_result = if make_public {
             put_file_public(&client, &mut file, tries).await
         } else {
             put_file_private(&client, &mut file, tries).await
         };
-        put_list.put_results.push(put_result);
+        put_list.mutate_results.push(mutate_result);
     }
 
     let rest_operation = "/form-upload-file-list PUT error";
@@ -196,14 +196,14 @@ pub async fn data_put_list(
         }
     };
 
-    println!("DEBUG response PutResultList as JSON: {json:?}");
+    println!("DEBUG response MutateResultList as JSON: {json:?}");
 
     HttpResponse::Ok()
         .insert_header(ContentType(mime::APPLICATION_JSON))
         .body(json)
 }
 
-async fn put_file_public(client: &DwebClient, file: &mut TempFile, tries: u32) -> PutResult {
+async fn put_file_public(client: &DwebClient, file: &mut TempFile, tries: u32) -> MutateResult {
     let dweb_type = DwebType::PublicFile;
 
     // TODO update if Autonomi supports streamed uploads
@@ -215,7 +215,7 @@ async fn put_file_public(client: &DwebClient, file: &mut TempFile, tries: u32) -
             let status_message =
                 format!("put_file_public() failed to read file '{file_name}' into buffer - {e}");
             println!("DEBUG {status_message}");
-            return PutResult {
+            return MutateResult {
                 dweb_type,
                 status_code: StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
                 status_message,
@@ -245,7 +245,7 @@ async fn put_file_public(client: &DwebClient, file: &mut TempFile, tries: u32) -
     match result {
         Ok(result) => {
             println!("DEBUG put_file_public() stored '{file_name}' {content_len} bytes on the network at address");
-            PutResult {
+            MutateResult {
                 dweb_type,
                 status_code: StatusCode::CREATED.as_u16(),
                 status_message: "success".to_string(),
@@ -259,7 +259,7 @@ async fn put_file_public(client: &DwebClient, file: &mut TempFile, tries: u32) -
             let status_message =
                 format!("put_file_public() failed store file '{file_name}' on the network - {e}");
             println!("DEBUG {status_message}");
-            PutResult {
+            MutateResult {
                 dweb_type,
                 status_code: StatusCode::BAD_GATEWAY.as_u16(),
                 status_message,
@@ -270,7 +270,7 @@ async fn put_file_public(client: &DwebClient, file: &mut TempFile, tries: u32) -
     }
 }
 
-async fn put_file_private(client: &DwebClient, file: &mut TempFile, tries: u32) -> PutResult {
+async fn put_file_private(client: &DwebClient, file: &mut TempFile, tries: u32) -> MutateResult {
     let dweb_type = DwebType::PrivateFile;
 
     // TODO update if Autonomi supports streamed data_put() (or file_put_public())
@@ -282,7 +282,7 @@ async fn put_file_private(client: &DwebClient, file: &mut TempFile, tries: u32) 
             let status_message =
                 format!("put_file_private() failed to read file '{file_name}' into buffer - {e}");
             println!("DEBUG {status_message}");
-            return PutResult {
+            return MutateResult {
                 dweb_type,
                 status_code: StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
                 status_message,
@@ -312,7 +312,7 @@ async fn put_file_private(client: &DwebClient, file: &mut TempFile, tries: u32) 
     match result {
         Ok(result) => {
             println!("DEBUG put_file_private() stored '{file_name}' {content_len} bytes on the network at address");
-            PutResult {
+            MutateResult {
                 dweb_type,
                 status_code: StatusCode::CREATED.as_u16(),
                 status_message: "success".to_string(),
@@ -326,7 +326,7 @@ async fn put_file_private(client: &DwebClient, file: &mut TempFile, tries: u32) 
             let status_message =
                 format!("put_file_private() failed store file '{file_name}' on the network - {e}");
             println!("DEBUG {status_message}");
-            PutResult {
+            MutateResult {
                 dweb_type,
                 status_code: StatusCode::BAD_GATEWAY.as_u16(),
                 status_message,

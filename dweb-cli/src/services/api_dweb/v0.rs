@@ -32,9 +32,9 @@ use dweb::storage::DwebType;
 
 use crate::services::helpers::*;
 
-/// PutResult is used to return the result of POST or PUT operations for several network data types
+/// MutateResult is used to return the result of POST or PUT operations for several network data types
 #[derive(Serialize, Deserialize, ToSchema)]
-pub struct PutResult {
+pub struct MutateResult {
     /// DwebType of the data stored
     pub dweb_type: DwebType,
 
@@ -64,9 +64,9 @@ pub struct PutResult {
     pub data_map: String,
 }
 
-impl Default for PutResult {
-    fn default() -> PutResult {
-        PutResult {
+impl Default for MutateResult {
+    fn default() -> MutateResult {
+        MutateResult {
             dweb_type: DwebType::Unknown,
             rest_operation: "".to_string(),
             status_code: StatusCode::IM_A_TEAPOT.as_u16(),
@@ -80,8 +80,8 @@ impl Default for PutResult {
     }
 }
 
-impl PutResult {
-    /// Return an HttpResponse containing the PutResult
+impl MutateResult {
+    /// Return an HttpResponse containing the MutateResult
     ///
     /// The rest_handler string (e.g. "archive::post_private()") is only for debugging
     /// and used only if there is a problem inside this function.
@@ -98,7 +98,7 @@ impl PutResult {
             }
         };
 
-        println!("DEBUG PutResult as JSON: {json:?}");
+        println!("DEBUG MutateResult as JSON: {json:?}");
 
         let status_code = StatusCode::from_u16(self.status_code).unwrap_or(StatusCode::BAD_GATEWAY);
         if !status_code.is_success() {
@@ -117,12 +117,12 @@ impl PutResult {
 
     /// Create a response based on the HTTP status code in the PUT result
     ///
-    /// If the response is success it will return the PutResult as a JSON encoded payload
+    /// If the response is success it will return the MutateResult as a JSON encoded payload
     ///
     /// The rest_operation (e.g. "/archive-private POST error") and error_source (e.g. "archive::post_private()")
     /// are used for error responses to construct a descriptive HTML response, at least for now. These should
     /// be provided even in case of an OK response though, in case there is an error
-    /// serialising the PutResult as JSON (unlikely though that is).
+    /// serialising the MutateResult as JSON (unlikely though that is).
     pub fn make_response(&self, rest_operation: &str, rest_handler: &str) -> HttpResponse {
         let json = match serde_json::to_string(&self) {
             Ok(json) => json,
@@ -136,7 +136,7 @@ impl PutResult {
             }
         };
 
-        println!("DEBUG put_result as JSON: {json:?}");
+        println!("DEBUG mutate_result as JSON: {json:?}");
 
         let status_code = StatusCode::from_u16(self.status_code).unwrap_or(StatusCode::BAD_GATEWAY);
         if !status_code.is_success() {

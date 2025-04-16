@@ -41,7 +41,7 @@ use dweb::helpers::{convert::*, retry::retry_until_ok, web::*};
 use dweb::storage::DwebType;
 use dweb::trove::History;
 
-use crate::services::api_dweb::v0::PutResult;
+use crate::services::api_dweb::v0::MutateResult;
 use crate::services::helpers::*;
 
 // TODO archive_public_post() for POST
@@ -384,10 +384,10 @@ struct QueryParams {
         ("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi upload API for each file upload, 0 means unlimited. This overrides the API control setting in the server.")),
     request_body(content = DwebArchive, content_type = "application/json"),
     responses(
-        (status = StatusCode::CREATED, description = "A PutResult featuring either status 201 with cost and data address on the network, or in case of error an error status code and message about the error.<br/>\
+        (status = StatusCode::CREATED, description = "A MutateResult featuring either status 201 with cost and data address on the network, or in case of error an error status code and message about the error.<br/>\
         <b>Error StatusCodes</b><br/>\
         &nbsp;&nbsp;&nbsp;INTERNAL_SERVER_ERROR: Error reading file or storing in memory<br/>\
-        &nbsp;&nbsp;&nbsp;BAD_GATEWAY: Autonomi network error", body = PutResult,
+        &nbsp;&nbsp;&nbsp;BAD_GATEWAY: Autonomi network error", body = MutateResult,
             example = json!("{\"file_name\": \"\", \"status\": \"201\", \"cost_in_attos\": \"12\", \"data_address\": \"a9cd8dd0c9f2b9dc71ad548d1f37fcba6597d5eb1be0b8c63793802cc6c7de27\", \"data_map\": \"\", \"message\": \"\" }")),
     ),
     tags = ["Autonomi"],
@@ -433,10 +433,10 @@ pub async fn archive_post_private(
         ("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi upload API for each file upload, 0 means unlimited. This overrides the API control setting in the server.")),
     request_body(content = DwebArchive, content_type = "application/json"),
     responses(
-        (status = StatusCode::CREATED, description = "A PutResult featuring either status 201 with cost and data address on the network, or in case of error an error status code and message about the error.<br/>\
+        (status = StatusCode::CREATED, description = "A MutateResult featuring either status 201 with cost and data address on the network, or in case of error an error status code and message about the error.<br/>\
         <b>Error StatusCodes</b><br/>\
         &nbsp;&nbsp;&nbsp;INTERNAL_SERVER_ERROR: Error reading file or storing in memory<br/>\
-        &nbsp;&nbsp;&nbsp;BAD_GATEWAY: Autonomi network error", body = PutResult,
+        &nbsp;&nbsp;&nbsp;BAD_GATEWAY: Autonomi network error", body = MutateResult,
             example = json!("{\"file_name\": \"\", \"status\": \"201\", \"cost_in_attos\": \"12\", \"data_address\": \"a9cd8dd0c9f2b9dc71ad548d1f37fcba6597d5eb1be0b8c63793802cc6c7de27\", \"data_map\": \"\", \"message\": \"\" }")),
     ),
     tags = ["Autonomi"],
@@ -476,7 +476,7 @@ async fn put_archive_private(
     client: &DwebClient,
     archive: &PrivateArchive,
     tries: u32,
-) -> PutResult {
+) -> MutateResult {
     let dweb_type = DwebType::PrivateArchive;
 
     let payment_option = client.payment_option().clone();
@@ -498,7 +498,7 @@ async fn put_archive_private(
     match result {
         Ok(result) => {
             println!("DEBUG put_archive_private() stored PublicArchive on the network");
-            PutResult {
+            MutateResult {
                 dweb_type,
                 status_code: StatusCode::CREATED.as_u16(),
                 status_message: "success".to_string(),
@@ -510,7 +510,7 @@ async fn put_archive_private(
             let status_message =
                 format!("put_archive_private() failed store PrivateArchive on the network - {e}");
             println!("DEBUG {status_message}");
-            PutResult {
+            MutateResult {
                 dweb_type,
                 status_code: StatusCode::BAD_GATEWAY.as_u16(),
                 status_message,
@@ -520,7 +520,11 @@ async fn put_archive_private(
     }
 }
 
-async fn put_archive_public(client: &DwebClient, archive: &PublicArchive, tries: u32) -> PutResult {
+async fn put_archive_public(
+    client: &DwebClient,
+    archive: &PublicArchive,
+    tries: u32,
+) -> MutateResult {
     let dweb_type = DwebType::PublicArchive;
 
     let payment_option = client.payment_option().clone();
@@ -542,7 +546,7 @@ async fn put_archive_public(client: &DwebClient, archive: &PublicArchive, tries:
     match result {
         Ok(result) => {
             println!("DEBUG put_archive_public() stored PublicArchive on the network at address");
-            PutResult {
+            MutateResult {
                 dweb_type,
                 status_code: StatusCode::CREATED.as_u16(),
                 status_message: "success".to_string(),
@@ -554,7 +558,7 @@ async fn put_archive_public(client: &DwebClient, archive: &PublicArchive, tries:
             let status_message =
                 format!("put_archive_public() failed store PublicArchive on the network - {e}");
             println!("DEBUG {status_message}");
-            PutResult {
+            MutateResult {
                 dweb_type,
                 status_code: StatusCode::BAD_GATEWAY.as_u16(),
                 status_message,

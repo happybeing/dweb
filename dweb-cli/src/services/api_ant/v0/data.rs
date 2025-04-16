@@ -31,7 +31,7 @@ use autonomi::{Chunk, ChunkAddress};
 use dweb::helpers::{convert::*, retry::retry_until_ok};
 use dweb::storage::DwebType;
 
-use crate::services::api_dweb::v0::PutResult;
+use crate::services::api_dweb::v0::MutateResult;
 use crate::services::helpers::*;
 
 /// Get data from the network using a hex encoded datamap or data address

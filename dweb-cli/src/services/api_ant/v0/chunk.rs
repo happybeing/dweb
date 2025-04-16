@@ -31,7 +31,7 @@ use autonomi::{Chunk, ChunkAddress};
 use dweb::helpers::retry::retry_until_ok;
 use dweb::storage::DwebType;
 
-use crate::services::api_dweb::v0::PutResult;
+use crate::services::api_dweb::v0::MutateResult;
 use crate::services::helpers::*;
 
 const REST_TYPE: &str = "Chunk";
@@ -110,11 +110,11 @@ pub async fn chunk_get(
         (status = 413, description = "The POST request body content was too large"),
         ),
     responses(
-        (status = StatusCode::CREATED, description = "A PutResult featuring either status 201 with cost and data address on the network, or in case of error an error status code and message about the error.<br/>\
+        (status = StatusCode::CREATED, description = "A MutateResult featuring either status 201 with cost and data address on the network, or in case of error an error status code and message about the error.<br/>\
         <b>Error StatusCodes</b><br/>\
         &nbsp;&nbsp;&nbsp;500 INTERNAL_SERVER_ERROR: Error reading posted data or storing in memory<br/>\
         &nbsp;&nbsp;&nbsp;502 BAD_GATEWAY: Autonomi network error<br/>\
-        &nbsp;&nbsp;&nbsp;413 CONTENT_TOO_LARGE: The POST request body content was too large<br/>", body = PutResult,
+        &nbsp;&nbsp;&nbsp;413 CONTENT_TOO_LARGE: The POST request body content was too large<br/>", body = MutateResult,
             example = json!("{\"file_name\": \"\", \"status\": \"201\", \"cost_in_attos\": \"12\", \"data_address\": \"a9cd8dd0c9f2b9dc71ad548d1f37fcba6597d5eb1be0b8c63793802cc6c7de27\", \"data_map\": \"\", \"message\": \"\" }")),
     ),
     tags = ["Autonomi"],
@@ -173,7 +173,7 @@ pub async fn chunk_post(
                 "DEBUG {rest_handler} stored {REST_TYPE} on the network at address {}",
                 chunk.address()
             );
-            PutResult {
+            MutateResult {
                 dweb_type,
                 status_code: StatusCode::CREATED.as_u16(),
                 status_message: "success".to_string(),
@@ -186,7 +186,7 @@ pub async fn chunk_post(
             let status_message =
                 format!("{rest_handler} failed store {REST_TYPE} on the network - {e}");
             println!("DEBUG {status_message}");
-            PutResult {
+            MutateResult {
                 dweb_type,
                 status_code: StatusCode::BAD_GATEWAY.as_u16(),
                 status_message,

@@ -35,7 +35,7 @@ use autonomi::{
 use dweb::storage::DwebType;
 use dweb::{helpers::retry::retry_until_ok, token::format_tokens_as_attos};
 
-use crate::services::api_dweb::v0::PutResult;
+use crate::services::api_dweb::v0::MutateResult;
 use crate::services::helpers::*;
 
 const REST_TYPE: &str = "Pointer";
@@ -127,10 +127,10 @@ pub async fn pointer_get(
         ("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi upload API for each put, 0 means unlimited. This overrides the API control setting in the server.")),
     request_body(content = DwebPointer, content_type = "application/json"),
     responses(
-        (status = StatusCode::CREATED, description = "A PutResult featuring either status 201 with cost and the network address of the created Pointer, or in case of error an error status code and message about the error.<br/>\
+        (status = StatusCode::CREATED, description = "A MutateResult featuring either status 201 with cost and the network address of the created Pointer, or in case of error an error status code and message about the error.<br/>\
         <b>Error StatusCodes</b><br/>\
         &nbsp;&nbsp;&nbsp;500 INTERNAL_SERVER_ERROR: Error reading posted data or storing in memory<br/>\
-        &nbsp;&nbsp;&nbsp;502 BAD_GATEWAY: Autonomi network error<br/>", body = PutResult,)
+        &nbsp;&nbsp;&nbsp;502 BAD_GATEWAY: Autonomi network error<br/>", body = MutateResult,)
     ),
     tags = ["Autonomi"],
 )]
@@ -150,7 +150,7 @@ pub async fn pointer_post(
     let owner = match dweb::helpers::get_app_secret_key() {
         Ok(secret_key) => secret_key,
         Err(e) => {
-            return PutResult {
+            return MutateResult {
                 rest_operation,
                 dweb_type,
                 status_code: StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
@@ -165,7 +165,7 @@ pub async fn pointer_post(
     let target = match dweb_pointer.pointer_target() {
         Ok(target) => target,
         Err(e) => {
-            return PutResult {
+            return MutateResult {
                 rest_operation,
                 dweb_type,
                 status_code: StatusCode::BAD_REQUEST.as_u16(),
@@ -202,7 +202,7 @@ pub async fn pointer_post(
                 "DEBUG {rest_handler} stored {REST_TYPE} on the network at address {}",
                 result.1
             );
-            PutResult {
+            MutateResult {
                 rest_operation,
                 dweb_type,
                 status_code: StatusCode::CREATED.as_u16(),
@@ -218,7 +218,7 @@ pub async fn pointer_post(
             let status_message =
                 format!("{rest_handler} failed store {REST_TYPE} on the network - {e}");
             println!("DEBUG {status_message}");
-            PutResult {
+            MutateResult {
                 rest_operation,
                 dweb_type,
                 status_code: StatusCode::BAD_GATEWAY.as_u16(),
@@ -238,10 +238,10 @@ pub async fn pointer_post(
         ("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi upload API for each put, 0 means unlimited. This overrides the API control setting in the server.")),
     request_body(content = DwebPointer, content_type = "application/json"),
     responses(
-        (status = StatusCode::OK, description = "A PutResult featuring either status 200 with cost and the network address of the created Pointer, or in case of error an error status code and message about the error.<br/>\
+        (status = StatusCode::OK, description = "A MutateResult featuring either status 200 with cost and the network address of the created Pointer, or in case of error an error status code and message about the error.<br/>\
         <b>Error StatusCodes</b><br/>\
         &nbsp;&nbsp;&nbsp;500 INTERNAL_SERVER_ERROR: Error reading posted data or storing in memory<br/>\
-        &nbsp;&nbsp;&nbsp;502 BAD_GATEWAY: Autonomi network error<br/>", body = PutResult,)
+        &nbsp;&nbsp;&nbsp;502 BAD_GATEWAY: Autonomi network error<br/>", body = MutateResult,)
     ),
     tags = ["Autonomi"],
 )]
@@ -262,7 +262,7 @@ pub async fn pointer_put(
     let owner = match dweb::helpers::get_app_secret_key() {
         Ok(secret_key) => secret_key,
         Err(e) => {
-            return PutResult {
+            return MutateResult {
                 rest_operation,
                 dweb_type,
                 status_code: StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
@@ -276,7 +276,7 @@ pub async fn pointer_put(
     let target = match dweb_pointer.pointer_target() {
         Ok(target) => target,
         Err(e) => {
-            return PutResult {
+            return MutateResult {
                 rest_operation,
                 dweb_type,
                 status_code: StatusCode::BAD_REQUEST.as_u16(),
@@ -313,7 +313,7 @@ pub async fn pointer_put(
                 "DEBUG {rest_handler} stored {REST_TYPE} on the network at address {}",
                 result.1
             );
-            PutResult {
+            MutateResult {
                 rest_operation,
                 dweb_type,
                 status_code: StatusCode::CREATED.as_u16(),
@@ -329,7 +329,7 @@ pub async fn pointer_put(
             let status_message =
                 format!("{rest_handler} failed store {REST_TYPE} on the network - {e}");
             println!("DEBUG {status_message}");
-            PutResult {
+            MutateResult {
                 rest_operation,
                 dweb_type,
                 status_code: StatusCode::BAD_GATEWAY.as_u16(),

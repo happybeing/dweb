@@ -86,7 +86,7 @@ struct UploadForm {
         <b>Error StatusCodes</b><br/>\
         &nbsp;&nbsp;&nbsp;INTERNAL_SERVER_ERROR: Error reading file or storing in memory<br/>\
         &nbsp;&nbsp;&nbsp;BAD_GATEWAY: Autonomi network error", body = MutateResult,
-            example = json!("{\"file_name\": \"somefile.txt\", \"status\": \"201\", \"cost_in_attos\": \"12\", \"data_address\": \"a9cd8dd0c9f2b9dc71ad548d1f37fcba6597d5eb1be0b8c63793802cc6c7de27\", \"data_map\": \"\", \"message\": \"\" }")),
+            example = json!("{\"file_name\": \"somefile.txt\", \"status\": \"201\", \"cost_in_ant\": \"12\", \"data_address\": \"a9cd8dd0c9f2b9dc71ad548d1f37fcba6597d5eb1be0b8c63793802cc6c7de27\", \"data_map\": \"\", \"message\": \"\" }")),
     ),
     tags = ["Dweb"],
 )]
@@ -150,7 +150,7 @@ pub struct MutateResultList {
         <b>Error StatusCodes</b><br/>\
         &nbsp;&nbsp;&nbsp;INTERNAL_SERVER_ERROR: Error reading file or storing in memory<br/>\
         &nbsp;&nbsp;&nbsp;BAD_GATEWAY: Autonomi network error", body = [MutateResultList],
-            example = json!("{\"mutate_results\": [{\"file_name\": \"somefile.txt\", \"status\": \"201\", \"cost_in_attos\": \"12\", \"data_address\": \"a9cd8dd0c9f2b9dc71ad548d1f37fcba6597d5eb1be0b8c63793802cc6c7de27\", \"data_map\": \"\", \"message\": \"\" }]}")),
+            example = json!("{\"mutate_results\": [{\"file_name\": \"somefile.txt\", \"status\": \"201\", \"cost_in_ant\": \"12\", \"data_address\": \"a9cd8dd0c9f2b9dc71ad548d1f37fcba6597d5eb1be0b8c63793802cc6c7de27\", \"data_map\": \"\", \"message\": \"\" }]}")),
     ),
     tags = ["Dweb"],
 )]
@@ -249,7 +249,7 @@ async fn put_file_public(client: &DwebClient, file: &mut TempFile, tries: u32) -
                 dweb_type,
                 status_code: StatusCode::CREATED.as_u16(),
                 status_message: "success".to_string(),
-                cost_in_attos: format_tokens_as_attos(result.0.as_atto()),
+                cost_in_ant: format_tokens_as_attos(result.0.as_atto()),
                 file_name,
                 network_address: result.1.to_hex(),
                 ..Default::default()
@@ -316,7 +316,7 @@ async fn put_file_private(client: &DwebClient, file: &mut TempFile, tries: u32) 
                 dweb_type,
                 status_code: StatusCode::CREATED.as_u16(),
                 status_message: "success".to_string(),
-                cost_in_attos: format_tokens_as_attos(result.0.as_atto()),
+                cost_in_ant: format_tokens_as_attos(result.0.as_atto()),
                 file_name,
                 data_map: result.1.to_hex(),
                 ..Default::default()

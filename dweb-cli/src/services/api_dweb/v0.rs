@@ -22,15 +22,69 @@ pub mod name;
 
 use actix_web::{
     get,
-    http::{header, header::ContentType, StatusCode},
+    http::{header, header::ContentType, header::HeaderMap, StatusCode},
     HttpRequest, HttpResponse, HttpResponseBuilder, Responder,
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use dweb::client::DwebClient;
 use dweb::storage::DwebType;
 
 use crate::services::helpers::*;
+
+/// Request headers for Mutate (POST/PUT) of Autonomi types. Not all headers apply to all types.
+///
+/// Notes:
+///
+/// 1. These headers have corresponding query parameters which if present will override the request header
+///
+/// 2. These headers are not included in the OpenAPI/SwaggerUI to keep it simple
+///
+/// tries: u32,  optional number of time to try a mutation operation before returning failure (0 = unlimited)
+pub const HEADER_ANT_API_TRIES: &str = "Ant-API-Tries";
+/// name: Option<String>,   optional name, used to allow more than one object of the relevant type per owner secret
+pub const HEADER_ANT_OBJECT_NAME: &str = "Ant-Object-Name";
+
+#[derive(Deserialize, ToSchema)]
+pub struct MutateQueryParams {
+    /// An optional name for the object being created or updated. Only one object of each type is permitted per name.
+    name: Option<String>,
+    /// The number of times to try a mutation operation until returning failure. (0 = unlimited)
+    tries: Option<u32>,
+}
+
+/// Process request headers and query parameters. Query parameters have precedance over request headers
+///
+/// Returns tuple (tries: u32, name: Option<String>)
+pub(crate) fn process_header_and_query_params(
+    client: &DwebClient,
+    headers: &HeaderMap,
+    query_params: &MutateQueryParams,
+) -> (u32, Option<String>) {
+    let mut tries = query_params.tries.clone();
+    if tries.is_none() {
+        if let Some(header_value) = headers.get(HEADER_ANT_API_TRIES) {
+            if let Ok(header_str) = header_value.to_str() {
+                if let Ok(tries_u32) = header_str.parse::<u32>() {
+                    tries = Some(tries_u32)
+                }
+            };
+        };
+    }
+    let tries = tries.unwrap_or(client.api_control.tries);
+
+    let mut name = query_params.name.clone();
+    if name.is_none() {
+        if let Some(header_value) = headers.get(HEADER_ANT_OBJECT_NAME) {
+            if let Ok(header_str) = header_value.to_str() {
+                name = Some(header_str.to_string())
+            };
+        };
+    };
+
+    (tries, name)
+}
 
 /// MutateResult is used to return the result of POST or PUT operations for several network data types
 #[derive(Serialize, Deserialize, ToSchema)]
@@ -47,13 +101,17 @@ pub struct MutateResult {
     ///
     /// Either "success" or an explanatory error message.
     pub status_message: String,
-    /// The cost incurred by the operation
-    pub cost_in_attos: String,
+    /// The cost incurred in ANT (1 ANT = 10^18 Attos)
+    pub cost_in_ant: String,
+    /// The cost incurred in ARB-ETH (1 ARB-ETH = 10^18 gas)
+    pub cost_in_arb_eth: String,
 
     /// Name of the resource when data_type is "file"
     pub file_name: String,
     /// Full local system path of the resource (returned by /publish APIs)
     pub full_path: String,
+    /// Optional name provided to differentiate objects of the same type which created with the same owner secret
+    pub object_name: String,
     /// Hex encoded address of a data map or of other stored data. Only returned when uploading data as public
     ///
     /// Returned for public data of type: PublicFile, PublicArchive, History, Register, Pointer, Scratchpad, Vault
@@ -71,7 +129,9 @@ impl Default for MutateResult {
             rest_operation: "".to_string(),
             status_code: StatusCode::IM_A_TEAPOT.as_u16(),
             status_message: "".to_string(),
-            cost_in_attos: "0.0".to_string(),
+            cost_in_ant: "0.0".to_string(),
+            cost_in_arb_eth: "0.0".to_string(),
+            object_name: "".to_string(),
             network_address: "".to_string(),
             data_map: "".to_string(),
             file_name: "".to_string(),

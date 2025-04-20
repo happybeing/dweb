@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 use autonomi::client::data::DataAddress;
 use autonomi::client::data_types::graph::{GraphContent, GraphError};
 use autonomi::client::key_derivation::{DerivationIndex, MainPubkey, MainSecretKey};
-use autonomi::client::vault::VaultSecretKey as SecretKey;
+use autonomi::SecretKey;
 use autonomi::{
     pointer::PointerTarget, AttoTokens, Bytes, GraphEntry, GraphEntryAddress, Pointer,
     PointerAddress,
@@ -40,11 +40,9 @@ use crate::helpers::graph_entry::{
 use crate::helpers::retry::retry_until_ok;
 use crate::token::{show_spend_return_value, Spends};
 
-const LARGEST_VERSION: u32 = u32::MAX;
+use crate::types::{derive_type_owner_secret, HISTORY_POINTER_DERIVATION_INDEX};
 
-/// Derivation index to avoid address clashes between types with the same owner
-/// Note: the string must be exactly 32 bytes long
-const POINTER_DERIVATION_INDEX: &str = "dweb Pointer derivatation index ";
+const LARGEST_VERSION: u32 = u32::MAX;
 
 /// The value of a history: a 32 bytes array (same as [`GraphContent`])
 pub type HistoryValue = GraphContent;
@@ -146,7 +144,7 @@ pub trait Trove<T> {
 /// files such as a directory, or all the files and settings that make up a website,
 /// and so on.
 /// TODO provide a way to initialise a history from an Autonomi Register pointer and graph
-//  TODO this will require storing the POINTER_DERIVATION_INDEX in the History, and
+//  TODO this will require storing the HISTORY_DERIVATION_INDEX in the History, and
 //  TODO initialising it according to whether or not it is initialised from a Register .
 //  TODO Also changes to History::history_main_secret_key() for compatibility with Registers
 pub struct History<T: Trove<T> + Clone> {
@@ -613,10 +611,7 @@ impl<T: Trove<T> + Clone> History<T> {
 
     /// Get the main secret key for the pointer belonging to a history
     fn history_pointer_secret_key(history_secret_key: SecretKey) -> SecretKey {
-        let derivation_index: [u8; 32] = POINTER_DERIVATION_INDEX.as_bytes().try_into().unwrap();
-        MainSecretKey::new(history_secret_key.clone())
-            .derive_key(&DerivationIndex::from_bytes(derivation_index))
-            .into()
+        derive_type_owner_secret(history_secret_key, &HISTORY_POINTER_DERIVATION_INDEX)
     }
 
     /// The root graph entry of the History (not the entry for the first value).
@@ -631,7 +626,10 @@ impl<T: Trove<T> + Clone> History<T> {
         history_address: HistoryAddress,
     ) -> Result<PointerAddress> {
         let history_main_public_key: MainPubkey = MainPubkey::new(history_address.owner());
-        let derivation_index: [u8; 32] = POINTER_DERIVATION_INDEX.as_bytes().try_into().unwrap();
+        let derivation_index: [u8; 32] = HISTORY_POINTER_DERIVATION_INDEX
+            .as_bytes()
+            .try_into()
+            .unwrap();
         let pointer_pk =
             history_main_public_key.derive_key(&DerivationIndex::from_bytes(derivation_index));
         Ok(PointerAddress::new(pointer_pk.into()))

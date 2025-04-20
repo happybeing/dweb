@@ -24,7 +24,7 @@ use evmlib::common::U256;
 use crate::client::DwebClient;
 
 /// Control 'show cost' operations
-#[derive(clap::ValueEnum, Clone, Debug)]
+#[derive(clap::ValueEnum, Clone, Copy, Debug)]
 pub enum ShowCost {
     Token,
     Gas,
@@ -32,13 +32,17 @@ pub enum ShowCost {
     None,
 }
 
+/// Track the cost of operations since being created
 #[derive(Clone)]
 pub struct Spends {
     client: DwebClient,
+    /// The client's payment wallet balances on creation of this Spends
     pub token: Amount,
     pub gas: Amount,
 
+    /// The type of cost to be shown
     show_cost: ShowCost,
+    /// A label used to prefix cost when shown
     label: String,
 }
 
@@ -65,8 +69,24 @@ impl Spends {
         Ok(())
     }
 
+    /// Get spends as formated numeric strings or "unknown"
+    ///
+    /// Returns tuple: (spent_attos: String, spent_gas: String)
+    pub async fn get_spend_strings(&self) -> (String, String) {
+        let spent_gas_string = match self.spent_gas().await {
+            Ok(spent_gas) => format_tokens(AttoTokens::from(spent_gas).as_atto()),
+            Err(_e) => "unknown".to_string(),
+        };
+
+        let spent_tokens_string = match self.spent_tokens().await {
+            Ok(spent_tokens) => format_tokens(AttoTokens::from(spent_tokens).as_atto()),
+            Err(_e) => "unknown".to_string(),
+        };
+        (spent_tokens_string, spent_gas_string)
+    }
+
     /// Print the spend since last 'update' with optional label (which defaults to "Cost total: ")
-    pub async fn show_spend(&self) -> Result<()> {
+    pub async fn show_spend(&self, show_costs: Option<ShowCost>) -> Result<()> {
         let label = &self.label;
         let spent_gas = AttoTokens::from(self.spent_gas().await?);
         let spent_gas_string = format_tokens(spent_gas.as_atto());
@@ -91,7 +111,8 @@ impl Spends {
             format!("{label}{spent_tokens_string} ANT")
         };
 
-        match self.show_cost {
+        let show_cost = show_costs.unwrap_or(self.show_cost);
+        match show_cost {
             ShowCost::Gas => {
                 println!("{spent_gas}");
             }
@@ -146,7 +167,7 @@ pub fn format_tokens_as_attos(amount: Amount) -> String {
 ///
 /// Return show_spend_return_value<T>() with T as the type of the return value you need
 pub async fn show_spend_return_value<T>(spends: &Spends, value: T) -> T {
-    let _ = spends.show_spend().await;
+    let _ = spends.show_spend(None).await;
     value
 }
 

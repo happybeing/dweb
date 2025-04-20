@@ -17,24 +17,22 @@
 
 // use actix_multipart::form::bytes::Bytes;
 use actix_web::{
+    body::MessageBody,
     get,
     http::{header::ContentType, StatusCode},
     post, put,
     web::{self, Data},
     HttpRequest, HttpResponse,
 };
-use color_eyre::eyre::{eyre, Result};
+use color_eyre::eyre::eyre;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use autonomi::{
-    pointer::PointerTarget, AddressParseError, ChunkAddress, GraphEntryAddress, Pointer,
-    PointerAddress, ScratchpadAddress,
-};
+use autonomi::ScratchpadAddress;
 
 use dweb::helpers::retry::retry_until_ok;
 use dweb::token::Spends;
-use dweb::types::pointer_secret_key_from_owner;
+use dweb::types::scratchpad_secret_key_from_owner;
 use dweb::{storage::DwebType, types::derive_named_object_secret};
 
 use crate::services::api_dweb::v0::{
@@ -42,40 +40,39 @@ use crate::services::api_dweb::v0::{
 };
 use crate::services::helpers::*;
 
-const REST_TYPE: &str = "Pointer";
+const REST_TYPE: &str = "Scratchpad";
 
-/// Get a Pointer from the network using a hex encoded PointerAddress
-///
+/// Get a Scratchpad from the network using a hex encoded ScratchpadAddress
 /// TODO example JSON
 #[utoipa::path(
-    params(("pointer_address" = String, Path, description = "the hex encoded address of a Pointer on the network"),),
+    params(("scratchpad_address" = String, Path, description = "the hex encoded address of a Scratchpad on the network"),),
     responses(
-        (status = StatusCode::OK, description = "Success", body = [DwebPointer]),
-        (status = StatusCode::BAD_REQUEST, description = "The pointer address is not valid"),
-        (status = StatusCode::NOT_FOUND, description = "The pointer was not found or a network error occured"),
+        (status = StatusCode::OK, description = "Success", body = [DwebScratchpad]),
+        (status = StatusCode::BAD_REQUEST, description = "The scratchpad address is not valid"),
+        (status = StatusCode::NOT_FOUND, description = "The scratchpad was not found or a network error occured"),
         ),
     tags = ["Autonomi"],
 )]
-#[get("/pointer/{pointer_address}")]
-pub async fn pointer_get(
+#[get("/scratchpad/{scratchpad_address}")]
+pub async fn scratchpad_get(
     request: HttpRequest,
-    pointer_address: web::Path<String>,
+    scratchpad_address: web::Path<String>,
     client: Data<dweb::client::DwebClient>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
-    let rest_operation = "/pointer GET error";
-    let rest_handler = "pointer_get()";
+    let rest_operation = "/scratchpad GET error";
+    let rest_handler = "scratchpad_get()";
 
-    let pointer_address = PointerAddress::from_hex(&pointer_address.into_inner());
+    let scratchpad_address = ScratchpadAddress::from_hex(&scratchpad_address.into_inner());
 
-    let pointer = match pointer_address {
-        Ok(pointer_address) => {
+    let scratchpad = match scratchpad_address {
+        Ok(scratchpad_address) => {
             println!(
-                "DEBUG {rest_operation} calling client.pointer_get({})",
-                pointer_address.to_hex()
+                "DEBUG {rest_operation} calling client.scratchpad_get({})",
+                scratchpad_address.to_hex()
             );
-            match client.client.pointer_get(&pointer_address).await {
-                Ok(pointer) => pointer,
+            match client.client.scratchpad_get(&scratchpad_address).await {
+                Ok(scratchpad) => scratchpad,
                 Err(e) => {
                     return make_error_response_page(
                         None,
@@ -90,20 +87,21 @@ pub async fn pointer_get(
             return make_error_response_page(
                 Some(StatusCode::BAD_REQUEST),
                 &mut HttpResponse::BadRequest(),
-                "/pointer GET error".to_string(),
-                &format!("/pointer GET failed due to invalid {REST_TYPE} address - {e}"),
+                "/scratchpad GET error".to_string(),
+                &format!("/scratchpad GET failed due to invalid {REST_TYPE} address - {e}"),
             )
         }
     };
 
-    let dweb_pointer = DwebPointer {
-        pointer_address: pointer.address().to_hex(),
-        counter: pointer.counter(),
-        chunk_address_target: pointer.target().to_hex(),
+    let dweb_scratchpad = DwebScratchpad {
+        scratchpad_address: scratchpad.address().to_hex(),
+        data_encoding: scratchpad.data_encoding(),
+        encryped_data: scratchpad.encrypted_data().to_vec(),
+        counter: scratchpad.counter(),
         ..Default::default()
     };
 
-    let json = match serde_json::to_string(&dweb_pointer) {
+    let json = match serde_json::to_string(&dweb_scratchpad) {
         Ok(json) => json,
         Err(e) => {
             return make_error_response_page(
@@ -115,40 +113,40 @@ pub async fn pointer_get(
         }
     };
 
-    println!("DEBUG DwebPointer as JSON: {json:?}");
+    println!("DEBUG DwebScratchpad as JSON: {json:?}");
 
     HttpResponse::Ok()
         .insert_header(ContentType(mime::APPLICATION_JSON))
         .body(json)
 }
 
-/// Get a Pointer you own with optional name
+/// Get a Scratchpad you own with optional name
 /// TODO example JSON
 #[utoipa::path(
     params(
-        ("name" = Option<String>, Query, description = "optional name, used to allow more than one pointer per owner secret")),
+        ("name" = Option<String>, Query, description = "optional name, used to allow more than one scratchpad per owner secret")),
         // Support Query params using headers but don't document in the SwaggerUI to keep it simple
-        // ("Pointer-Name" = Option<String>, Header, description = "optional name, used to allow more than one pointer per owner secret")),
+        // ("Scratchpad-Name" = Option<String>, Header, description = "optional name, used to allow more than one scratchpad per owner secret")),
     responses(
-        (status = StatusCode::OK, description = "Success", body = [DwebPointer]),
-        (status = StatusCode::BAD_REQUEST, description = "The pointer address is not valid"),
-        (status = StatusCode::NOT_FOUND, description = "The pointer was not found or a network error occured"),
+        (status = StatusCode::OK, description = "Success", body = [DwebScratchpad]),
+        (status = StatusCode::BAD_REQUEST, description = "The scratchpad address is not valid"),
+        (status = StatusCode::NOT_FOUND, description = "The scratchpad was not found or a network error occured"),
         ),
     tags = ["Autonomi"],
 )]
-#[get("/pointer")]
-pub async fn pointer_get_owned(
+#[get("/scratchpad")]
+pub async fn scratchpad_get_owned(
     query_params: web::Query<MutateQueryParams>,
     request: HttpRequest,
     client: Data<dweb::client::DwebClient>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
     let client = &client.into_inner();
-    let (_tries, pointer_name) =
+    let (_tries, scratchpad_name) =
         process_header_and_query_params(&client, request.headers(), &mut query_params.into_inner());
 
-    let rest_operation = "/pointer GET error";
-    let rest_handler = "pointer_get_owned()";
+    let rest_operation = "/scratchpad GET error";
+    let rest_handler = "scratchpad_get_owned()";
 
     // TODO use separate owner_secret from DwebClient when available
     let owner_secret = match dweb::helpers::get_app_secret_key() {
@@ -163,12 +161,14 @@ pub async fn pointer_get_owned(
         }
     };
 
-    let pointer_secret =
-        derive_named_object_secret(pointer_secret_key_from_owner(owner_secret), pointer_name);
-    let pointer_address = PointerAddress::new(pointer_secret.public_key());
+    let scratchpad_secret = derive_named_object_secret(
+        scratchpad_secret_key_from_owner(owner_secret),
+        scratchpad_name,
+    );
+    let scratchpad_address = ScratchpadAddress::new(scratchpad_secret.public_key());
 
-    let pointer = match client.client.pointer_get(&pointer_address).await {
-        Ok(pointer) => pointer,
+    let scratchpad = match client.client.scratchpad_get(&scratchpad_address).await {
+        Ok(scratchpad) => scratchpad,
         Err(e) => {
             return make_error_response_page(
                 None,
@@ -179,14 +179,12 @@ pub async fn pointer_get_owned(
         }
     };
 
-    let dweb_pointer = DwebPointer {
-        pointer_address: pointer.address().to_hex(),
-        counter: pointer.counter(),
-        chunk_address_target: pointer.target().to_hex(),
+    let dweb_scratchpad = DwebScratchpad {
+        scratchpad_address: scratchpad.address().to_hex(),
         ..Default::default()
     };
 
-    let json = match serde_json::to_string(&dweb_pointer) {
+    let json = match serde_json::to_string(&dweb_scratchpad) {
         Ok(json) => json,
         Err(e) => {
             return make_error_response_page(
@@ -198,17 +196,17 @@ pub async fn pointer_get_owned(
         }
     };
 
-    println!("DEBUG DwebPointer as JSON: {json:?}");
+    println!("DEBUG DwebScratchpad as JSON: {json:?}");
 
     HttpResponse::Ok()
         .insert_header(ContentType(mime::APPLICATION_JSON))
         .body(json)
 }
 
-/// Create a new Pointer on the network
+/// Create a new Scratchpad on the network
 ///
 /// Note: This implementation differs from the Autonomi APIs in that you can have
-/// any number of pointers with the same owner but different names, and these will
+/// any number of scratchpads with the same owner but different names, and these will
 /// not clash with other types also using the same owner.
 ///
 /// TODO example JSON
@@ -216,34 +214,34 @@ pub async fn pointer_get_owned(
     post,
     params(
         ("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi upload API for each put, 0 means unlimited. This overrides the API control setting in the server."),
-        ("name" = Option<String>, Query, description = "optional name, used to allow more than one pointer per owner secret")),
+        ("name" = Option<String>, Query, description = "optional name, used to allow more than one scratchpad per owner secret")),
         // Support Query params using headers but don't document in the SwaggerUI to keep it simple
         // ("Ant-API-Tries" = Option<u32>, Header, description = "optional number of time to try a mutation operation before returning failure (0 = unlimited)"),
-        // ("Pointer-Name" = Option<String>, Header, description = "optional name, used to allow more than one pointer per owner secret")),
-    request_body(content = DwebPointer, content_type = "application/json"),
+        // ("Scratchpad-Name" = Option<String>, Header, description = "optional name, used to allow more than one scratchpad per owner secret")),
+    request_body(content = DwebScratchpad, content_type = "application/json"),
     responses(
-        (status = StatusCode::CREATED, description = "A MutateResult featuring either status 201 with cost and the network address of the created Pointer, or in case of error an error status code and message about the error.<br/>\
+        (status = StatusCode::CREATED, description = "A MutateResult featuring either status 201 with cost and the network address of the created Scratchpad, or in case of error an error status code and message about the error.<br/>\
         <b>Error StatusCodes</b><br/>\
         &nbsp;&nbsp;&nbsp;500 INTERNAL_SERVER_ERROR: Error reading posted data or storing in memory<br/>\
         &nbsp;&nbsp;&nbsp;502 BAD_GATEWAY: Autonomi network error<br/>", body = MutateResult,)
     ),
     tags = ["Autonomi"],
 )]
-#[post("/pointer")]
-pub async fn pointer_post(
+#[post("/scratchpad")]
+pub async fn scratchpad_post(
     request: HttpRequest,
-    pointer: web::Json<DwebPointer>,
+    scratchpad: web::Json<DwebScratchpad>,
     query_params: web::Query<MutateQueryParams>,
     client: Data<dweb::client::DwebClient>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
     let client = &client.into_inner();
-    let (tries, pointer_name) =
+    let (tries, scratchpad_name) =
         process_header_and_query_params(&client, request.headers(), &mut query_params.into_inner());
 
-    let rest_operation = "/pointer POST".to_string();
-    let rest_handler = "pointer_post()";
-    let dweb_type = DwebType::Pointer;
+    let rest_operation = "/scratchpad POST".to_string();
+    let rest_handler = "scratchpad_post()";
+    let dweb_type = DwebType::Scratchpad;
 
     // TODO use separate owner_secret from DwebClient when available
     let owner_secret = match dweb::helpers::get_app_secret_key() {
@@ -260,34 +258,48 @@ pub async fn pointer_post(
         }
     };
 
-    let dweb_pointer = pointer.into_inner();
-    let target = match dweb_pointer.pointer_target() {
-        Ok(target) => target,
-        Err(e) => {
+    let payment_option = client.payment_option().clone();
+
+    let scratchpad_secret = derive_named_object_secret(
+        scratchpad_secret_key_from_owner(owner_secret),
+        scratchpad_name,
+    );
+    let content_type = scratchpad.data_encoding;
+
+    let initial_data = match scratchpad.unencryped_data.clone().try_into_bytes() {
+        Ok(bytes) => bytes,
+        Err(_e) => {
             return MutateResult {
                 rest_operation,
                 dweb_type,
                 status_code: StatusCode::BAD_REQUEST.as_u16(),
-                status_message: format!("{rest_handler} failed - {e}"),
+                status_message: format!(
+                    "{rest_handler} unencrypted data failed to convert to Bytes"
+                ),
                 ..Default::default()
             }
             .response(rest_handler);
         }
     };
 
-    let payment_option = client.payment_option().clone();
-
-    let pointer_secret =
-        derive_named_object_secret(pointer_secret_key_from_owner(owner_secret), pointer_name);
-
     let spends = Spends::new(&client, None).await;
     let result = retry_until_ok(
         tries,
         &rest_operation,
-        (pointer_secret, target, payment_option),
-        async move |(pointer_secret, target, payment_option)| match client
+        (
+            scratchpad_secret,
+            content_type,
+            initial_data,
+            payment_option,
+        ),
+        async move |(scratchpad_secret, content_type, initial_data, payment_option)| match client
             .client
-            .pointer_create(&pointer_secret, target, payment_option)
+            .scratchpad_create(
+                &scratchpad_secret,
+                content_type,
+                &initial_data,
+                payment_option,
+            )
             .await
         {
             Ok(result) => Ok(result),
@@ -343,41 +355,41 @@ pub async fn pointer_post(
     }
 }
 
-/// Update an existing Pointer on the network
+/// Update an existing Scratchpad on the network
 /// TODO example JSON
 #[utoipa::path(
     put,
     params(
         ("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi upload API for each put, 0 means unlimited. This overrides the API control setting in the server."),
-        ("name" = Option<String>, Query, description = "optional name, used to allow more than one pointer per owner secret")),
+        ("name" = Option<String>, Query, description = "optional name, used to allow more than one scratchpad per owner secret")),
         // Support Query params using headers but don't document in the SwaggerUI to keep it simple
         // ("Ant-API-Tries" = Option<u32>, Header, description = "optional number of time to try a mutation operation before returning failure (0 = unlimited)"),
-        // ("Pointer-Name" = Option<String>, Header, description = "optional name, used to allow more than one pointer per owner secret")),
-    request_body(content = DwebPointer, content_type = "application/json"),
+        // ("Scratchpad-Name" = Option<String>, Header, description = "optional name, used to allow more than one scratchpad per owner secret")),
+    request_body(content = DwebScratchpad, content_type = "application/json"),
     responses(
-        (status = StatusCode::OK, description = "A MutateResult featuring either status 200 with cost and the network address of the created Pointer, or in case of error an error status code and message about the error.<br/>\
+        (status = StatusCode::OK, description = "A MutateResult featuring either status 200 with cost and the network address of the created Scratchpad, or in case of error an error status code and message about the error.<br/>\
         <b>Error StatusCodes</b><br/>\
         &nbsp;&nbsp;&nbsp;500 INTERNAL_SERVER_ERROR: Error reading posted data or storing in memory<br/>\
         &nbsp;&nbsp;&nbsp;502 BAD_GATEWAY: Autonomi network error<br/>", body = MutateResult,)
     ),
     tags = ["Autonomi"],
 )]
-#[put("/pointer")]
-pub async fn pointer_put(
+#[put("/scratchpad")]
+pub async fn scratchpad_put(
     request: HttpRequest,
-    pointer: web::Json<DwebPointer>,
+    scratchpad: web::Json<DwebScratchpad>,
     query_params: web::Query<MutateQueryParams>,
     client: Data<dweb::client::DwebClient>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
     let client = &client.into_inner();
-    let (tries, pointer_name) =
+    let (tries, scratchpad_name) =
         process_header_and_query_params(&client, request.headers(), &mut query_params.into_inner());
 
-    let rest_operation = "/pointer PUT".to_string();
-    let rest_handler = "pointer_put()";
-    let dweb_type = DwebType::Pointer;
-    let dweb_pointer = pointer.into_inner();
+    let rest_operation = "/scratchpad PUT".to_string();
+    let rest_handler = "scratchpad_put()";
+    let dweb_type = DwebType::Scratchpad;
+    let dweb_scratchpad = scratchpad.into_inner();
 
     // TODO use separate owner_secret from DwebClient when available
     let owner_secret = match dweb::helpers::get_app_secret_key() {
@@ -394,34 +406,35 @@ pub async fn pointer_put(
         }
     };
 
-    let target = match dweb_pointer.pointer_target() {
-        Ok(target) => target,
-        Err(e) => {
+    let scratchpad_secret = derive_named_object_secret(
+        scratchpad_secret_key_from_owner(owner_secret),
+        scratchpad_name,
+    );
+    let content_type = dweb_scratchpad.data_encoding;
+
+    let new_data = match dweb_scratchpad.unencryped_data.try_into_bytes() {
+        Ok(bytes) => bytes,
+        Err(_e) => {
             return MutateResult {
                 rest_operation,
                 dweb_type,
                 status_code: StatusCode::BAD_REQUEST.as_u16(),
-                status_message: format!("{rest_handler} failed - {e}"),
+                status_message: format!(
+                    "{rest_handler} unencrypted data failed to convert to Bytes"
+                ),
                 ..Default::default()
             }
             .response(rest_handler);
         }
     };
 
-    let payment_option = client.payment_option().clone();
-
-    let pointer_secret =
-        derive_named_object_secret(pointer_secret_key_from_owner(owner_secret), pointer_name);
-    let pointer = Pointer::new(&pointer_secret, dweb_pointer.counter, target);
-
-    let spends = Spends::new(&client, None).await;
     let result = retry_until_ok(
         tries,
         &rest_handler,
-        (pointer, payment_option),
-        async move |(pointer, payment_option)| match client
+        (scratchpad_secret, content_type, new_data),
+        async move |(scratchpad_secret, content_type, new_data)| match client
             .client
-            .pointer_put(pointer, payment_option)
+            .scratchpad_update(&scratchpad_secret, content_type, &new_data)
             .await
         {
             Ok(result) => Ok(result),
@@ -431,32 +444,13 @@ pub async fn pointer_put(
     .await;
 
     match result {
-        Ok(result) => {
-            println!(
-                "DEBUG {rest_handler} stored {REST_TYPE} on the network at address {}",
-                result.1
-            );
-            let (cost_in_ant, cost_in_arb_eth) = match spends {
-                Ok(spends) => {
-                    let (cost_in_ant, cost_in_arb_eth) = spends.get_spend_strings().await;
-                    println!("DEBUG {rest_operation} cost in ANT  : {cost_in_ant}");
-                    println!("DEBUG {rest_operation} cost in ARB-ETH: {cost_in_arb_eth}");
-                    (cost_in_ant, cost_in_arb_eth)
-                }
-                Err(e) => {
-                    println!("DEBUG {rest_operation} error: unable to report Spends - {e}");
-                    ("unkown".to_string(), "unknown".to_string())
-                }
-            };
-
+        Ok(_) => {
+            println!("DEBUG {rest_handler} stored {REST_TYPE} on the network",);
             MutateResult {
                 rest_operation,
                 dweb_type,
                 status_code: StatusCode::OK.as_u16(),
                 status_message: "success".to_string(),
-                cost_in_ant,
-                cost_in_arb_eth,
-                network_address: result.1.to_hex(),
                 ..Default::default()
             }
             .response(rest_handler)
@@ -477,71 +471,26 @@ pub async fn pointer_put(
     }
 }
 
-/// A representation of the Autonomi Pointer for web clients
+/// A representation of the Autonomi Scratchpad for web clients
 ///
 /// Exactly one target is allowed, so make sure unused targets are empty strings
 #[derive(Clone, Serialize, Deserialize, ToSchema)]
-pub struct DwebPointer {
-    pointer_address: String,
-    counter: u32,
-    /// Only one target is permitted per pointer, each for a different type. Unused targets should be empty strings
-    chunk_address_target: String,
-    graphentry_address_target: String,
-    pointer_address_target: String,
-    scratchpad_address_target: String,
+pub struct DwebScratchpad {
+    scratchpad_address: String,
+    data_encoding: u64,
+    encryped_data: Vec<u8>,
+    unencryped_data: Vec<u8>,
+    counter: u64,
 }
 
-impl Default for DwebPointer {
-    fn default() -> DwebPointer {
-        DwebPointer {
-            pointer_address: "".to_string(),
+impl Default for DwebScratchpad {
+    fn default() -> DwebScratchpad {
+        DwebScratchpad {
+            scratchpad_address: "".to_string(),
             counter: 0,
-            chunk_address_target: "".to_string(),
-            graphentry_address_target: "".to_string(),
-            pointer_address_target: "".to_string(),
-            scratchpad_address_target: "".to_string(),
-        }
-    }
-}
-
-impl DwebPointer {
-    pub fn pointer_target(&self) -> Result<PointerTarget> {
-        if let Ok(target_address) = self.chunk_address_target() {
-            Ok(PointerTarget::ChunkAddress(target_address))
-        } else if let Ok(target_address) = self.graphentry_address_target() {
-            Ok(PointerTarget::GraphEntryAddress(target_address))
-        } else if let Ok(target_address) = self.pointer_address_target() {
-            Ok(PointerTarget::PointerAddress(target_address))
-        } else if let Ok(target_address) = self.scratchpad_address_target() {
-            Ok(PointerTarget::ScratchpadAddress(target_address))
-        } else {
-            Err(eyre!("missing or invalid Pointer target"))
-        }
-    }
-
-    pub fn chunk_address_target(&self) -> Result<ChunkAddress> {
-        Self::into_result(|| ChunkAddress::try_from_hex(&self.chunk_address_target))
-    }
-
-    pub fn graphentry_address_target(&self) -> Result<GraphEntryAddress> {
-        Self::into_result(|| GraphEntryAddress::from_hex(&self.graphentry_address_target))
-    }
-
-    pub fn pointer_address_target(&self) -> Result<PointerAddress> {
-        Self::into_result(|| PointerAddress::from_hex(&self.pointer_address_target))
-    }
-
-    pub fn scratchpad_address_target(&self) -> Result<ScratchpadAddress> {
-        Self::into_result(|| ScratchpadAddress::from_hex(&self.scratchpad_address_target))
-    }
-
-    fn into_result<F, A>(f: F) -> Result<A>
-    where
-        F: Fn() -> Result<A, AddressParseError>,
-    {
-        match f() {
-            Ok(address) => Ok(address),
-            Err(e) => Err(eyre!(e)),
+            data_encoding: 0,
+            encryped_data: Vec::<u8>::new(),
+            unencryped_data: Vec::<u8>::new(),
         }
     }
 }

@@ -19,3 +19,4 @@ pub mod archive;
 pub mod chunk;
 pub mod data;
 pub mod pointer;
+pub mod scratchpad;

@@ -142,6 +142,11 @@ pub async fn serve_with_ports(
                     .service(api_ant::v0::pointer::pointer_post)
                     .service(api_ant::v0::pointer::pointer_put)
                     .service(api_ant::v0::pointer::pointer_get)
+                    .service(api_ant::v0::pointer::pointer_get_owned)
+                    .service(api_ant::v0::scratchpad::scratchpad_post)
+                    .service(api_ant::v0::scratchpad::scratchpad_put)
+                    .service(api_ant::v0::scratchpad::scratchpad_get)
+                    .service(api_ant::v0::scratchpad::scratchpad_get_owned)
                     .service(api_ant::v0::data::data_get),
             )
             // dweb APIs

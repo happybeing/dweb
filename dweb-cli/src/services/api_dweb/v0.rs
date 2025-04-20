@@ -43,20 +43,20 @@ use crate::services::helpers::*;
 ///
 /// tries: u32,  optional number of time to try a mutation operation before returning failure (0 = unlimited)
 pub const HEADER_ANT_API_TRIES: &str = "Ant-API-Tries";
-/// name: Option<String>,   optional name, used to allow more than one object of the relevant type per owner secret
+/// object_name: Option<String>,   optional name, used to allow more than one object of the relevant type per owner secret
 pub const HEADER_ANT_OBJECT_NAME: &str = "Ant-Object-Name";
 
 #[derive(Deserialize, ToSchema)]
 pub struct MutateQueryParams {
-    /// An optional name for the object being created or updated. Only one object of each type is permitted per name.
-    name: Option<String>,
+    /// An optional name for the object being created or updated. Only one object of each type is permitted per object_name.
+    object_name: Option<String>,
     /// The number of times to try a mutation operation until returning failure. (0 = unlimited)
     tries: Option<u32>,
 }
 
 /// Process request headers and query parameters. Query parameters have precedance over request headers
 ///
-/// Returns tuple (tries: u32, name: Option<String>)
+/// Returns tuple (tries: u32, object_name: Option<String>)
 pub(crate) fn process_header_and_query_params(
     client: &DwebClient,
     headers: &HeaderMap,
@@ -74,16 +74,16 @@ pub(crate) fn process_header_and_query_params(
     }
     let tries = tries.unwrap_or(client.api_control.tries);
 
-    let mut name = query_params.name.clone();
-    if name.is_none() {
+    let mut object_name = query_params.object_name.clone();
+    if object_name.is_none() {
         if let Some(header_value) = headers.get(HEADER_ANT_OBJECT_NAME) {
             if let Ok(header_str) = header_value.to_str() {
-                name = Some(header_str.to_string())
+                object_name = Some(header_str.to_string())
             };
         };
     };
 
-    (tries, name)
+    (tries, object_name)
 }
 
 /// MutateResult is used to return the result of POST or PUT operations for several network data types

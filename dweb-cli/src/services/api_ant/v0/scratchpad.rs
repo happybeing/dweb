@@ -124,9 +124,9 @@ pub async fn scratchpad_get(
 /// TODO example JSON
 #[utoipa::path(
     params(
-        ("name" = Option<String>, Query, description = "optional name, used to allow more than one scratchpad per owner secret")),
+        ("object-name" = Option<String>, Query, description = "optional name, used to allow more than one scratchpad per owner secret")),
         // Support Query params using headers but don't document in the SwaggerUI to keep it simple
-        // ("Scratchpad-Name" = Option<String>, Header, description = "optional name, used to allow more than one scratchpad per owner secret")),
+        // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one scratchpad per owner secret")),
     responses(
         (status = StatusCode::OK, description = "Success", body = [DwebScratchpad]),
         (status = StatusCode::BAD_REQUEST, description = "The scratchpad address is not valid"),
@@ -214,10 +214,10 @@ pub async fn scratchpad_get_owned(
     post,
     params(
         ("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi upload API for each put, 0 means unlimited. This overrides the API control setting in the server."),
-        ("name" = Option<String>, Query, description = "optional name, used to allow more than one scratchpad per owner secret")),
+        ("object-name" = Option<String>, Query, description = "optional name, used to allow more than one scratchpad per owner secret")),
         // Support Query params using headers but don't document in the SwaggerUI to keep it simple
         // ("Ant-API-Tries" = Option<u32>, Header, description = "optional number of time to try a mutation operation before returning failure (0 = unlimited)"),
-        // ("Scratchpad-Name" = Option<String>, Header, description = "optional name, used to allow more than one scratchpad per owner secret")),
+        // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one scratchpad per owner secret")),
     request_body(content = DwebScratchpad, content_type = "application/json"),
     responses(
         (status = StatusCode::CREATED, description = "A MutateResult featuring either status 201 with cost and the network address of the created Scratchpad, or in case of error an error status code and message about the error.<br/>\
@@ -361,10 +361,10 @@ pub async fn scratchpad_post(
     put,
     params(
         ("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi upload API for each put, 0 means unlimited. This overrides the API control setting in the server."),
-        ("name" = Option<String>, Query, description = "optional name, used to allow more than one scratchpad per owner secret")),
+        ("object-name" = Option<String>, Query, description = "optional name, used to allow more than one scratchpad per owner secret")),
         // Support Query params using headers but don't document in the SwaggerUI to keep it simple
         // ("Ant-API-Tries" = Option<u32>, Header, description = "optional number of time to try a mutation operation before returning failure (0 = unlimited)"),
-        // ("Scratchpad-Name" = Option<String>, Header, description = "optional name, used to allow more than one scratchpad per owner secret")),
+        // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one scratchpad per owner secret")),
     request_body(content = DwebScratchpad, content_type = "application/json"),
     responses(
         (status = StatusCode::OK, description = "A MutateResult featuring either status 200 with cost and the network address of the created Scratchpad, or in case of error an error status code and message about the error.<br/>\

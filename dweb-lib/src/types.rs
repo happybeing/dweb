@@ -44,7 +44,7 @@ pub const SCRATCHPAD_DERIVATION_INDEX: &str = "Scratchpad derivatation index   "
 /// Note: A dweb History doesn't have its own derivation index. Instead because it
 /// is a generic type and uses the trove_type() to ensure each specific History
 /// type has a separate derivation index.
-pub const HISTORY_POINTER_DERIVATION_INDEX: &str = "History Pointer derivatatn. idx";
+pub const HISTORY_POINTER_DERIVATION_INDEX: &str = "History Pointer derivatatn. indx";
 
 /// Get the main secret key for all Pointers belonging to an owner
 pub fn pointer_secret_key_from_owner(owner_secret: SecretKey) -> SecretKey {

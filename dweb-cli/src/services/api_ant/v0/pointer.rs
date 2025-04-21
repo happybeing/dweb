@@ -34,12 +34,10 @@ use autonomi::{
 
 use dweb::helpers::retry::retry_until_ok;
 use dweb::token::Spends;
-use dweb::types::pointer_secret_key_from_owner;
+use dweb::types::POINTER_DERIVATION_INDEX;
 use dweb::{storage::DwebType, types::derive_named_object_secret};
 
-use crate::services::api_dweb::v0::{
-    process_header_and_query_params, MutateQueryParams, MutateResult,
-};
+use crate::services::api_dweb::v0::{MutateQueryParams, MutateResult, ParsedRequestParams};
 use crate::services::helpers::*;
 
 const REST_TYPE: &str = "Pointer";
@@ -49,6 +47,10 @@ const REST_TYPE: &str = "Pointer";
 /// TODO example JSON
 #[utoipa::path(
     params(("pointer_address" = String, Path, description = "the hex encoded address of a Pointer on the network"),),
+        // Support Query params using headers but don't document in the SwaggerUI to keep it simple
+        // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one pointer per owner secret")),
+        // ("Ant-Owner-Secret" = Option<String>, Header, description = "optional secret key. Used to override the key selected for use by the server (for mutation and decryption operations"),
+        // ("Ant-Derivation-Index" = Option<String>, Header, description = "optional 32 character string to use instead of the dweb default when deriving keys for objects of this type"),
     responses(
         (status = StatusCode::OK, description = "Success", body = [DwebPointer]),
         (status = StatusCode::BAD_REQUEST, description = "The pointer address is not valid"),
@@ -63,7 +65,7 @@ pub async fn pointer_get(
     client: Data<dweb::client::DwebClient>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
-    let rest_operation = "/pointer GET error";
+    let rest_operation = "/pointer GET";
     let rest_handler = "pointer_get()";
 
     let pointer_address = PointerAddress::from_hex(&pointer_address.into_inner());
@@ -90,7 +92,7 @@ pub async fn pointer_get(
             return make_error_response_page(
                 Some(StatusCode::BAD_REQUEST),
                 &mut HttpResponse::BadRequest(),
-                "/pointer GET error".to_string(),
+                rest_operation.to_string(),
                 &format!("/pointer GET failed due to invalid {REST_TYPE} address - {e}"),
             )
         }
@@ -128,7 +130,10 @@ pub async fn pointer_get(
     params(
         ("object-name" = Option<String>, Query, description = "optional name, used to allow more than one pointer per owner secret")),
         // Support Query params using headers but don't document in the SwaggerUI to keep it simple
+        // ("Ant-API-Tries" = Option<u32>, Header, description = "optional number of time to try a mutation operation before returning failure (0 = unlimited)"),
         // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one pointer per owner secret")),
+        // ("Ant-Owner-Secret" = Option<String>, Header, description = "optional secret key. Used to override the key selected for use by the server (for mutation and decryption operations"),
+        // ("Ant-Derivation-Index" = Option<String>, Header, description = "optional 32 character string to use instead of the dweb default when deriving keys for objects of this type"),
     responses(
         (status = StatusCode::OK, description = "Success", body = [DwebPointer]),
         (status = StatusCode::BAD_REQUEST, description = "The pointer address is not valid"),
@@ -143,28 +148,49 @@ pub async fn pointer_get_owned(
     client: Data<dweb::client::DwebClient>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
-    let client = &client.into_inner();
-    let (_tries, pointer_name) =
-        process_header_and_query_params(&client, request.headers(), &mut query_params.into_inner());
-
-    let rest_operation = "/pointer GET error";
+    let rest_operation = "/pointer GET";
     let rest_handler = "pointer_get_owned()";
 
-    // TODO use separate owner_secret from DwebClient when available
-    let owner_secret = match dweb::helpers::get_app_secret_key() {
-        Ok(secret_key) => secret_key,
+    let client = &client.into_inner();
+    let request_params = match ParsedRequestParams::process_header_and_mutate_query_params(
+        &client,
+        request.headers(),
+        &mut query_params.into_inner(),
+    ) {
+        Ok(params) => params,
         Err(e) => {
             return make_error_response_page(
-                Some(StatusCode::INTERNAL_SERVER_ERROR),
-                &mut HttpResponse::InternalServerError(),
+                Some(StatusCode::BAD_REQUEST),
+                &mut HttpResponse::BadRequest(),
                 rest_operation.to_string(),
-                &format!("{rest_handler} failed to get owner secret for {REST_TYPE} - {e}"),
+                &format!("{rest_operation} request error - {e}"),
             );
         }
     };
 
-    let pointer_secret =
-        derive_named_object_secret(pointer_secret_key_from_owner(owner_secret), pointer_name);
+    // TODO use separate owner_secret from DwebClient when available
+    let owner_secret =
+        request_params
+            .owner_secret
+            .unwrap_or(match dweb::helpers::get_app_secret_key() {
+                Ok(secret_key) => secret_key,
+                Err(e) => {
+                    return make_error_response_page(
+                        Some(StatusCode::INTERNAL_SERVER_ERROR),
+                        &mut HttpResponse::InternalServerError(),
+                        rest_operation.to_string(),
+                        &format!("{rest_handler} failed to get owner secret for {REST_TYPE} - {e}"),
+                    );
+                }
+            });
+
+    let pointer_secret = derive_named_object_secret(
+        owner_secret,
+        POINTER_DERIVATION_INDEX,
+        &request_params.type_derivation_index,
+        request_params.object_name,
+    );
+
     let pointer_address = PointerAddress::new(pointer_secret.public_key());
 
     let pointer = match client.client.pointer_get(&pointer_address).await {
@@ -220,6 +246,8 @@ pub async fn pointer_get_owned(
         // Support Query params using headers but don't document in the SwaggerUI to keep it simple
         // ("Ant-API-Tries" = Option<u32>, Header, description = "optional number of time to try a mutation operation before returning failure (0 = unlimited)"),
         // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one pointer per owner secret")),
+        // ("Ant-Owner-Secret" = Option<String>, Header, description = "optional secret key. Used to override the key selected for use by the server (for mutation and decryption operations"),
+        // ("Ant-Derivation-Index" = Option<String>, Header, description = "optional 32 character string to use instead of the dweb default when deriving keys for objects of this type"),
     request_body(content = DwebPointer, content_type = "application/json"),
     responses(
         (status = StatusCode::CREATED, description = "A MutateResult featuring either status 201 with cost and the network address of the created Pointer, or in case of error an error status code and message about the error.<br/>\
@@ -237,28 +265,42 @@ pub async fn pointer_post(
     client: Data<dweb::client::DwebClient>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
-    let client = &client.into_inner();
-    let (tries, pointer_name) =
-        process_header_and_query_params(&client, request.headers(), &mut query_params.into_inner());
-
     let rest_operation = "/pointer POST".to_string();
     let rest_handler = "pointer_post()";
     let dweb_type = DwebType::Pointer;
 
-    // TODO use separate owner_secret from DwebClient when available
-    let owner_secret = match dweb::helpers::get_app_secret_key() {
-        Ok(secret_key) => secret_key,
+    let client = &client.into_inner();
+    let request_params = match ParsedRequestParams::process_header_and_mutate_query_params(
+        &client,
+        request.headers(),
+        &mut query_params.into_inner(),
+    ) {
+        Ok(params) => params,
         Err(e) => {
-            return MutateResult {
-                rest_operation,
-                dweb_type,
-                status_code: StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
-                status_message: format!("{rest_handler} failed to load secret key - {e}"),
-                ..Default::default()
-            }
-            .response(rest_handler);
+            return make_error_response_page(
+                Some(StatusCode::BAD_REQUEST),
+                &mut HttpResponse::BadRequest(),
+                rest_operation.to_string(),
+                &format!("{rest_operation} request error - {e}"),
+            );
         }
     };
+
+    // TODO use separate owner_secret from DwebClient when available
+    let owner_secret =
+        request_params
+            .owner_secret
+            .unwrap_or(match dweb::helpers::get_app_secret_key() {
+                Ok(secret_key) => secret_key,
+                Err(e) => {
+                    return make_error_response_page(
+                        Some(StatusCode::INTERNAL_SERVER_ERROR),
+                        &mut HttpResponse::InternalServerError(),
+                        rest_operation.to_string(),
+                        &format!("{rest_handler} failed to get owner secret for {REST_TYPE} - {e}"),
+                    );
+                }
+            });
 
     let dweb_pointer = pointer.into_inner();
     let target = match dweb_pointer.pointer_target() {
@@ -277,12 +319,16 @@ pub async fn pointer_post(
 
     let payment_option = client.payment_option().clone();
 
-    let pointer_secret =
-        derive_named_object_secret(pointer_secret_key_from_owner(owner_secret), pointer_name);
+    let pointer_secret = derive_named_object_secret(
+        owner_secret,
+        POINTER_DERIVATION_INDEX,
+        &request_params.type_derivation_index,
+        request_params.object_name,
+    );
 
     let spends = Spends::new(&client, None).await;
     let result = retry_until_ok(
-        tries,
+        request_params.tries,
         &rest_operation,
         (pointer_secret, target, payment_option),
         async move |(pointer_secret, target, payment_option)| match client
@@ -353,6 +399,8 @@ pub async fn pointer_post(
         // Support Query params using headers but don't document in the SwaggerUI to keep it simple
         // ("Ant-API-Tries" = Option<u32>, Header, description = "optional number of time to try a mutation operation before returning failure (0 = unlimited)"),
         // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one pointer per owner secret")),
+        // ("Ant-Owner-Secret" = Option<String>, Header, description = "optional secret key. Used to override the key selected for use by the server (for mutation and decryption operations"),
+        // ("Ant-Derivation-Index" = Option<String>, Header, description = "optional 32 character string to use instead of the dweb default when deriving keys for objects of this type"),
     request_body(content = DwebPointer, content_type = "application/json"),
     responses(
         (status = StatusCode::OK, description = "A MutateResult featuring either status 200 with cost and the network address of the created Pointer, or in case of error an error status code and message about the error.<br/>\
@@ -370,29 +418,43 @@ pub async fn pointer_put(
     client: Data<dweb::client::DwebClient>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
-    let client = &client.into_inner();
-    let (tries, pointer_name) =
-        process_header_and_query_params(&client, request.headers(), &mut query_params.into_inner());
-
     let rest_operation = "/pointer PUT".to_string();
     let rest_handler = "pointer_put()";
     let dweb_type = DwebType::Pointer;
     let dweb_pointer = pointer.into_inner();
 
-    // TODO use separate owner_secret from DwebClient when available
-    let owner_secret = match dweb::helpers::get_app_secret_key() {
-        Ok(secret_key) => secret_key,
+    let client = &client.into_inner();
+    let request_params = match ParsedRequestParams::process_header_and_mutate_query_params(
+        &client,
+        request.headers(),
+        &mut query_params.into_inner(),
+    ) {
+        Ok(params) => params,
         Err(e) => {
-            return MutateResult {
-                rest_operation,
-                dweb_type,
-                status_code: StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
-                status_message: format!("{rest_handler} failed to load secret key - {e}"),
-                ..Default::default()
-            }
-            .response(rest_handler);
+            return make_error_response_page(
+                Some(StatusCode::BAD_REQUEST),
+                &mut HttpResponse::BadRequest(),
+                rest_operation.to_string(),
+                &format!("{rest_operation} request error - {e}"),
+            );
         }
     };
+
+    // TODO use separate owner_secret from DwebClient when available
+    let owner_secret =
+        request_params
+            .owner_secret
+            .unwrap_or(match dweb::helpers::get_app_secret_key() {
+                Ok(secret_key) => secret_key,
+                Err(e) => {
+                    return make_error_response_page(
+                        Some(StatusCode::INTERNAL_SERVER_ERROR),
+                        &mut HttpResponse::InternalServerError(),
+                        rest_operation.to_string(),
+                        &format!("{rest_handler} failed to get owner secret for {REST_TYPE} - {e}"),
+                    );
+                }
+            });
 
     let target = match dweb_pointer.pointer_target() {
         Ok(target) => target,
@@ -410,13 +472,18 @@ pub async fn pointer_put(
 
     let payment_option = client.payment_option().clone();
 
-    let pointer_secret =
-        derive_named_object_secret(pointer_secret_key_from_owner(owner_secret), pointer_name);
+    let pointer_secret = derive_named_object_secret(
+        owner_secret,
+        POINTER_DERIVATION_INDEX,
+        &request_params.type_derivation_index,
+        request_params.object_name,
+    );
+
     let pointer = Pointer::new(&pointer_secret, dweb_pointer.counter, target);
 
     let spends = Spends::new(&client, None).await;
     let result = retry_until_ok(
-        tries,
+        request_params.tries,
         &rest_handler,
         (pointer, payment_option),
         async move |(pointer, payment_option)| match client

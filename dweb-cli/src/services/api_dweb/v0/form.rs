@@ -163,6 +163,9 @@ pub async fn data_put_list(
     client: Data<dweb::client::DwebClient>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
+    let rest_operation = "/form-upload-file-list PUT";
+    let rest_handler = "data_put_list()";
+
     let make_public = path_params.into_inner();
     let tries = query_params.tries.unwrap_or(client.api_control.tries);
 
@@ -182,8 +185,6 @@ pub async fn data_put_list(
         put_list.mutate_results.push(mutate_result);
     }
 
-    let rest_operation = "/form-upload-file-list PUT error";
-    let rest_handler = "data_put_list()";
     let json = match serde_json::to_string(&put_list) {
         Ok(json) => json,
         Err(e) => {
@@ -191,7 +192,7 @@ pub async fn data_put_list(
                 Some(StatusCode::INTERNAL_SERVER_ERROR),
                 &mut HttpResponse::NotFound(),
                 rest_operation.to_string(),
-                &format!("{rest_handler}) failed to encode JSON result - {e}"),
+                &format!("{rest_handler} failed to encode JSON result - {e}"),
             )
         }
     };

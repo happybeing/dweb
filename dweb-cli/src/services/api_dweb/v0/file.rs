@@ -47,6 +47,8 @@ pub async fn file_get(
     client: Data<dweb::client::DwebClient>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
+    let rest_operation = "/file/{datamap_address_or_name}/{file_path:.*} GET";
+    let _rest_handler = "file_get()";
 
     let (datamap_address_or_name, file_path) = params.into_inner();
     let (datamap_chunk, history_address, mut archive_address) =
@@ -55,7 +57,7 @@ pub async fn file_get(
         return make_error_response_page(
             None,
             &mut HttpResponse::BadRequest(),
-            "/file error".to_string(),
+            rest_operation.to_string(),
             &format!("Unrecognised DWEB-NAME or invalid datamap chunk or data address: '{datamap_address_or_name}'"),
         );
     }
@@ -72,7 +74,7 @@ pub async fn file_get(
                     return make_error_response_page(
                         None,
                         &mut HttpResponse::NotFound(),
-                        "/file error".to_string(),
+                        rest_operation.to_string(),
                         &format!("/file failed to get directory History - {e}"),
                     )
                 }
@@ -85,8 +87,8 @@ pub async fn file_get(
                 return make_error_response_page(
                     None,
                     &mut HttpResponse::BadRequest(),
-                    "/file error".to_string(),
-                    &format!("/file directory History failed to get most recent version - {e}"),
+                    rest_operation.to_string(),
+                    &format!("{rest_operation} History failed to get most recent version - {e}"),
                 );
             }
         }
@@ -101,8 +103,8 @@ pub async fn file_get(
                 return make_error_response_page(
                     None,
                     &mut HttpResponse::NotFound(),
-                    "/file error".to_string(),
-                    &format!("/file failed to get directory Archive - {e}"),
+                    rest_operation.to_string(),
+                    &format!("{rest_operation} failed to get directory Archive - {e}"),
                 )
             }
         };
@@ -116,8 +118,8 @@ pub async fn file_get(
                 return make_error_response_page(
                     None,
                     &mut HttpResponse::NotFound(),
-                    "/file error".to_string(),
-                    "/file file not found in directory",
+                    rest_operation.to_string(),
+                    "{rest_operation} file not found in directory",
                 )
             }
         };
@@ -134,8 +136,8 @@ pub async fn file_get(
             return make_error_response_page(
                 None,
                 &mut HttpResponse::NotFound(),
-                "/file error".to_string(),
-                &format!("/file failed to get file from network - {e}"),
+                rest_operation.to_string(),
+                &format!("{rest_operation} failed to get file from network - {e}"),
             );
         }
     };

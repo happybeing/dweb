@@ -40,7 +40,7 @@ use crate::helpers::graph_entry::{
 use crate::helpers::retry::retry_until_ok;
 use crate::token::{show_spend_return_value, Spends};
 
-use crate::types::{derive_type_owner_secret, HISTORY_POINTER_DERIVATION_INDEX};
+use crate::types::{derive_named_object_secret, HISTORY_POINTER_DERIVATION_INDEX};
 
 const LARGEST_VERSION: u32 = u32::MAX;
 
@@ -611,7 +611,12 @@ impl<T: Trove<T> + Clone> History<T> {
 
     /// Get the main secret key for the pointer belonging to a history
     fn history_pointer_secret_key(history_secret_key: SecretKey) -> SecretKey {
-        derive_type_owner_secret(history_secret_key, &HISTORY_POINTER_DERIVATION_INDEX)
+        derive_named_object_secret(
+            history_secret_key,
+            &HISTORY_POINTER_DERIVATION_INDEX,
+            &None,
+            None,
+        )
     }
 
     /// The root graph entry of the History (not the entry for the first value).

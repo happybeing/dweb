@@ -46,26 +46,26 @@ pub const SCRATCHPAD_DERIVATION_INDEX: &str = "Scratchpad derivatation index   "
 /// type has a separate derivation index.
 pub const HISTORY_POINTER_DERIVATION_INDEX: &str = "History Pointer derivatatn. indx";
 
-/// Get the main secret key for all Pointers belonging to an owner
-pub fn pointer_secret_key_from_owner(owner_secret: SecretKey) -> SecretKey {
-    derive_type_owner_secret(owner_secret, POINTER_DERIVATION_INDEX)
-}
-
-/// Get the main secret key for all GraphEntry objects belonging to an owner
-pub fn graphentry_secret_key_from_owner(owner_secret: SecretKey) -> SecretKey {
-    derive_type_owner_secret(owner_secret, GRAPHENTRY_DERIVATION_INDEX)
-}
-
-/// Get the main secret key for all Scratchpads belonging to an owner
-pub fn scratchpad_secret_key_from_owner(owner_secret: SecretKey) -> SecretKey {
-    derive_type_owner_secret(owner_secret, SCRATCHPAD_DERIVATION_INDEX)
-}
-
-// /// Get the main secret key for all Vaults belonging to an owner
-// /// TODO see autonomi::access::keys and notes in Zim
-// pub fn vault_secret_key_from_owner(owner_secret: SecretKey) -> SecretKey {
-//     derive_type_owner_secret(owner_secret, VAULT_DERIVATION_INDEX)
+// /// Get the main secret key for all Pointers belonging to an owner
+// pub fn pointer_secret_key_from_owner(owner_secret: SecretKey) -> SecretKey {
+//     derive_type_owner_secret(owner_secret, POINTER_DERIVATION_INDEX)
 // }
+
+// /// Get the main secret key for all GraphEntry objects belonging to an owner
+// pub fn graphentry_secret_key_from_owner(owner_secret: SecretKey) -> SecretKey {
+//     derive_type_owner_secret(owner_secret, GRAPHENTRY_DERIVATION_INDEX)
+// }
+
+// /// Get the main secret key for all Scratchpads belonging to an owner
+// pub fn scratchpad_secret_key_from_owner(owner_secret: SecretKey) -> SecretKey {
+//     derive_type_owner_secret(owner_secret, SCRATCHPAD_DERIVATION_INDEX)
+// }
+
+// // /// Get the main secret key for all Vaults belonging to an owner
+// // /// TODO see autonomi::access::keys and notes in Zim
+// // pub fn vault_secret_key_from_owner(owner_secret: SecretKey) -> SecretKey {
+// //     derive_type_owner_secret(owner_secret, VAULT_DERIVATION_INDEX)
+// // }
 
 // /// Get the main secret key for all Register belonging to an owner
 // /// TODO see autonomi::access::keys and notes in Zim
@@ -73,22 +73,54 @@ pub fn scratchpad_secret_key_from_owner(owner_secret: SecretKey) -> SecretKey {
 //     derive_type_owner_secret(owner_secret, REGISTER_DERIVATION_INDEX)
 // }
 
-/// Use the secret for a type to obtain the owner secret for creating or updating a named object of that type
-pub fn derive_named_object_secret(type_owner_secret: SecretKey, name: Option<String>) -> SecretKey {
-    if name.is_some() {
-        type_owner_secret.derive_child(name.unwrap().as_bytes())
+/// Derive the object owner secret based on the dweb derivation key for the type or a supplied str, and an
+/// optional object name
+pub fn derive_named_object_secret(
+    owner_secret: SecretKey,
+    type_derivation_index: &str,
+    supplied_derivation_index: &Option<[u8; 32]>,
+    supplied_name: Option<String>,
+) -> SecretKey {
+    let object_type_derivation_index =
+        supplied_derivation_index.unwrap_or(type_derivation_index.as_bytes().try_into().unwrap());
+
+    let type_owner_secret: SecretKey = MainSecretKey::new(owner_secret)
+        .derive_key(&DerivationIndex::from_bytes(object_type_derivation_index))
+        .into();
+
+    if supplied_name.is_some() {
+        type_owner_secret.derive_child(supplied_name.unwrap().as_bytes())
     } else {
         type_owner_secret
     }
 }
 
-/// Derive a secret key for a type using its derivation index
-pub(crate) fn derive_type_owner_secret(
-    main_owner_secret: SecretKey,
-    derivation_index: &str,
-) -> SecretKey {
-    let derivation_index: [u8; 32] = derivation_index.as_bytes().try_into().unwrap();
-    MainSecretKey::new(main_owner_secret.clone())
-        .derive_key(&DerivationIndex::from_bytes(derivation_index))
-        .into()
-}
+// /// Use the secret for a type to obtain the owner secret for creating or updating a named object of that type
+// fn derive_named_object_secret(type_owner_secret: SecretKey, name: Option<String>) -> SecretKey {
+//     if name.is_some() {
+//         type_owner_secret.derive_child(name.unwrap().as_bytes())
+//     } else {
+//         type_owner_secret
+//     }
+// }
+
+// /// Derive a secret key for a type using its derivation index
+// pub fn derive_type_owner_secret_str(
+//     main_owner_secret: SecretKey,
+//     derivation_index: &str,
+// ) -> SecretKey {
+//     let derivation_index: [u8; 32] = derivation_index.as_bytes().try_into().unwrap();
+//     MainSecretKey::new(main_owner_secret.clone())
+//         .derive_key(&DerivationIndex::from_bytes(derivation_index))
+//         .into()
+// }
+
+// /// Derive a secret key for a type using its derivation index
+// fn derive_type_owner_secret(
+//     main_owner_secret: SecretKey,
+//     derivation_index: &[u8; 32],
+// ) -> SecretKey {
+//     MainSecretKey::new(main_owner_secret.clone())
+//         .derive_key(&DerivationIndex::from_bytes(*derivation_index))
+//         .into()
+// }

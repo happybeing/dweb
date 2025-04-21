@@ -25,8 +25,11 @@ use actix_web::{
     http::{header, header::ContentType, header::HeaderMap, StatusCode},
     HttpRequest, HttpResponse, HttpResponseBuilder, Responder,
 };
+use color_eyre::eyre::{eyre, Result};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+
+use autonomi::SecretKey;
 
 use dweb::client::DwebClient;
 use dweb::storage::DwebType;
@@ -43,8 +46,15 @@ use crate::services::helpers::*;
 ///
 /// tries: u32,  optional number of time to try a mutation operation before returning failure (0 = unlimited)
 pub const HEADER_ANT_API_TRIES: &str = "Ant-API-Tries";
+
 /// object_name: Option<String>,   optional name, used to allow more than one object of the relevant type per owner secret
 pub const HEADER_ANT_OBJECT_NAME: &str = "Ant-Object-Name";
+
+/// owner_secret: Option<String>,   optional secret key. Used to override the key selected for use by the server (for mutation and decryption operations)
+pub const HEADER_ANT_OWNER_SECRET: &str = "Ant-Owner-Secret";
+
+/// object_derivation_index: Option<String>,   optional 32 character string to use instead of the dweb default when deriving keys for objects of this type
+pub const HEADER_ANT_DERIVATION_INDEX: &str = "Ant-Derivation-Index";
 
 #[derive(Deserialize, ToSchema)]
 pub struct MutateQueryParams {
@@ -52,38 +62,114 @@ pub struct MutateQueryParams {
     object_name: Option<String>,
     /// The number of times to try a mutation operation until returning failure. (0 = unlimited)
     tries: Option<u32>,
+    /// ("Ant-Owner-Secret" = Option<String>, Header, description = "optional secret key. Used to override the key selected for use by the server (for mutation and decryption operations"),
+    owner_secret: Option<String>,
+    /// ("Ant-Derivation-Index" = Option<String>, Header, description = "optional 32 character string to use instead of the dweb default when deriving keys for objects of this type"),
+    type_derivation_key: Option<[u8; 32]>,
 }
 
-/// Process request headers and query parameters. Query parameters have precedance over request headers
-///
-/// Returns tuple (tries: u32, object_name: Option<String>)
-pub(crate) fn process_header_and_query_params(
-    client: &DwebClient,
-    headers: &HeaderMap,
-    query_params: &MutateQueryParams,
-) -> (u32, Option<String>) {
-    let mut tries = query_params.tries.clone();
-    if tries.is_none() {
-        if let Some(header_value) = headers.get(HEADER_ANT_API_TRIES) {
-            if let Ok(header_str) = header_value.to_str() {
-                if let Ok(tries_u32) = header_str.parse::<u32>() {
-                    tries = Some(tries_u32)
+/// Validated parameters based on request query and headers
+pub struct ParsedRequestParams {
+    /// The number of times to try a mutation operation until returning failure. (0 = unlimited)
+    pub tries: u32,
+    /// An optional name for the object being created or updated. Only one object of each type is permitted per object_name.
+    pub object_name: Option<String>,
+    /// ("Ant-Owner-Secret" = Option<String>, Header, description = "optional secret key. Used to override the key selected for use by the server (for mutation and decryption operations"),
+    pub owner_secret: Option<SecretKey>,
+    /// ("Ant-Derivation-Index" = Option<String>, Header, description = "optional 32 character string to use instead of the dweb default when deriving keys for objects of this type"),
+    pub type_derivation_index: Option<[u8; 32]>,
+}
+
+impl Default for ParsedRequestParams {
+    fn default() -> Self {
+        Self {
+            tries: 1,
+            object_name: None,
+            owner_secret: None,
+            type_derivation_index: None,
+        }
+    }
+}
+
+impl ParsedRequestParams {
+    /// Process request headers and query parameters. Query parameters have precedance over request headers
+    ///
+    /// Returns ParsedRequestParams or an error if an invalid parameter was encountered
+    pub(crate) fn process_header_and_mutate_query_params(
+        client: &DwebClient,
+        headers: &HeaderMap,
+        query_params: &MutateQueryParams,
+    ) -> Result<ParsedRequestParams> {
+        // TODO return error if appropriate - I'm not sure it is worth reporting header_valud.to_str() errors
+        let mut tries = query_params.tries.clone();
+        if tries.is_none() {
+            if let Some(header_value) = headers.get(HEADER_ANT_API_TRIES) {
+                if let Ok(header_str) = header_value.to_str() {
+                    if let Ok(tries_u32) = header_str.parse::<u32>() {
+                        tries = Some(tries_u32)
+                    }
+                };
+            };
+        }
+        let tries = tries.unwrap_or(client.api_control.tries);
+
+        // TODO return error if appropriate - I'm not sure it is worth reporting header_valud.to_str() errors
+        let mut object_name = query_params.object_name.clone();
+        if object_name.is_none() {
+            if let Some(header_value) = headers.get(HEADER_ANT_OBJECT_NAME) {
+                if let Ok(header_str) = header_value.to_str() {
+                    object_name = Some(header_str.to_string())
+                };
+            };
+        };
+
+        // TODO consider not reporting header_valud.to_str() errors
+        let mut owner_secret = None;
+        if let Some(header_value) = headers.get(HEADER_ANT_OWNER_SECRET) {
+            match header_value.to_str() {
+                Ok(header_str) => match SecretKey::from_hex(header_str) {
+                    Ok(secret) => owner_secret = Some(secret),
+                    Err(e) => {
+                        return Err(eyre!(
+                        "Request header {HEADER_ANT_OWNER_SECRET} is not a valid secret key - {e}"
+                    ))
+                    }
+                },
+                Err(e) => {
+                    return Err(eyre!(
+                        "Request header {HEADER_ANT_OWNER_SECRET} is not a string - {e}"
+                    ))
                 }
             };
         };
-    }
-    let tries = tries.unwrap_or(client.api_control.tries);
 
-    let mut object_name = query_params.object_name.clone();
-    if object_name.is_none() {
-        if let Some(header_value) = headers.get(HEADER_ANT_OBJECT_NAME) {
-            if let Ok(header_str) = header_value.to_str() {
-                object_name = Some(header_str.to_string())
+        // TODO consider not reporting header_valud.to_str() errors
+        let mut type_derivation_index = None;
+        if let Some(header_value) = headers.get(HEADER_ANT_DERIVATION_INDEX) {
+            match header_value.to_str() {
+                Ok(header_str) => {
+                    match header_str.as_bytes().try_into() {
+                        Ok(index) => type_derivation_index = Some(index),
+                        Err(e) =>
+                        return Err(eyre!("Request header {HEADER_ANT_DERIVATION_INDEX} is not a 32 character string - {e}"))
+                    }
+                },
+                Err(e) => {
+                    return Err(eyre!(
+                        "Request header {HEADER_ANT_DERIVATION_INDEX} is not a string - {e}"
+                    ))
+                }
             };
         };
-    };
 
-    (tries, object_name)
+        Ok(ParsedRequestParams {
+            tries,
+            object_name,
+            owner_secret,
+            type_derivation_index,
+            ..Default::default()
+        })
+    }
 }
 
 /// MutateResult is used to return the result of POST or PUT operations for several network data types

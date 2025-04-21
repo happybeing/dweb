@@ -162,7 +162,7 @@ pub(crate) fn make_error_response_page(
     let body = format!(
         "
     <!DOCTYPE html><head></head><body>
-    <h3>{heading}</h3>
+    <h3>{heading} error</h3>
     {status_code} {message}
     <br/><br/><a href='_back'>Go back</a>
     </body>"

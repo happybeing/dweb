@@ -31,19 +31,21 @@ use utoipa::ToSchema;
 use autonomi::ScratchpadAddress;
 
 use dweb::helpers::retry::retry_until_ok;
+use dweb::storage::DwebType;
 use dweb::token::Spends;
-use dweb::types::scratchpad_secret_key_from_owner;
-use dweb::{storage::DwebType, types::derive_named_object_secret};
+use dweb::types::{derive_named_object_secret, SCRATCHPAD_DERIVATION_INDEX};
 
-use crate::services::api_dweb::v0::{
-    process_header_and_query_params, MutateQueryParams, MutateResult,
-};
+use crate::services::api_dweb::v0::{MutateQueryParams, MutateResult, ParsedRequestParams};
 use crate::services::helpers::*;
 
 const REST_TYPE: &str = "Scratchpad";
 
 /// Get a Scratchpad from the network using a hex encoded ScratchpadAddress
 /// TODO example JSON
+///
+/// Attempts to decrypt the data with your owner secret. This will only work
+/// if you did not create the scratchpad with a name. To get a named scratchpad
+/// and decrypt its content, use the scratchpad GET without an address parameter.
 #[utoipa::path(
     params(("scratchpad_address" = String, Path, description = "the hex encoded address of a Scratchpad on the network"),),
     responses(
@@ -60,7 +62,7 @@ pub async fn scratchpad_get(
     client: Data<dweb::client::DwebClient>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
-    let rest_operation = "/scratchpad GET error";
+    let rest_operation = "/scratchpad GET";
     let rest_handler = "scratchpad_get()";
 
     let scratchpad_address = ScratchpadAddress::from_hex(&scratchpad_address.into_inner());
@@ -87,18 +89,33 @@ pub async fn scratchpad_get(
             return make_error_response_page(
                 Some(StatusCode::BAD_REQUEST),
                 &mut HttpResponse::BadRequest(),
-                "/scratchpad GET error".to_string(),
+                rest_operation.to_string(),
                 &format!("/scratchpad GET failed due to invalid {REST_TYPE} address - {e}"),
             )
         }
     };
 
-    let dweb_scratchpad = DwebScratchpad {
+    let mut dweb_scratchpad = DwebScratchpad {
         scratchpad_address: scratchpad.address().to_hex(),
         data_encoding: scratchpad.data_encoding(),
         encryped_data: scratchpad.encrypted_data().to_vec(),
         counter: scratchpad.counter(),
         ..Default::default()
+    };
+
+    // Attempt decryption. This will only work if the scratchpad was created
+    // using this owner_secret and without an object-name.
+
+    // TODO use separate owner_secret from DwebClient when available
+    match dweb::helpers::get_app_secret_key() {
+        Ok(owner_secret) => match scratchpad.decrypt_data(&derive_named_object_secret(owner_secret, SCRATCHPAD_DERIVATION_INDEX, &None, None)) {
+            Ok(bytes) => {
+                dweb_scratchpad.unencryped_data = bytes.to_vec();
+                println!("DEBUG {rest_handler} decrypted data: {bytes:?}");
+            },
+            Err(_e) => println!("DEBUG {rest_handler} scratchpad decryption failed. This will fail if scratchpad was created with an object-name. In that case use the route which takes an object-name not scratchpad_address.")
+        },
+            Err(_e) => println!("DEBUG {rest_handler} unable to decrypt content - failed to get owner_secret")
     };
 
     let json = match serde_json::to_string(&dweb_scratchpad) {
@@ -126,7 +143,10 @@ pub async fn scratchpad_get(
     params(
         ("object-name" = Option<String>, Query, description = "optional name, used to allow more than one scratchpad per owner secret")),
         // Support Query params using headers but don't document in the SwaggerUI to keep it simple
+        // ("Ant-API-Tries" = Option<u32>, Header, description = "optional number of time to try a mutation operation before returning failure (0 = unlimited)"),
         // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one scratchpad per owner secret")),
+        // ("Ant-Owner-Secret" = Option<String>, Header, description = "optional secret key. Used to override the key selected for use by the server (for mutation and decryption operations"),
+        // ("Ant-Derivation-Index" = Option<String>, Header, description = "optional 32 character string to use instead of the dweb default when deriving keys for objects of this type"),
     responses(
         (status = StatusCode::OK, description = "Success", body = [DwebScratchpad]),
         (status = StatusCode::BAD_REQUEST, description = "The scratchpad address is not valid"),
@@ -141,29 +161,47 @@ pub async fn scratchpad_get_owned(
     client: Data<dweb::client::DwebClient>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
-    let client = &client.into_inner();
-    let (_tries, scratchpad_name) =
-        process_header_and_query_params(&client, request.headers(), &mut query_params.into_inner());
-
-    let rest_operation = "/scratchpad GET error";
+    let rest_operation = "/scratchpad GET";
     let rest_handler = "scratchpad_get_owned()";
 
-    // TODO use separate owner_secret from DwebClient when available
-    let owner_secret = match dweb::helpers::get_app_secret_key() {
-        Ok(secret_key) => secret_key,
+    let client = &client.into_inner();
+    let request_params = match ParsedRequestParams::process_header_and_mutate_query_params(
+        &client,
+        request.headers(),
+        &mut query_params.into_inner(),
+    ) {
+        Ok(params) => params,
         Err(e) => {
             return make_error_response_page(
-                Some(StatusCode::INTERNAL_SERVER_ERROR),
-                &mut HttpResponse::InternalServerError(),
+                Some(StatusCode::BAD_REQUEST),
+                &mut HttpResponse::BadRequest(),
                 rest_operation.to_string(),
-                &format!("{rest_handler} failed to get owner secret for {REST_TYPE} - {e}"),
+                &format!("{rest_operation} request error - {e}"),
             );
         }
     };
 
+    // TODO use separate owner_secret from DwebClient when available
+    let owner_secret =
+        request_params
+            .owner_secret
+            .unwrap_or(match dweb::helpers::get_app_secret_key() {
+                Ok(secret_key) => secret_key,
+                Err(e) => {
+                    return make_error_response_page(
+                        Some(StatusCode::INTERNAL_SERVER_ERROR),
+                        &mut HttpResponse::InternalServerError(),
+                        rest_operation.to_string(),
+                        &format!("{rest_handler} failed to get owner secret for {REST_TYPE} - {e}"),
+                    );
+                }
+            });
+
     let scratchpad_secret = derive_named_object_secret(
-        scratchpad_secret_key_from_owner(owner_secret),
-        scratchpad_name,
+        owner_secret,
+        SCRATCHPAD_DERIVATION_INDEX,
+        &request_params.type_derivation_index,
+        request_params.object_name,
     );
     let scratchpad_address = ScratchpadAddress::new(scratchpad_secret.public_key());
 
@@ -179,9 +217,22 @@ pub async fn scratchpad_get_owned(
         }
     };
 
-    let dweb_scratchpad = DwebScratchpad {
+    let mut dweb_scratchpad = DwebScratchpad {
         scratchpad_address: scratchpad.address().to_hex(),
+        data_encoding: scratchpad.data_encoding(),
+        encryped_data: scratchpad.encrypted_data().to_vec(),
+        counter: scratchpad.counter(),
         ..Default::default()
+    };
+
+    match scratchpad.decrypt_data(&scratchpad_secret) {
+        Ok(bytes) => {
+            dweb_scratchpad.unencryped_data = bytes.to_vec();
+            println!("DEBUG {rest_operation} successfully decrypted scratchpad data");
+        }
+        Err(e) => {
+            println!("DEBUG {rest_operation} failed to decrypt scratchpad data failed - {e}")
+        }
     };
 
     let json = match serde_json::to_string(&dweb_scratchpad) {
@@ -218,6 +269,8 @@ pub async fn scratchpad_get_owned(
         // Support Query params using headers but don't document in the SwaggerUI to keep it simple
         // ("Ant-API-Tries" = Option<u32>, Header, description = "optional number of time to try a mutation operation before returning failure (0 = unlimited)"),
         // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one scratchpad per owner secret")),
+        // ("Ant-Owner-Secret" = Option<String>, Header, description = "optional secret key. Used to override the key selected for use by the server (for mutation and decryption operations"),
+        // ("Ant-Derivation-Index" = Option<String>, Header, description = "optional 32 character string to use instead of the dweb default when deriving keys for objects of this type"),
     request_body(content = DwebScratchpad, content_type = "application/json"),
     responses(
         (status = StatusCode::CREATED, description = "A MutateResult featuring either status 201 with cost and the network address of the created Scratchpad, or in case of error an error status code and message about the error.<br/>\
@@ -235,13 +288,26 @@ pub async fn scratchpad_post(
     client: Data<dweb::client::DwebClient>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
-    let client = &client.into_inner();
-    let (tries, scratchpad_name) =
-        process_header_and_query_params(&client, request.headers(), &mut query_params.into_inner());
-
     let rest_operation = "/scratchpad POST".to_string();
     let rest_handler = "scratchpad_post()";
     let dweb_type = DwebType::Scratchpad;
+
+    let client = &client.into_inner();
+    let request_params = match ParsedRequestParams::process_header_and_mutate_query_params(
+        &client,
+        request.headers(),
+        &mut query_params.into_inner(),
+    ) {
+        Ok(params) => params,
+        Err(e) => {
+            return make_error_response_page(
+                Some(StatusCode::BAD_REQUEST),
+                &mut HttpResponse::BadRequest(),
+                rest_operation.to_string(),
+                &format!("{rest_operation} request error - {e}"),
+            );
+        }
+    };
 
     // TODO use separate owner_secret from DwebClient when available
     let owner_secret = match dweb::helpers::get_app_secret_key() {
@@ -261,8 +327,10 @@ pub async fn scratchpad_post(
     let payment_option = client.payment_option().clone();
 
     let scratchpad_secret = derive_named_object_secret(
-        scratchpad_secret_key_from_owner(owner_secret),
-        scratchpad_name,
+        owner_secret,
+        SCRATCHPAD_DERIVATION_INDEX,
+        &request_params.type_derivation_index,
+        request_params.object_name,
     );
     let content_type = scratchpad.data_encoding;
 
@@ -284,7 +352,7 @@ pub async fn scratchpad_post(
 
     let spends = Spends::new(&client, None).await;
     let result = retry_until_ok(
-        tries,
+        request_params.tries,
         &rest_operation,
         (
             scratchpad_secret,
@@ -365,6 +433,8 @@ pub async fn scratchpad_post(
         // Support Query params using headers but don't document in the SwaggerUI to keep it simple
         // ("Ant-API-Tries" = Option<u32>, Header, description = "optional number of time to try a mutation operation before returning failure (0 = unlimited)"),
         // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one scratchpad per owner secret")),
+        // ("Ant-Owner-Secret" = Option<String>, Header, description = "optional secret key. Used to override the key selected for use by the server (for mutation and decryption operations"),
+        // ("Ant-Derivation-Index" = Option<String>, Header, description = "optional 32 character string to use instead of the dweb default when deriving keys for objects of this type"),
     request_body(content = DwebScratchpad, content_type = "application/json"),
     responses(
         (status = StatusCode::OK, description = "A MutateResult featuring either status 200 with cost and the network address of the created Scratchpad, or in case of error an error status code and message about the error.<br/>\
@@ -382,14 +452,27 @@ pub async fn scratchpad_put(
     client: Data<dweb::client::DwebClient>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
-    let client = &client.into_inner();
-    let (tries, scratchpad_name) =
-        process_header_and_query_params(&client, request.headers(), &mut query_params.into_inner());
-
     let rest_operation = "/scratchpad PUT".to_string();
     let rest_handler = "scratchpad_put()";
     let dweb_type = DwebType::Scratchpad;
     let dweb_scratchpad = scratchpad.into_inner();
+
+    let client = &client.into_inner();
+    let request_params = match ParsedRequestParams::process_header_and_mutate_query_params(
+        &client,
+        request.headers(),
+        &mut query_params.into_inner(),
+    ) {
+        Ok(params) => params,
+        Err(e) => {
+            return make_error_response_page(
+                Some(StatusCode::BAD_REQUEST),
+                &mut HttpResponse::BadRequest(),
+                rest_operation.to_string(),
+                &format!("{rest_operation} request error - {e}"),
+            );
+        }
+    };
 
     // TODO use separate owner_secret from DwebClient when available
     let owner_secret = match dweb::helpers::get_app_secret_key() {
@@ -407,8 +490,10 @@ pub async fn scratchpad_put(
     };
 
     let scratchpad_secret = derive_named_object_secret(
-        scratchpad_secret_key_from_owner(owner_secret),
-        scratchpad_name,
+        owner_secret,
+        SCRATCHPAD_DERIVATION_INDEX,
+        &request_params.type_derivation_index,
+        request_params.object_name,
     );
     let content_type = dweb_scratchpad.data_encoding;
 
@@ -429,7 +514,7 @@ pub async fn scratchpad_put(
     };
 
     let result = retry_until_ok(
-        tries,
+        request_params.tries,
         &rest_handler,
         (scratchpad_secret, content_type, new_data),
         async move |(scratchpad_secret, content_type, new_data)| match client

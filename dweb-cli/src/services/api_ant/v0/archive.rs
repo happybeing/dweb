@@ -40,8 +40,10 @@ use dweb::files::directory::Tree;
 use dweb::helpers::{convert::*, retry::retry_until_ok, web::*};
 use dweb::storage::DwebType;
 use dweb::trove::History;
+use dweb::types::derive_named_object_secret;
 
-use crate::services::api_dweb::v0::MutateResult;
+use crate::services::api_dweb::v0::{MutateQueryParams, MutateResult, ParsedRequestParams};
+
 use crate::services::helpers::*;
 
 // TODO archive_public_post() for POST
@@ -68,6 +70,8 @@ pub async fn archive_get(
     client: Data<dweb::client::DwebClient>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
+    let rest_operation = "/archive-version GET";
+    let rest_handler = "archive_get()";
 
     let (datamap_chunk, _history_address, archive_address) =
         tuple_from_datamap_address_or_name(&datamap_or_address);
@@ -75,12 +79,12 @@ pub async fn archive_get(
     let tree = match Tree::from_datamap_or_address(&client, datamap_chunk, archive_address).await {
         Ok(archive) => archive,
         Err(e) => {
-            let message = format!("/archive GET archive_get() failed - {e}");
+            let message = format!("{rest_operation} {rest_handler} failed - {e}");
             println!("DEBUG {message}");
             return make_error_response_page(
                 None,
                 &mut HttpResponse::BadRequest(),
-                "/archive GET error".to_string(),
+                rest_operation.to_string(),
                 &message,
             );
         }
@@ -93,8 +97,8 @@ pub async fn archive_get(
             return make_error_response_page(
                 Some(StatusCode::INTERNAL_SERVER_ERROR),
                 &mut HttpResponse::NotFound(),
-                "/archive GET error".to_string(),
-                &format!("archive GET failed to encode JSON result - {e}"),
+                rest_operation.to_string(),
+                &format!("{rest_operation} failed to encode JSON result - {e}"),
             )
         }
     };
@@ -137,6 +141,8 @@ pub async fn archive_get_version(
     client: Data<dweb::client::DwebClient>,
 ) -> HttpResponse {
     println!("DEBUG archive::get_version() {}", request.path());
+    let rest_operation = "/archive-version GET";
+    let _rest_handler = "archive::get()";
 
     let params = params.into_inner();
     let decoded_params = match parse_versioned_path_params(&params) {
@@ -145,8 +151,8 @@ pub async fn archive_get_version(
             return make_error_response_page(
                 None,
                 &mut HttpResponse::BadRequest(),
-                "/archive-version GET".to_string(),
-                "/archive-version GET invalid parameters",
+                rest_operation.to_string(),
+                "{rest_operation} invalid parameters",
             )
         }
     };
@@ -160,8 +166,8 @@ pub async fn archive_get_version(
         return make_error_response_page(
             None,
             &mut HttpResponse::BadRequest(),
-            "/archive-version GET error".to_string(),
-            &format!("/archive-version GET parameter error - unrecognised DWEB-NAME or invalid address: '{address_or_name}'"),
+            "{rest_operation} error".to_string(),
+            &format!("{rest_operation} parameter error - unrecognised DWEB-NAME or invalid address: '{address_or_name}'"),
         );
     }
 
@@ -176,12 +182,11 @@ pub async fn archive_get_version(
             {
                 Ok(history) => history,
                 Err(e) => {
-                    let message =
-                        format!("/archive-version GET failed to get directory History - {e}");
+                    let message = format!("{rest_operation} failed to get directory History - {e}");
                     return make_error_response_page(
                         None,
                         &mut HttpResponse::NotFound(),
-                        "/archive-version GET error".to_string(),
+                        "{rest_operation} error".to_string(),
                         &message,
                     );
                 }
@@ -201,11 +206,11 @@ pub async fn archive_get_version(
         {
             Ok(archive_address) => Some(archive_address),
             Err(e) => {
-                let message = format!("/archive-version GET invalid parameters - {e}");
+                let message = format!("{rest_operation} invalid parameters - {e}");
                 return make_error_response_page(
                     None,
                     &mut HttpResponse::BadRequest(),
-                    "/archive-version GET error".to_string(),
+                    "{rest_operation} error".to_string(),
                     &message,
                 );
             }
@@ -215,12 +220,12 @@ pub async fn archive_get_version(
     let tree = match Tree::from_datamap_or_address(&client, None, archive_address).await {
         Ok(archive) => archive,
         Err(e) => {
-            let message = format!("/archive-version GET archive_get() failed - {e}");
+            let message = format!("{rest_operation} archive_get() failed - {e}");
             println!("DEBUG {message}");
             return make_error_response_page(
                 None,
                 &mut HttpResponse::BadRequest(),
-                "/archive-version GET error".to_string(),
+                "{rest_operation} error".to_string(),
                 &message,
             );
         }
@@ -234,8 +239,8 @@ pub async fn archive_get_version(
             return make_error_response_page(
                 Some(StatusCode::INTERNAL_SERVER_ERROR),
                 &mut HttpResponse::NotFound(),
-                "/archive-version GET error".to_string(),
-                &format!("archive version GET failed to encode JSON result - {e}"),
+                "{rest_operation} error".to_string(),
+                &format!("{rest_operation} failed to encode JSON result - {e}"),
             )
         }
     };
@@ -273,6 +278,8 @@ pub async fn api_directory_load(
     client: Data<dweb::client::DwebClient>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
+    let rest_operation = "/directory-load GET";
+    let _rest_handler = "api_directory_load()";
 
     let params = params.into_inner();
     let decoded_params = match parse_versioned_path_params(&params) {
@@ -281,8 +288,8 @@ pub async fn api_directory_load(
             return make_error_response_page(
                 None,
                 &mut HttpResponse::BadRequest(),
-                "/directory-load error".to_string(),
-                "/directory-load invalid parameters",
+                rest_operation.to_string(),
+                "{rest_operation} invalid parameters",
             )
         }
     };
@@ -295,7 +302,7 @@ pub async fn api_directory_load(
         return make_error_response_page(
             None,
             &mut HttpResponse::BadRequest(),
-            "/directory-load error".to_string(),
+            rest_operation.to_string(),
             &format!("Unrecognised DWEB-NAME or invalid address: '{address_or_name}'"),
         );
     }
@@ -311,11 +318,11 @@ pub async fn api_directory_load(
             {
                 Ok(history) => history,
                 Err(e) => {
-                    let message = format!("/directory-load failed to get directory History - {e}");
+                    let message = format!("{rest_operation} failed to get directory History - {e}");
                     return make_error_response_page(
                         None,
                         &mut HttpResponse::NotFound(),
-                        "/directory-load error".to_string(),
+                        rest_operation.to_string(),
                         &message,
                     );
                 }
@@ -329,11 +336,11 @@ pub async fn api_directory_load(
         {
             Ok(archive_address) => archive_address,
             Err(e) => {
-                let message = format!("/directory-load invalid parameters - {e}");
+                let message = format!("{rest_operation} invalid parameters - {e}");
                 return make_error_response_page(
                     None,
                     &mut HttpResponse::BadRequest(),
-                    "/directory-load error".to_string(),
+                    rest_operation.to_string(),
                     &message,
                 );
             }
@@ -347,11 +354,11 @@ pub async fn api_directory_load(
     let directory_tree = match Tree::from_archive_address(&client, archive_address).await {
         Ok(directory_tree) => directory_tree,
         Err(e) => {
-            let message = format!("/directory-load failed to get directory Archive - {e}");
+            let message = format!("{rest_operation} failed to get directory Archive - {e}");
             return make_error_response_page(
                 None,
                 &mut HttpResponse::NotFound(),
-                "/directory-load error".to_string(),
+                rest_operation.to_string(),
                 &message,
             );
         }
@@ -378,6 +385,7 @@ struct QueryParams {
 
 /// Upload a PrivateArchive using POST request body
 ///
+/// Note: does not support request headers used for Pointer and Scratchpad (yet?)
 #[utoipa::path(
     post,
     params(
@@ -408,8 +416,7 @@ pub async fn archive_post_private(
     let private_archive = match dweb_archive.into_inner().to_private_archive() {
         Ok(archive) => archive,
         Err(_e) => {
-            let message =
-                format!("/archive-private POST failed to deserialise body as DwebArchive");
+            let message = format!("{rest_operation} failed to deserialise body as DwebArchive");
             println!("DEBUG {message}");
             return make_error_response_page(
                 Some(StatusCode::BAD_REQUEST),
@@ -427,6 +434,7 @@ pub async fn archive_post_private(
 
 /// Upload a PublicArchive using POST request body
 ///
+/// Note: does not support request headers used for Pointer and Scratchpad (yet?)
 #[utoipa::path(
     post,
     params(

@@ -69,6 +69,7 @@ pub struct MutateQueryParams {
 }
 
 /// Validated parameters based on request query and headers
+#[derive(Debug)]
 pub struct ParsedRequestParams {
     /// The number of times to try a mutation operation until returning failure. (0 = unlimited)
     pub tries: u32,
@@ -162,13 +163,16 @@ impl ParsedRequestParams {
             };
         };
 
-        Ok(ParsedRequestParams {
+        let parsed_params = ParsedRequestParams {
             tries,
             object_name,
             owner_secret,
             type_derivation_index,
             ..Default::default()
-        })
+        };
+        println!("DEBUG REST request ParsedParams: {parsed_params:?}");
+
+        Ok(parsed_params)
     }
 }
 

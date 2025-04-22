@@ -35,7 +35,8 @@ use autonomi::SecretKey;
 /// Note: the string must be exactly 32 bytes long and different from all other indices
 pub const POINTER_DERIVATION_INDEX: &str = "Pointer derivatation index      ";
 pub const GRAPHENTRY_DERIVATION_INDEX: &str = "GraphEntry derivatation index   ";
-pub const SCRATCHPAD_DERIVATION_INDEX: &str = "Scratchpad derivatation index   ";
+pub const PRIVATE_SCRATCHPAD_DERIVATION_INDEX: &str = "PublicScratchpad derivn. index  ";
+pub const PUBLIC_SCRATCHPAD_DERIVATION_INDEX: &str = "PrivateScratchpad derivn. index ";
 // TODO see autonomi::access::keys and notes in Zim
 // pub const VAULT_DERIVATION_INDEX: &str = "Vault derivatation index        ";
 // pub const REGISTER_DERIVATION_INDEX: &str = "Register derivatation index     ";

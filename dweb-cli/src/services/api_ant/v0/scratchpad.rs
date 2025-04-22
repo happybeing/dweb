@@ -28,12 +28,15 @@ use color_eyre::eyre::eyre;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use autonomi::ScratchpadAddress;
+use autonomi::{Bytes, Scratchpad, ScratchpadAddress, SecretKey};
 
 use dweb::helpers::retry::retry_until_ok;
 use dweb::storage::DwebType;
 use dweb::token::Spends;
-use dweb::types::{derive_named_object_secret, SCRATCHPAD_DERIVATION_INDEX};
+use dweb::types::{
+    derive_named_object_secret, PRIVATE_SCRATCHPAD_DERIVATION_INDEX,
+    PUBLIC_SCRATCHPAD_DERIVATION_INDEX,
+};
 
 use crate::services::api_dweb::v0::{MutateQueryParams, MutateResult, ParsedRequestParams};
 use crate::services::helpers::*;
@@ -104,16 +107,16 @@ pub async fn scratchpad_private_get(
     };
 
     // Attempt decryption. This will only work if the scratchpad was created
-    // using this owner_secret and without an object-name.
+    // using this owner_secret and without an object_name.
 
     // TODO use separate owner_secret from DwebClient when available
     match dweb::helpers::get_app_secret_key() {
-        Ok(owner_secret) => match scratchpad.decrypt_data(&derive_named_object_secret(owner_secret, SCRATCHPAD_DERIVATION_INDEX, &None, None)) {
+        Ok(owner_secret) => match scratchpad.decrypt_data(&derive_named_object_secret(owner_secret, PRIVATE_SCRATCHPAD_DERIVATION_INDEX, &None, None)) {
             Ok(bytes) => {
                 dweb_scratchpad.unencryped_data = bytes.to_vec();
                 println!("DEBUG {rest_handler} decrypted data: {bytes:?}");
             },
-            Err(_e) => println!("DEBUG {rest_handler} scratchpad decryption failed. This will fail if scratchpad was created with an object-name. In that case use the route which takes an object-name not scratchpad_address.")
+            Err(_e) => println!("DEBUG {rest_handler} scratchpad decryption failed. This will fail if scratchpad was created with an object_name. In that case use the route which takes an object_name not scratchpad_address.")
         },
             Err(_e) => println!("DEBUG {rest_handler} unable to decrypt content - failed to get owner_secret")
     };
@@ -141,7 +144,7 @@ pub async fn scratchpad_private_get(
 /// TODO example JSON
 #[utoipa::path(
     params(
-        ("object-name" = Option<String>, Query, description = "optional name, used to allow more than one scratchpad per owner secret")),
+        ("object_name" = Option<String>, Query, description = "optional name, used to allow more than one scratchpad per owner secret")),
         // Support Query params using headers but don't document in the SwaggerUI to keep it simple
         // ("Ant-API-Tries" = Option<u32>, Header, description = "optional number of time to try a mutation operation before returning failure (0 = unlimited)"),
         // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one scratchpad per owner secret")),
@@ -200,7 +203,7 @@ pub async fn scratchpad_private_get_owned(
 
     let scratchpad_secret = derive_named_object_secret(
         owner_secret,
-        SCRATCHPAD_DERIVATION_INDEX,
+        PRIVATE_SCRATCHPAD_DERIVATION_INDEX,
         &request_params.type_derivation_index,
         request_params.object_name,
     );
@@ -267,7 +270,7 @@ pub async fn scratchpad_private_get_owned(
     post,
     params(
         ("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi upload API for each put, 0 means unlimited. This overrides the API control setting in the server."),
-        ("object-name" = Option<String>, Query, description = "optional name, used to allow more than one scratchpad per owner secret")),
+        ("object_name" = Option<String>, Query, description = "optional name, used to allow more than one scratchpad per owner secret")),
         // Support Query params using headers but don't document in the SwaggerUI to keep it simple
         // ("Ant-API-Tries" = Option<u32>, Header, description = "optional number of time to try a mutation operation before returning failure (0 = unlimited)"),
         // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one scratchpad per owner secret")),
@@ -331,7 +334,7 @@ pub async fn scratchpad_private_post(
 
     let scratchpad_secret = derive_named_object_secret(
         owner_secret,
-        SCRATCHPAD_DERIVATION_INDEX,
+        PRIVATE_SCRATCHPAD_DERIVATION_INDEX,
         &request_params.type_derivation_index,
         request_params.object_name,
     );
@@ -432,7 +435,7 @@ pub async fn scratchpad_private_post(
     put,
     params(
         ("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi upload API for each put, 0 means unlimited. This overrides the API control setting in the server."),
-        ("object-name" = Option<String>, Query, description = "optional name, used to allow more than one scratchpad per owner secret")),
+        ("object_name" = Option<String>, Query, description = "optional name, used to allow more than one scratchpad per owner secret")),
         // Support Query params using headers but don't document in the SwaggerUI to keep it simple
         // ("Ant-API-Tries" = Option<u32>, Header, description = "optional number of time to try a mutation operation before returning failure (0 = unlimited)"),
         // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one scratchpad per owner secret")),
@@ -495,7 +498,7 @@ pub async fn scratchpad_private_put(
 
     let scratchpad_secret = derive_named_object_secret(
         owner_secret,
-        SCRATCHPAD_DERIVATION_INDEX,
+        PRIVATE_SCRATCHPAD_DERIVATION_INDEX,
         &request_params.type_derivation_index,
         request_params.object_name,
     );
@@ -617,27 +620,12 @@ pub async fn scratchpad_public_get(
     };
 
     let mut dweb_scratchpad = DwebScratchpad {
-        dweb_type: DwebType::PrivateScratchpad,
+        dweb_type: DwebType::PublicScratchpad,
         scratchpad_address: scratchpad.address().to_hex(),
         data_encoding: scratchpad.data_encoding(),
-        encryped_data: scratchpad.encrypted_data().to_vec(),
+        unencryped_data: scratchpad.encrypted_data().to_vec(),
         counter: scratchpad.counter(),
         ..Default::default()
-    };
-
-    // Attempt decryption. This will only work if the scratchpad was created
-    // using this owner_secret and without an object-name.
-
-    // TODO use separate owner_secret from DwebClient when available
-    match dweb::helpers::get_app_secret_key() {
-        Ok(owner_secret) => match scratchpad.decrypt_data(&derive_named_object_secret(owner_secret, SCRATCHPAD_DERIVATION_INDEX, &None, None)) {
-            Ok(bytes) => {
-                dweb_scratchpad.unencryped_data = bytes.to_vec();
-                println!("DEBUG {rest_handler} decrypted data: {bytes:?}");
-            },
-            Err(_e) => println!("DEBUG {rest_handler} scratchpad decryption failed. This will fail if scratchpad was created with an object-name. In that case use the route which takes an object-name not scratchpad_address.")
-        },
-            Err(_e) => println!("DEBUG {rest_handler} unable to decrypt content - failed to get owner_secret")
     };
 
     let json = match serde_json::to_string(&dweb_scratchpad) {
@@ -665,7 +653,7 @@ pub async fn scratchpad_public_get(
 /// Scratchpad data is assumed to be unencrypted
 #[utoipa::path(
     params(
-        ("object-name" = Option<String>, Query, description = "optional name, used to allow more than one scratchpad per owner secret")),
+        ("object_name" = Option<String>, Query, description = "optional name, used to allow more than one scratchpad per owner secret")),
         // Support Query params using headers but don't document in the SwaggerUI to keep it simple
         // ("Ant-API-Tries" = Option<u32>, Header, description = "optional number of time to try a mutation operation before returning failure (0 = unlimited)"),
         // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one scratchpad per owner secret")),
@@ -724,7 +712,7 @@ pub async fn scratchpad_public_get_owned(
 
     let scratchpad_secret = derive_named_object_secret(
         owner_secret,
-        SCRATCHPAD_DERIVATION_INDEX,
+        PUBLIC_SCRATCHPAD_DERIVATION_INDEX,
         &request_params.type_derivation_index,
         request_params.object_name,
     );
@@ -743,10 +731,10 @@ pub async fn scratchpad_public_get_owned(
     };
 
     let mut dweb_scratchpad = DwebScratchpad {
-        dweb_type: DwebType::PrivateScratchpad,
+        dweb_type: DwebType::PublicScratchpad,
         scratchpad_address: scratchpad.address().to_hex(),
         data_encoding: scratchpad.data_encoding(),
-        encryped_data: scratchpad.encrypted_data().to_vec(),
+        unencryped_data: scratchpad.encrypted_data().to_vec(),
         counter: scratchpad.counter(),
         ..Default::default()
     };
@@ -793,7 +781,7 @@ pub async fn scratchpad_public_get_owned(
     post,
     params(
         ("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi upload API for each put, 0 means unlimited. This overrides the API control setting in the server."),
-        ("object-name" = Option<String>, Query, description = "optional name, used to allow more than one scratchpad per owner secret")),
+        ("object_name" = Option<String>, Query, description = "optional name, used to allow more than one scratchpad per owner secret")),
         // Support Query params using headers but don't document in the SwaggerUI to keep it simple
         // ("Ant-API-Tries" = Option<u32>, Header, description = "optional number of time to try a mutation operation before returning failure (0 = unlimited)"),
         // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one scratchpad per owner secret")),
@@ -857,7 +845,7 @@ pub async fn scratchpad_public_post(
 
     let scratchpad_secret = derive_named_object_secret(
         owner_secret,
-        SCRATCHPAD_DERIVATION_INDEX,
+        PUBLIC_SCRATCHPAD_DERIVATION_INDEX,
         &request_params.type_derivation_index,
         request_params.object_name,
     );
@@ -879,24 +867,17 @@ pub async fn scratchpad_public_post(
         }
     };
 
+    let public_scratchpad =
+        create_public_scratchpad(&scratchpad_secret, content_type, &initial_data, 0);
+
     let spends = Spends::new(&client, None).await;
     let result = retry_until_ok(
         request_params.tries,
         &rest_operation,
-        (
-            scratchpad_secret,
-            content_type,
-            initial_data,
-            payment_option,
-        ),
-        async move |(scratchpad_secret, content_type, initial_data, payment_option)| match client
+        (public_scratchpad, payment_option),
+        async move |(public_scratchpad, payment_option)| match client
             .client
-            .scratchpad_create(
-                &scratchpad_secret,
-                content_type,
-                &initial_data,
-                payment_option,
-            )
+            .scratchpad_put(public_scratchpad, payment_option)
             .await
         {
             Ok(result) => Ok(result),
@@ -960,7 +941,7 @@ pub async fn scratchpad_public_post(
     put,
     params(
         ("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi upload API for each put, 0 means unlimited. This overrides the API control setting in the server."),
-        ("object-name" = Option<String>, Query, description = "optional name, used to allow more than one scratchpad per owner secret")),
+        ("object_name" = Option<String>, Query, description = "optional name, used to allow more than one scratchpad per owner secret")),
         // Support Query params using headers but don't document in the SwaggerUI to keep it simple
         // ("Ant-API-Tries" = Option<u32>, Header, description = "optional number of time to try a mutation operation before returning failure (0 = unlimited)"),
         // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one scratchpad per owner secret")),
@@ -1006,6 +987,8 @@ pub async fn scratchpad_public_put(
         }
     };
 
+    let payment_option = client.payment_option().clone();
+
     // TODO use separate owner_secret from DwebClient when available
     let owner_secret = match dweb::helpers::get_app_secret_key() {
         Ok(secret_key) => secret_key,
@@ -1023,7 +1006,7 @@ pub async fn scratchpad_public_put(
 
     let scratchpad_secret = derive_named_object_secret(
         owner_secret,
-        SCRATCHPAD_DERIVATION_INDEX,
+        PUBLIC_SCRATCHPAD_DERIVATION_INDEX,
         &request_params.type_derivation_index,
         request_params.object_name,
     );
@@ -1045,13 +1028,22 @@ pub async fn scratchpad_public_put(
         }
     };
 
+    let public_scratchpad = create_public_scratchpad(
+        &scratchpad_secret,
+        content_type,
+        &new_data,
+        dweb_scratchpad.counter,
+    );
+
+    // Updates to a public Scratchpad are charged because an Autonomi API limitation
+    let spends = Spends::new(&client, None).await;
     let result = retry_until_ok(
         request_params.tries,
         &rest_handler,
-        (scratchpad_secret, content_type, new_data),
-        async move |(scratchpad_secret, content_type, new_data)| match client
+        (public_scratchpad, payment_option),
+        async move |(public_scratchpad, payment_option)| match client
             .client
-            .scratchpad_update(&scratchpad_secret, content_type, &new_data)
+            .scratchpad_put(public_scratchpad, payment_option)
             .await
         {
             Ok(result) => Ok(result),
@@ -1063,11 +1055,25 @@ pub async fn scratchpad_public_put(
     match result {
         Ok(_) => {
             println!("DEBUG {rest_handler} stored {REST_TYPE} on the network",);
+            let (cost_in_ant, cost_in_arb_eth) = match spends {
+                Ok(spends) => {
+                    let (cost_in_ant, cost_in_arb_eth) = spends.get_spend_strings().await;
+                    println!("DEBUG {rest_operation} cost in ANT  : {cost_in_ant}");
+                    println!("DEBUG {rest_operation} cost in ARB-ETH: {cost_in_arb_eth}");
+                    (cost_in_ant, cost_in_arb_eth)
+                }
+                Err(e) => {
+                    println!("DEBUG {rest_operation} error: unable to report Spends - {e}");
+                    ("unkown".to_string(), "unknown".to_string())
+                }
+            };
             MutateResult {
                 rest_operation,
                 dweb_type,
                 status_code: StatusCode::OK.as_u16(),
                 status_message: "success".to_string(),
+                cost_in_ant,
+                cost_in_arb_eth,
                 ..Default::default()
             }
             .response(rest_handler)
@@ -1087,6 +1093,34 @@ pub async fn scratchpad_public_put(
         }
     }
 }
+
+/// Create a new public Scratchpad (offline)
+fn create_public_scratchpad(
+    scratchpad_secret: &SecretKey,
+    data_encoding: u64,
+    unencrypted_data: &Bytes,
+    counter: u64,
+) -> Scratchpad {
+    println!("DEBUG Creating public scratchpad with encoding {data_encoding}");
+    let owner_public = scratchpad_secret.public_key();
+    let address = ScratchpadAddress::new(owner_public);
+
+    // We don't encrypt of course
+    let encrypted_data = unencrypted_data.clone();
+
+    let bytes_to_sign =
+        Scratchpad::bytes_for_signature(address, data_encoding, &encrypted_data, counter);
+    let signature = scratchpad_secret.sign(&bytes_to_sign);
+
+    Scratchpad::new_with_signature(
+        owner_public,
+        data_encoding,
+        encrypted_data,
+        counter,
+        signature,
+    )
+}
+
 /// A representation of the Autonomi Scratchpad for web clients
 ///
 /// Exactly one target is allowed, so make sure unused targets are empty strings

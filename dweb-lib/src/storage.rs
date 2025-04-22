@@ -48,7 +48,8 @@ pub enum DwebType {
     History,
     Register,
     Pointer,
-    Scratchpad,
+    PublicScratchpad,
+    PrivateScratchpad,
     Vault,
     Unknown,
 }

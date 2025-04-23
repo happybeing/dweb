@@ -23,6 +23,7 @@ use std::time::{Duration, UNIX_EPOCH};
 use ant_protocol::storage::{GraphEntry, GraphEntryAddress, Pointer, PointerAddress};
 use autonomi::client::key_derivation::{DerivationIndex, MainPubkey};
 use autonomi::files::archive_public::ArchiveAddress;
+use autonomi::{Scratchpad, ScratchpadAddress};
 
 use dweb::client::DwebClient;
 use dweb::files::directory::Tree;
@@ -206,7 +207,7 @@ pub async fn handle_inspect_pointer(
     let pointer = match client.client.pointer_get(&pointer_address).await {
         Ok(pointer) => pointer,
         Err(e) => {
-            let message = format!("Failed to get pointer from network - {e}");
+            let message = format!("Failed to get Pointer from network - {e}");
             println!("{message}");
             return Err(eyre!(message));
         }
@@ -221,6 +222,34 @@ fn print_pointer(pointer: &Pointer, pointer_address: &PointerAddress) {
     println!("pointer     : {}", pointer_address.to_hex());
     println!("  target    : {:x}", pointer.target().xorname());
     println!("  counter   : {}", pointer.counter());
+}
+
+/// Implement 'inspect-pointer' subcommand
+pub async fn handle_inspect_scratchpad(
+    client: DwebClient,
+    scratchpad_address: ScratchpadAddress,
+) -> Result<()> {
+    let scratchpad = match client.client.scratchpad_get(&scratchpad_address).await {
+        Ok(scratchpad) => scratchpad,
+        Err(e) => {
+            let message = format!("Failed to get Scratchpad from network - {e}");
+            println!("{message}");
+            return Err(eyre!(message));
+        }
+    };
+
+    print_scratchpad(&scratchpad, &scratchpad_address);
+
+    Ok(())
+}
+
+fn print_scratchpad(scratchpad: &Scratchpad, scratchpad_address: &ScratchpadAddress) {
+    println!("scratchpad  : {}", scratchpad_address.to_hex());
+    println!("  encoding  : {:x}", scratchpad.data_encoding());
+    println!("  counter   : {}", scratchpad.counter());
+    println!("  owner     : {}", scratchpad.owner().to_hex());
+    println!("  counter   : {}", scratchpad.counter());
+    println!("  data      : {:?}", scratchpad.encrypted_data());
 }
 
 /// Implement 'inspect-graphentry' subcommand

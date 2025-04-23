@@ -587,7 +587,7 @@ impl DwebPointer {
     }
 
     pub fn chunk_address_target(&self) -> Result<ChunkAddress> {
-        Self::into_result(|| ChunkAddress::try_from_hex(&self.chunk_address_target))
+        Self::into_result(|| ChunkAddress::from_hex(&self.chunk_address_target))
     }
 
     pub fn graphentry_address_target(&self) -> Result<GraphEntryAddress> {

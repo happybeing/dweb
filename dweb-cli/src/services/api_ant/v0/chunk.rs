@@ -67,7 +67,7 @@ pub async fn chunk_get(
     let rest_operation = "/chunk GET";
     let rest_handler = "chunk_get()";
 
-    let chunk_address = match ChunkAddress::try_from_hex(&chunk_address) {
+    let chunk_address = match ChunkAddress::from_hex(&chunk_address) {
         Ok(address) => address,
         Err(e) => {
             return make_error_response_page(
@@ -137,8 +137,8 @@ pub async fn chunk_post(
     if chunk.is_too_big() {
         let status_code = StatusCode::from_u16(413).unwrap_or(StatusCode::BAD_REQUEST);
         let status_message = format!(
-            "{rest_operation} failed because request body exceeds Chunk::DEFAULT_MAX_SIZE ({} bytes)",
-            Chunk::DEFAULT_MAX_SIZE
+            "{rest_operation} failed because request body exceeds Chunk::MAX_SIZE ({} bytes)",
+            Chunk::MAX_SIZE
         );
         println!("DEBUG {status_message}");
         return make_error_response_page(

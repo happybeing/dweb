@@ -23,6 +23,7 @@ use autonomi::client::data::DataAddress;
 use autonomi::client::files::archive_public::ArchiveAddress;
 use autonomi::GraphEntryAddress;
 use autonomi::PointerAddress;
+use autonomi::ScratchpadAddress;
 
 use crate::cache::directory_with_name::HISTORY_NAMES;
 use crate::trove::HistoryAddress;
@@ -52,7 +53,7 @@ pub fn str_to_history_address(str: &str) -> Result<HistoryAddress> {
 pub fn str_to_graph_entry_address(str: &str) -> Result<GraphEntryAddress> {
     match GraphEntryAddress::from_hex(str) {
         Ok(graphentry_address) => Ok(graphentry_address),
-        Err(e) => Err(eyre!("Invalid graph entry address string '{str}':\n{e:?}")),
+        Err(e) => Err(eyre!("Invalid GraphEntry address string '{str}':\n{e:?}")),
     }
 }
 
@@ -60,7 +61,15 @@ pub fn str_to_graph_entry_address(str: &str) -> Result<GraphEntryAddress> {
 pub fn str_to_pointer_address(str: &str) -> Result<PointerAddress> {
     match PointerAddress::from_hex(str) {
         Ok(pointer_address) => Ok(pointer_address),
-        Err(e) => Err(eyre!("Invalid pointer address string '{str}':\n{e:?}")),
+        Err(e) => Err(eyre!("Invalid Pointer address string '{str}':\n{e:?}")),
+    }
+}
+
+/// Parse a hex ScratchpadAddress
+pub fn str_to_scratchpad_address(str: &str) -> Result<ScratchpadAddress> {
+    match ScratchpadAddress::from_hex(str) {
+        Ok(scratchpad_address) => Ok(scratchpad_address),
+        Err(e) => Err(eyre!("Invalid Scratchpad address string '{str}':\n{e:?}")),
     }
 }
 
@@ -228,7 +237,7 @@ pub fn awe_str_to_history_address(str: &str) -> Result<HistoryAddress> {
     match str_to_history_address(str) {
         Ok(history_address) => Ok(history_address),
         Err(e) => Err(eyre!(
-            "Invalid History (pointer) address string '{str}':\n{e:?}"
+            "Invalid History (Pointer) address string '{str}':\n{e:?}"
         )),
     }
 }
@@ -243,7 +252,7 @@ pub fn awe_str_to_pointer_address(str: &str) -> Result<PointerAddress> {
 
     match str_to_pointer_address(str) {
         Ok(pointer_address) => Ok(pointer_address),
-        Err(e) => Err(eyre!("Invalid pointer address string '{str}':\n{e:?}")),
+        Err(e) => Err(eyre!("Invalid Pointer address string '{str}':\n{e:?}")),
     }
 }
 

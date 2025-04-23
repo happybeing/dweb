@@ -108,11 +108,15 @@ impl DwebClient {
     /// variable. For example, setting this to 'arbitrum-sepolia' selects the
     /// Artbitrum test network.
     pub async fn initialise_and_connect(
-        peers: InitialPeersConfig,
+        init_peers_config: InitialPeersConfig,
         api_control: ApiControl,
     ) -> Result<DwebClient> {
         println!("Dweb Autonomi client initialising...");
-        let client = crate::autonomi::actions::connect_to_network(peers).await?;
+        let config = autonomi::ClientConfig {
+            init_peers_config,
+            ..Default::default()
+        };
+        let client = autonomi::client::Client::init_with_config(config).await?;
 
         let mut wallet = match load_evm_wallet_from_env(&client.evm_network()) {
             Ok(wallet) => wallet,

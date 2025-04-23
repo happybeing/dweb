@@ -372,6 +372,22 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             }
         }
 
+        Some(Subcommands::Inspect_scratchpad { scratchpad_address }) => {
+            let (client, _) = connect_and_announce(opt.peers, ApiControl::default(), true).await;
+            match crate::commands::cmd_inspect::handle_inspect_scratchpad(
+                client,
+                scratchpad_address,
+            )
+            .await
+            {
+                Ok(()) => return Ok(true),
+                Err(e) => {
+                    println!("{e:?}");
+                    return Err(e);
+                }
+            }
+        }
+
         Some(Subcommands::Inspect_files {
             archive_address,
             files_args,

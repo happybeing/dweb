@@ -213,7 +213,11 @@ async fn test_fetch_file(
 
 async fn manual_test_connect() -> impl Responder {
     let opt = Opt::parse();
-    if let Ok(_client) = dweb::autonomi::actions::connect_to_network(opt.peers).await {
+    let config = autonomi::ClientConfig {
+        init_peers_config: opt.peers,
+        ..Default::default()
+    };
+    if let Ok(_client) = autonomi::client::Client::init_with_config(config).await {
         return HttpResponse::Ok().body(
             "Testing connect to Autonomi..\
         SUCCESS!",

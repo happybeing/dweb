@@ -28,6 +28,7 @@ use autonomi::files::archive_public::ArchiveAddress;
 use autonomi::GraphEntryAddress;
 use autonomi::InitialPeersConfig;
 use autonomi::PointerAddress;
+use autonomi::ScratchpadAddress;
 
 use dweb::helpers::convert::*;
 use dweb::token::ShowCost;
@@ -359,13 +360,13 @@ pub enum Subcommands {
     /// Print information about a history of data stored on Autonomi.
     #[allow(non_camel_case_types)]
     Inspect_history {
-        /// The address of a history on Autonomi
+        /// The address of a History on Autonomi
         /// TODO add ability to query the server so this can be HISTORY-ADDRESS-OR-NAME
         /// TODO note that to use recognised names (DWEB-NAME) the server must be running
         #[clap(name = "HISTORY-ADDRESS")]
         address_or_name: String,
 
-        /// Print a summary of the history including type (the value of entry 0) and number of entries
+        /// Print a summary of the History including type (the value of entry 0) and number of entries
         #[clap(long = "full", short = 'f', default_value = "false")]
         print_history_full: bool,
 
@@ -376,7 +377,7 @@ pub enum Subcommands {
         #[clap(long = "entries", short = 'e', value_name = "RANGE", value_parser = str_to_entries_range )]
         entries_range: Option<EntriesRange>,
 
-        /// Shorten graph entry hex strings to the first six characters plus '..'
+        /// Shorten GraphEntry hex strings to the first six characters plus '..'
         #[clap(long = "brief", short = 'b', default_value = "false")]
         shorten_hex_strings: bool,
 
@@ -391,7 +392,7 @@ pub enum Subcommands {
         )]
         include_files: bool,
 
-        /// Show the public keys in a graph entry rather than the addresses
+        /// Show the public keys in a GraphEntry rather than the addresses
         /// of parent/descendents in the entry. Default is to show the
         /// addresses.
         #[clap(long = "graph-with-keys", short = 'k', default_value = "false")]
@@ -401,23 +402,23 @@ pub enum Subcommands {
         files_args: FilesArgs,
     },
 
-    /// Print information about a graph entry stored on Autonomi.
+    /// Print information about a GraphEntry stored on Autonomi.
     ///
     /// Note: descendents are shown as public keys rather than addresses. This is for
-    /// two reasons. Firstly this is what is stored in the graph entry, and secondly
+    /// two reasons. Firstly this is what is stored in the GraphEntry, and secondly
     /// they cannot be converted to addresses without the main public key of the History
     /// or Register which created them. I assume this is to prevent someone finding a
-    /// graph entry and then following the graph without having the public key of
+    /// GraphEntry and then following the graph without having the public key of
     /// the History or Register. If you wish to follow the graph, see the inspect-history
     /// command.
     // TODO: [ ] inspect-graph --root-address|--history-address|--pointer-address
     #[allow(non_camel_case_types)]
     Inspect_graphentry {
-        /// The address of a graph entry on Autonomi
+        /// The address of a GraphEntry on Autonomi
         #[clap(name = "GRAPHENTRY-ADDRESS", value_parser = str_to_graph_entry_address)]
         graph_entry_address: GraphEntryAddress,
 
-        /// Print full details of graph entry
+        /// Print full details of GraphEntry
         #[clap(long = "full", short = 'f', default_value = "false")]
         print_full: bool,
 
@@ -426,12 +427,20 @@ pub enum Subcommands {
         shorten_hex_strings: bool,
     },
 
-    /// Print information about a pointer stored on Autonomi
+    /// Print information about a Pointer stored on Autonomi
     #[allow(non_camel_case_types)]
     Inspect_pointer {
-        /// The address of a pointer on Autonomi
+        /// The address of a Pointer on Autonomi
         #[clap(name = "POINTER-ADDRESS", value_parser = str_to_pointer_address)]
         pointer_address: PointerAddress,
+    },
+
+    /// Print information about a Scratchpad stored on Autonomi
+    #[allow(non_camel_case_types)]
+    Inspect_scratchpad {
+        /// The address of a Scratchpad on Autonomi
+        #[clap(name = "SCRATCHPAD-ADDRESS", value_parser = str_to_scratchpad_address)]
+        scratchpad_address: ScratchpadAddress,
     },
 
     /// Print information about files in a directory on Autonomi

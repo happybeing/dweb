@@ -353,13 +353,16 @@ I welcome requests for specific features and general design of the API.
 dweb uses OpenAPI to document all the APIs, and these can be viewed by starting a dweb server and opening the Swagger UI:
 ```
 dweb serve
+```
+Then in another terminal:
+```
 dweb openapi-docs
 ```
 <img src="./misc/screenshot-swagger-ui.png" alt="Screenshot of Swagger UI">
 
-Some sample APIs are listed below but the Swagger UI provides a complete reference and playground.
+A sample of each kind of API are listed below but the Swagger UI provides a complete reference and live playground.
 
-APIs designed for manual input in the browser address bar:
+Example APIs designed for manual input in the browser address bar:
 - **/dweb-open** - open a website or directory by version (optional), address or name
 - **/dweb-open-as** - open a website or directory by version (optional) or address, and register a dweb name with the server
 - **/dweb-version** - select the most recent or a specified version of the displayed website
@@ -367,10 +370,19 @@ APIs designed for manual input in the browser address bar:
 
 Note: /dweb-open and /dweb-open-as are also used inside a website to link to other websites on Autonomi.
 
-APIs intended for access by apps:
+Example APIs intended for access by apps (Autonomi RESTful API):
+- **/ant-0/chunk**           - individual chunks (up to 4MB)
+- **/ant-0/data**           - arbitrary data (unlimited size)
+- **/ant-0/archive-public** - metadata for stored (see also /archive-private)
+- **/ant-0/scratchpad-public**    - re-writeable storage (see also /scratchpad-private)
+
+Example APIs intended for access by apps (dweb extensions):
+- **/dweb-0/form-upload-file-list** - multi-part upload of one or more files
+- **/dweb-0/directory-load**    - given an address or name, returns a directory tree (Archive) in JSON format
 - **/dweb-0/name-register**     - register a dweb name for an address
 - **/dweb-0/name-list**         - get a list of dweb names registered with the local server
-- **/dweb-0/directory-load**    - given an address or name, returns a directory tree (Archive) in JSON format
+
+The above show a small sample of the APIs implemented so far. To see the full APIs visit the OpenAPI docs as explained above.
 
 #### Rust API
 dweb APIs are also accessible from Rust in dweb-lib. This includes selected HTTP APIs making it easier to access features without handling HTTP requests and responses directly.

@@ -20,6 +20,7 @@ pub fn collect_upload_summary(
     let stats_thread = tokio::spawn(async move {
         let mut tokens_spent: Amount = Amount::from(0);
         let mut record_count = 0;
+        let mut records_already_paid = 0;
 
         loop {
             tokio::select! {
@@ -27,7 +28,8 @@ pub fn collect_upload_summary(
                     match event {
                         Some(ClientEvent::UploadComplete(upload_summary)) => {
                             tokens_spent += upload_summary.tokens_spent;
-                            record_count += upload_summary.record_count;
+                            record_count += upload_summary.records_paid;
+                            records_already_paid += upload_summary.records_already_paid;
                         }
                         None => break,
                     }
@@ -41,14 +43,16 @@ pub fn collect_upload_summary(
             match event {
                 ClientEvent::UploadComplete(upload_summary) => {
                     tokens_spent += upload_summary.tokens_spent;
-                    record_count += upload_summary.record_count;
+                    record_count += upload_summary.records_paid;
+                    records_already_paid += upload_summary.records_already_paid;
                 }
             }
         }
 
         UploadSummary {
             tokens_spent,
-            record_count,
+            records_paid: record_count,
+            records_already_paid,
         }
     });
 

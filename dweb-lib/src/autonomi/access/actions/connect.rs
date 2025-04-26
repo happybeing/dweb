@@ -12,7 +12,9 @@ use color_eyre::eyre::eyre;
 use indicatif::ProgressBar;
 use std::time::Duration;
 
-use super::super::exit_code::{connect_error_exit_code, evm_util_error_exit_code, ExitCodeError};
+use crate::autonomi::exit_code::{
+    connect_error_exit_code, evm_util_error_exit_code, ExitCodeError,
+};
 
 pub async fn connect_to_network(
     init_peers_config: InitialPeersConfig,

@@ -21,15 +21,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 //! for interaction with the Autonomi peer-to-peer storage
 //! network.
 //!
-use bytes::Bytes;
 use color_eyre::Result;
 
-use autonomi::client::data::DataAddress;
-use autonomi::client::{payment::PaymentOption, Client, GetError};
+use autonomi::client::{payment::PaymentOption, Client};
 use autonomi::{InitialPeersConfig, TransactionConfig};
 use autonomi::{Network, Wallet};
 
-use crate::autonomi::access::keys::load_evm_wallet_from_env;
 use crate::token::{Rate, ShowCost};
 
 /// Control how dweb uses and reports on selected Autonomi APIs
@@ -112,13 +109,15 @@ impl DwebClient {
         api_control: ApiControl,
     ) -> Result<DwebClient> {
         println!("Dweb Autonomi client initialising...");
+        let evm_network = autonomi::get_evm_network(init_peers_config.local)?;
         let config = autonomi::ClientConfig {
             init_peers_config,
+            evm_network,
             ..Default::default()
         };
-        let client = autonomi::client::Client::init_with_config(config).await?;
 
-        let mut wallet = match load_evm_wallet_from_env(&client.evm_network()) {
+        let client = autonomi::client::Client::init_with_config(config).await?;
+        let mut wallet = match crate::autonomi::wallet::load_wallet(&client.evm_network()) {
             Ok(wallet) => wallet,
             Err(_e) => {
                 let client = client.clone();
@@ -126,6 +125,20 @@ impl DwebClient {
                 Wallet::new_with_random_wallet(client.evm_network().clone())
             }
         };
+        if let Some(max_fee_per_gas) = api_control.max_fee_per_gas {
+            wallet.set_transaction_config(TransactionConfig::new(max_fee_per_gas))
+        }
+
+        // println!
+        println!("DEBUG loaded wallet: {}", wallet.address());
+        println!(
+            "DEBUG     tokens: {}",
+            wallet.balance_of_tokens().await.unwrap()
+        );
+        println!(
+            "DEBUG     gas   : {}",
+            wallet.balance_of_gas_tokens().await.unwrap()
+        );
 
         if let Some(max_fee_per_gas) = api_control.max_fee_per_gas {
             wallet.set_transaction_config(TransactionConfig::new(max_fee_per_gas));

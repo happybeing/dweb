@@ -619,7 +619,7 @@ pub async fn scratchpad_public_get(
         }
     };
 
-    let mut dweb_scratchpad = DwebScratchpad {
+    let dweb_scratchpad = DwebScratchpad {
         dweb_type: DwebType::PublicScratchpad,
         scratchpad_address: scratchpad.address().to_hex(),
         data_encoding: scratchpad.data_encoding(),

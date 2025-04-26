@@ -225,14 +225,20 @@ impl Rate {
         // Scale up the rate by factor -> f32 an
         let scaled_rate = U256::from(self.rate * factor);
         let scaled_value = scaled_rate * tokens.as_atto();
-        let scaled_value = scaled_value.to::<u64>();
-        let value = match format!("{scaled_value}").parse::<f32>() {
-            Ok(scaled_value) => (scaled_value / factor) / UNITS_PER_TOKEN_F32,
+        let scaled_u64: u64 = match scaled_value.try_into() {
+            Ok(scaled_u64) => scaled_u64,
             Err(_) => {
-                return "[Invalid value]".to_string();
+                return "[Out of range]".to_string();
             }
         };
 
-        format!("{}{value:.8}", self.currency).to_string()
+        match format!("{scaled_u64}").parse::<f32>() {
+            Ok(scaled_value) => format!(
+                "{}{:.8}",
+                self.currency.to_string(),
+                (scaled_value / factor) / UNITS_PER_TOKEN_F32
+            ),
+            Err(_) => "[Invalid value]".to_string(),
+        }
     }
 }

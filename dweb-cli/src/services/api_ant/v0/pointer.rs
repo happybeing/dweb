@@ -101,7 +101,7 @@ pub async fn pointer_get(
     let dweb_pointer = DwebPointer {
         pointer_address: pointer.address().to_hex(),
         counter: pointer.counter(),
-        chunk_address_target: pointer.target().to_hex(),
+        chunk_target_address: pointer.target().to_hex(),
         ..Default::default()
     };
 
@@ -128,7 +128,7 @@ pub async fn pointer_get(
 /// TODO example JSON
 #[utoipa::path(
     params(
-        ("object-name" = Option<String>, Query, description = "optional name, used to allow more than one pointer per owner secret")),
+        ("object_name" = Option<String>, Query, description = "optional name, used to allow more than one pointer per owner secret")),
         // Support Query params using headers but don't document in the SwaggerUI to keep it simple
         // ("Ant-API-Tries" = Option<u32>, Header, description = "optional number of time to try a mutation operation before returning failure (0 = unlimited)"),
         // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one pointer per owner secret")),
@@ -208,7 +208,7 @@ pub async fn pointer_get_owned(
     let dweb_pointer = DwebPointer {
         pointer_address: pointer.address().to_hex(),
         counter: pointer.counter(),
-        chunk_address_target: pointer.target().to_hex(),
+        chunk_target_address: pointer.target().to_hex(),
         ..Default::default()
     };
 
@@ -242,7 +242,7 @@ pub async fn pointer_get_owned(
     post,
     params(
         ("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi upload API for each put, 0 means unlimited. This overrides the API control setting in the server."),
-        ("object-name" = Option<String>, Query, description = "optional name, used to allow more than one pointer per owner secret")),
+        ("object_name" = Option<String>, Query, description = "optional name, used to allow more than one pointer per owner secret")),
         // Support Query params using headers but don't document in the SwaggerUI to keep it simple
         // ("Ant-API-Tries" = Option<u32>, Header, description = "optional number of time to try a mutation operation before returning failure (0 = unlimited)"),
         // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one pointer per owner secret")),
@@ -269,6 +269,7 @@ pub async fn pointer_post(
     let rest_handler = "pointer_post()";
     let dweb_type = DwebType::Pointer;
 
+    println!("DEBUG REST query_params: {query_params:?}");
     let client = &client.into_inner();
     let request_params = match ParsedRequestParams::process_header_and_mutate_query_params(
         &client,
@@ -395,7 +396,7 @@ pub async fn pointer_post(
     put,
     params(
         ("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi upload API for each put, 0 means unlimited. This overrides the API control setting in the server."),
-        ("object-name" = Option<String>, Query, description = "optional name, used to allow more than one pointer per owner secret")),
+        ("object_name" = Option<String>, Query, description = "optional name, used to allow more than one pointer per owner secret")),
         // Support Query params using headers but don't document in the SwaggerUI to keep it simple
         // ("Ant-API-Tries" = Option<u32>, Header, description = "optional number of time to try a mutation operation before returning failure (0 = unlimited)"),
         // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one pointer per owner secret")),
@@ -552,10 +553,10 @@ pub struct DwebPointer {
     pointer_address: String,
     counter: u32,
     /// Only one target is permitted per pointer, each for a different type. Unused targets should be empty strings
-    chunk_address_target: String,
-    graphentry_address_target: String,
-    pointer_address_target: String,
-    scratchpad_address_target: String,
+    chunk_target_address: String,
+    graphentry_target_address: String,
+    pointer_target_address: String,
+    scratchpad_target_address: String,
 }
 
 impl Default for DwebPointer {
@@ -563,43 +564,43 @@ impl Default for DwebPointer {
         DwebPointer {
             pointer_address: "".to_string(),
             counter: 0,
-            chunk_address_target: "".to_string(),
-            graphentry_address_target: "".to_string(),
-            pointer_address_target: "".to_string(),
-            scratchpad_address_target: "".to_string(),
+            chunk_target_address: "".to_string(),
+            graphentry_target_address: "".to_string(),
+            pointer_target_address: "".to_string(),
+            scratchpad_target_address: "".to_string(),
         }
     }
 }
 
 impl DwebPointer {
     pub fn pointer_target(&self) -> Result<PointerTarget> {
-        if let Ok(target_address) = self.chunk_address_target() {
+        if let Ok(target_address) = self.chunk_target_address() {
             Ok(PointerTarget::ChunkAddress(target_address))
-        } else if let Ok(target_address) = self.graphentry_address_target() {
+        } else if let Ok(target_address) = self.graphentry_target_address() {
             Ok(PointerTarget::GraphEntryAddress(target_address))
-        } else if let Ok(target_address) = self.pointer_address_target() {
+        } else if let Ok(target_address) = self.pointer_target_address() {
             Ok(PointerTarget::PointerAddress(target_address))
-        } else if let Ok(target_address) = self.scratchpad_address_target() {
+        } else if let Ok(target_address) = self.scratchpad_target_address() {
             Ok(PointerTarget::ScratchpadAddress(target_address))
         } else {
             Err(eyre!("missing or invalid Pointer target"))
         }
     }
 
-    pub fn chunk_address_target(&self) -> Result<ChunkAddress> {
-        Self::into_result(|| ChunkAddress::from_hex(&self.chunk_address_target))
+    pub fn chunk_target_address(&self) -> Result<ChunkAddress> {
+        Self::into_result(|| ChunkAddress::from_hex(&self.chunk_target_address))
     }
 
-    pub fn graphentry_address_target(&self) -> Result<GraphEntryAddress> {
-        Self::into_result(|| GraphEntryAddress::from_hex(&self.graphentry_address_target))
+    pub fn graphentry_target_address(&self) -> Result<GraphEntryAddress> {
+        Self::into_result(|| GraphEntryAddress::from_hex(&self.graphentry_target_address))
     }
 
-    pub fn pointer_address_target(&self) -> Result<PointerAddress> {
-        Self::into_result(|| PointerAddress::from_hex(&self.pointer_address_target))
+    pub fn pointer_target_address(&self) -> Result<PointerAddress> {
+        Self::into_result(|| PointerAddress::from_hex(&self.pointer_target_address))
     }
 
-    pub fn scratchpad_address_target(&self) -> Result<ScratchpadAddress> {
-        Self::into_result(|| ScratchpadAddress::from_hex(&self.scratchpad_address_target))
+    pub fn scratchpad_target_address(&self) -> Result<ScratchpadAddress> {
+        Self::into_result(|| ScratchpadAddress::from_hex(&self.scratchpad_target_address))
     }
 
     fn into_result<F, A>(f: F) -> Result<A>

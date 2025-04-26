@@ -56,7 +56,7 @@ pub const HEADER_ANT_OWNER_SECRET: &str = "Ant-Owner-Secret";
 /// object_derivation_index: Option<String>,   optional 32 character string to use instead of the dweb default when deriving keys for objects of this type
 pub const HEADER_ANT_DERIVATION_INDEX: &str = "Ant-Derivation-Index";
 
-#[derive(Deserialize, ToSchema)]
+#[derive(Deserialize, Debug, ToSchema)]
 pub struct MutateQueryParams {
     /// An optional name for the object being created or updated. Only one object of each type is permitted per object_name.
     object_name: Option<String>,

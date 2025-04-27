@@ -20,12 +20,14 @@ pub mod form;
 pub mod name;
 // pub mod publish;
 
+use std::str::FromStr;
+
 use actix_web::{
     get,
     http::{header, header::ContentType, header::HeaderMap, StatusCode},
     HttpRequest, HttpResponse, HttpResponseBuilder, Responder,
 };
-use color_eyre::eyre::{eyre, Result};
+use color_eyre::eyre::{eyre, ErrReport, Result};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -56,6 +58,56 @@ pub const HEADER_ANT_OWNER_SECRET: &str = "Ant-Owner-Secret";
 /// object_derivation_index: Option<String>,   optional 32 character string to use instead of the dweb default when deriving keys for objects of this type
 pub const HEADER_ANT_DERIVATION_INDEX: &str = "Ant-Derivation-Index";
 
+/// App identity headers
+///
+/// These enable not just the app to identify itself but to partition and identify the ownership of data created by an
+/// app. Also, to refer to the data created by another app.
+///
+/// a unique string identifier for this app (as suggested by Autonomi and used to derive the VaultContentType used by an app)
+pub const HEADER_ANT_APP_ID: &str = "Ant-App-ID";
+/// the identifier of another app so this app can access data created by any app for which it knows the identifier
+pub const HEADER_ANT_OTHER_APP_ID: &str = "Ant-Other-App-ID";
+/// a string value from one of the following, which indicates which id to use when deriving a mutable data address from
+/// the owner secret for the REST mutation (e.g. POST creating a new object).
+///
+///    "none" (default) - use default owner secret without app specificity when deriving the address for mutation (e.g. for POST/create)
+///    "app-id" - use Ant-App-ID when deriving an owner key (e.g. when creating an object) This acts like an extra "object name"
+///    "other-app-id" - use the value of Ant-Other-App-ID instead of Ant-App-ID
+///    "dweb-id" - use the History or Archive address from which this app was loaded. Error if not known
+pub const HEADER_ANT_APP_OWNER_MODE: &str = "Ant-App-Owner-Mode";
+
+#[derive(Debug)]
+pub enum DwebOwnerMode {
+    None,
+    AppID,
+    OtherAppID,
+    DwebID,
+}
+
+impl DwebOwnerMode {
+    pub fn value(&self) -> &str {
+        match self {
+            DwebOwnerMode::None => "none",
+            DwebOwnerMode::AppID => "app-id",
+            DwebOwnerMode::OtherAppID => "other-app-id",
+            DwebOwnerMode::DwebID => "dweb-id",
+        }
+    }
+}
+
+impl std::str::FromStr for DwebOwnerMode {
+    type Err = ErrReport;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_lowercase().as_str() {
+            "none" => Ok(DwebOwnerMode::None),
+            "app-id" => Ok(DwebOwnerMode::AppID),
+            "other-app-id" => Ok(DwebOwnerMode::OtherAppID),
+            "dweb-id" => Ok(DwebOwnerMode::DwebID),
+            _ => Err(eyre!("Invalid DwebOwnerMode: {s}")),
+        }
+    }
+}
 #[derive(Deserialize, Debug, ToSchema)]
 pub struct MutateQueryParams {
     /// An optional name for the object being created or updated. Only one object of each type is permitted per object_name.
@@ -79,6 +131,13 @@ pub struct ParsedRequestParams {
     pub owner_secret: Option<SecretKey>,
     /// ("Ant-Derivation-Index" = Option<String>, Header, description = "optional 32 character string to use instead of the dweb default when deriving keys for objects of this type"),
     pub type_derivation_index: Option<[u8; 32]>,
+    /// optional unique string identifier for this app (as suggested by Autonomi and used to derive the VaultContentType used by an app)
+    pub app_id: Option<String>,
+    /// the identifier of another app so this app can access data created by any app for which it knows the identifier
+    pub other_app_id: Option<String>,
+    /// app identifier mode that determines which id string to use when deriving a mutable data address from
+    /// the owner secret for the REST mutation (e.g. POST creating a new object).
+    pub owner_mode: DwebOwnerMode,
 }
 
 impl Default for ParsedRequestParams {
@@ -88,6 +147,9 @@ impl Default for ParsedRequestParams {
             object_name: None,
             owner_secret: None,
             type_derivation_index: None,
+            app_id: None,
+            other_app_id: None,
+            owner_mode: DwebOwnerMode::None,
         }
     }
 }
@@ -163,16 +225,64 @@ impl ParsedRequestParams {
             };
         };
 
-        let parsed_params = ParsedRequestParams {
+        let mut parsed_params = ParsedRequestParams {
             tries,
             object_name,
             owner_secret,
             type_derivation_index,
             ..Default::default()
         };
+
+        parsed_params.parse_app_id_header_params(headers)?;
+
         println!("DEBUG REST request ParsedParams: {parsed_params:?}");
 
         Ok(parsed_params)
+    }
+
+    /// Parse any app id headers
+    fn parse_app_id_header_params(&mut self, headers: &HeaderMap) -> Result<()> {
+        if let Some(header_value) = headers.get(HEADER_ANT_APP_ID) {
+            match header_value.to_str() {
+                Ok(header_str) => self.app_id = Some(header_str.to_string()),
+                Err(e) => {
+                    return Err(eyre!(
+                        "Request header {HEADER_ANT_APP_ID} is not a string - {e}"
+                    ))
+                }
+            };
+        }
+
+        if let Some(header_value) = headers.get(HEADER_ANT_OTHER_APP_ID) {
+            match header_value.to_str() {
+                Ok(header_str) => self.other_app_id = Some(header_str.to_string()),
+                Err(e) => {
+                    return Err(eyre!(
+                        "Request header {HEADER_ANT_OTHER_APP_ID} is not a string - {e}"
+                    ))
+                }
+            };
+        }
+
+        if let Some(header_value) = headers.get(HEADER_ANT_APP_OWNER_MODE) {
+            match header_value.to_str() {
+                Ok(header_str) => match DwebOwnerMode::from_str(header_str) {
+                    Ok(owner_mode) => self.owner_mode = owner_mode,
+                    Err(e) => {
+                        return Err(eyre!(
+                            "Request header {HEADER_ANT_APP_OWNER_MODE} is not valid - {e}"
+                        ))
+                    }
+                },
+                Err(e) => {
+                    return Err(eyre!(
+                        "Request header {HEADER_ANT_APP_OWNER_MODE} is not a string - {e}"
+                    ))
+                }
+            };
+        }
+
+        Ok(())
     }
 }
 

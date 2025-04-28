@@ -28,14 +28,15 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use autonomi::{
-    pointer::PointerTarget, AddressParseError, ChunkAddress, GraphEntryAddress, Pointer,
-    PointerAddress, ScratchpadAddress,
+    data::DataAddress, pointer::PointerTarget, AddressParseError, ChunkAddress, GraphEntryAddress,
+    Pointer, PointerAddress, ScratchpadAddress,
 };
 
 use dweb::helpers::retry::retry_until_ok;
+use dweb::storage::DwebType;
 use dweb::token::Spends;
+use dweb::trove::HistoryAddress;
 use dweb::types::POINTER_DERIVATION_INDEX;
-use dweb::{storage::DwebType, types::derive_named_object_secret};
 
 use crate::services::api_dweb::v0::{MutateQueryParams, MutateResult, ParsedRequestParams};
 use crate::services::helpers::*;
@@ -48,7 +49,7 @@ const REST_TYPE: &str = "Pointer";
 #[utoipa::path(
     params(("pointer_address" = String, Path, description = "the hex encoded address of a Pointer on the network"),),
         // Support Query params using headers but don't document in the SwaggerUI to keep it simple
-        // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one pointer per owner secret")),
+        // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one pointer per owner secret/app id combination")),
         // ("Ant-Owner-Secret" = Option<String>, Header, description = "optional secret key. Used to override the key selected for use by the server (for mutation and decryption operations"),
         // ("Ant-Derivation-Index" = Option<String>, Header, description = "optional 32 character string to use instead of the dweb default when deriving keys for objects of this type"),
     responses(
@@ -128,10 +129,13 @@ pub async fn pointer_get(
 /// TODO example JSON
 #[utoipa::path(
     params(
-        ("object_name" = Option<String>, Query, description = "optional name, used to allow more than one pointer per owner secret")),
+        ("object_name" = Option<String>, Query, description = "optional name, used to allow more than one pointer per owner secret/app id combination"),
+        ("Ant-App-ID" = Option<String>, Header, description = "a unique string identifier for this app (as suggested by Autonomi and used to derive the VaultContentType used by an app)"),
+        ("Ant-Other-App-ID" = Option<String>, Header, description = "the identifier of another app so this app can access data created by any app for which it knows the identifier"),
+        ("Ant-App-Owner-Mode" = Option<String>, Header, description = "the DwebOwnerMode which determines what is to be used for the app ID in this operation: none | app-id | other-app-id | dweb-id")),
         // Support Query params using headers but don't document in the SwaggerUI to keep it simple
         // ("Ant-API-Tries" = Option<u32>, Header, description = "optional number of time to try a mutation operation before returning failure (0 = unlimited)"),
-        // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one pointer per owner secret")),
+        // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one pointer per owner secret/app id combination")),
         // ("Ant-Owner-Secret" = Option<String>, Header, description = "optional secret key. Used to override the key selected for use by the server (for mutation and decryption operations"),
         // ("Ant-Derivation-Index" = Option<String>, Header, description = "optional 32 character string to use instead of the dweb default when deriving keys for objects of this type"),
     responses(
@@ -146,13 +150,15 @@ pub async fn pointer_get_owned(
     query_params: web::Query<MutateQueryParams>,
     request: HttpRequest,
     client: Data<dweb::client::DwebClient>,
+    history_address: Data<Option<HistoryAddress>>,
+    archive_address: Data<Option<DataAddress>>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
     let rest_operation = "/pointer GET";
     let rest_handler = "pointer_get_owned()";
 
     let client = &client.into_inner();
-    let request_params = match ParsedRequestParams::process_header_and_mutate_query_params(
+    let request_params = match ParsedRequestParams::process_mutable_type_header_and_query_params(
         &client,
         request.headers(),
         &mut query_params.into_inner(),
@@ -168,28 +174,23 @@ pub async fn pointer_get_owned(
         }
     };
 
-    // TODO use separate owner_secret from DwebClient when available
-    let owner_secret =
-        request_params
-            .owner_secret
-            .unwrap_or(match dweb::helpers::get_app_secret_key() {
-                Ok(secret_key) => secret_key,
-                Err(e) => {
-                    return make_error_response_page(
-                        Some(StatusCode::INTERNAL_SERVER_ERROR),
-                        &mut HttpResponse::InternalServerError(),
-                        rest_operation.to_string(),
-                        &format!("{rest_handler} failed to get owner secret for {REST_TYPE} - {e}"),
-                    );
-                }
-            });
-
-    let pointer_secret = derive_named_object_secret(
-        owner_secret,
+    // This method contains the logic for determining which if any app ID is to
+    // be used as well as deriving the object's owner secret.
+    let pointer_secret = match request_params.derive_object_owner_secret(
         POINTER_DERIVATION_INDEX,
-        &request_params.type_derivation_index,
-        request_params.object_name,
-    );
+        &history_address.into_inner(),
+        &archive_address.into_inner(),
+    ) {
+        Ok(derived_secret) => derived_secret,
+        Err(e) => {
+            return make_error_response_page(
+                Some(StatusCode::BAD_REQUEST),
+                &mut HttpResponse::BadRequest(),
+                rest_operation.to_string(),
+                &format!("{rest_handler} failed to derive owner secret for {REST_TYPE} - {e}"),
+            );
+        }
+    };
 
     let pointer_address = PointerAddress::new(pointer_secret.public_key());
 
@@ -242,10 +243,13 @@ pub async fn pointer_get_owned(
     post,
     params(
         ("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi upload API for each put, 0 means unlimited. This overrides the API control setting in the server."),
-        ("object_name" = Option<String>, Query, description = "optional name, used to allow more than one pointer per owner secret")),
-        // Support Query params using headers but don't document in the SwaggerUI to keep it simple
+        ("object_name" = Option<String>, Query, description = "optional name, used to allow more than one pointer per owner secret/app id combination"),
+        ("Ant-App-ID" = Option<String>, Header, description = "a unique string identifier for this app (as suggested by Autonomi and used to derive the VaultContentType used by an app)"),
+        ("Ant-Other-App-ID" = Option<String>, Header, description = "the identifier of another app so this app can access data created by any app for which it knows the identifier"),
+        ("Ant-App-Owner-Mode" = Option<String>, Header, description = "the DwebOwnerMode which determines what is to be used for the app ID in this operation: none | app-id | other-app-id | dweb-id")),
+        // Support for query params using headers but don't document in the SwaggerUI to keep it simple
         // ("Ant-API-Tries" = Option<u32>, Header, description = "optional number of time to try a mutation operation before returning failure (0 = unlimited)"),
-        // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one pointer per owner secret")),
+        // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one pointer per owner secret/app id combination")),
         // ("Ant-Owner-Secret" = Option<String>, Header, description = "optional secret key. Used to override the key selected for use by the server (for mutation and decryption operations"),
         // ("Ant-Derivation-Index" = Option<String>, Header, description = "optional 32 character string to use instead of the dweb default when deriving keys for objects of this type"),
     request_body(content = DwebPointer, content_type = "application/json"),
@@ -263,6 +267,8 @@ pub async fn pointer_post(
     pointer: web::Json<DwebPointer>,
     query_params: web::Query<MutateQueryParams>,
     client: Data<dweb::client::DwebClient>,
+    history_address: Data<Option<HistoryAddress>>,
+    archive_address: Data<Option<DataAddress>>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
     let rest_operation = "/pointer POST".to_string();
@@ -271,7 +277,7 @@ pub async fn pointer_post(
 
     println!("DEBUG REST query_params: {query_params:?}");
     let client = &client.into_inner();
-    let request_params = match ParsedRequestParams::process_header_and_mutate_query_params(
+    let request_params = match ParsedRequestParams::process_mutable_type_header_and_query_params(
         &client,
         request.headers(),
         &mut query_params.into_inner(),
@@ -287,21 +293,23 @@ pub async fn pointer_post(
         }
     };
 
-    // TODO use separate owner_secret from DwebClient when available
-    let owner_secret =
-        request_params
-            .owner_secret
-            .unwrap_or(match dweb::helpers::get_app_secret_key() {
-                Ok(secret_key) => secret_key,
-                Err(e) => {
-                    return make_error_response_page(
-                        Some(StatusCode::INTERNAL_SERVER_ERROR),
-                        &mut HttpResponse::InternalServerError(),
-                        rest_operation.to_string(),
-                        &format!("{rest_handler} failed to get owner secret for {REST_TYPE} - {e}"),
-                    );
-                }
-            });
+    // This method contains the logic for determining which if any app ID is to
+    // be used as well as deriving the object's owner secret.
+    let pointer_secret = match request_params.derive_object_owner_secret(
+        POINTER_DERIVATION_INDEX,
+        &history_address.into_inner(),
+        &archive_address.into_inner(),
+    ) {
+        Ok(derived_secret) => derived_secret,
+        Err(e) => {
+            return make_error_response_page(
+                Some(StatusCode::BAD_REQUEST),
+                &mut HttpResponse::BadRequest(),
+                rest_operation.to_string(),
+                &format!("{rest_handler} failed to derive owner secret for {REST_TYPE} - {e}"),
+            );
+        }
+    };
 
     let dweb_pointer = pointer.into_inner();
     let target = match dweb_pointer.pointer_target() {
@@ -319,13 +327,6 @@ pub async fn pointer_post(
     };
 
     let payment_option = client.payment_option().clone();
-
-    let pointer_secret = derive_named_object_secret(
-        owner_secret,
-        POINTER_DERIVATION_INDEX,
-        &request_params.type_derivation_index,
-        request_params.object_name,
-    );
 
     let spends = Spends::new(&client, None).await;
     let result = retry_until_ok(
@@ -396,10 +397,13 @@ pub async fn pointer_post(
     put,
     params(
         ("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi upload API for each put, 0 means unlimited. This overrides the API control setting in the server."),
-        ("object_name" = Option<String>, Query, description = "optional name, used to allow more than one pointer per owner secret")),
+        ("object_name" = Option<String>, Query, description = "optional name, used to allow more than one pointer per owner secret/app id combination"),
+        ("Ant-App-ID" = Option<String>, Header, description = "a unique string identifier for this app (as suggested by Autonomi and used to derive the VaultContentType used by an app)"),
+        ("Ant-Other-App-ID" = Option<String>, Header, description = "the identifier of another app so this app can access data created by any app for which it knows the identifier"),
+        ("Ant-App-Owner-Mode" = String, Header, description = "the identifier of another app so this app can access data created by any app for which it knows the identifier")),
         // Support Query params using headers but don't document in the SwaggerUI to keep it simple
         // ("Ant-API-Tries" = Option<u32>, Header, description = "optional number of time to try a mutation operation before returning failure (0 = unlimited)"),
-        // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one pointer per owner secret")),
+        // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one pointer per owner secret/app id combination")),
         // ("Ant-Owner-Secret" = Option<String>, Header, description = "optional secret key. Used to override the key selected for use by the server (for mutation and decryption operations"),
         // ("Ant-Derivation-Index" = Option<String>, Header, description = "optional 32 character string to use instead of the dweb default when deriving keys for objects of this type"),
     request_body(content = DwebPointer, content_type = "application/json"),
@@ -417,6 +421,8 @@ pub async fn pointer_put(
     pointer: web::Json<DwebPointer>,
     query_params: web::Query<MutateQueryParams>,
     client: Data<dweb::client::DwebClient>,
+    history_address: Data<Option<HistoryAddress>>,
+    archive_address: Data<Option<DataAddress>>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
     let rest_operation = "/pointer PUT".to_string();
@@ -424,8 +430,9 @@ pub async fn pointer_put(
     let dweb_type = DwebType::Pointer;
     let dweb_pointer = pointer.into_inner();
 
+    println!("DEBUG REST query_params: {query_params:?}");
     let client = &client.into_inner();
-    let request_params = match ParsedRequestParams::process_header_and_mutate_query_params(
+    let request_params = match ParsedRequestParams::process_mutable_type_header_and_query_params(
         &client,
         request.headers(),
         &mut query_params.into_inner(),
@@ -441,21 +448,23 @@ pub async fn pointer_put(
         }
     };
 
-    // TODO use separate owner_secret from DwebClient when available
-    let owner_secret =
-        request_params
-            .owner_secret
-            .unwrap_or(match dweb::helpers::get_app_secret_key() {
-                Ok(secret_key) => secret_key,
-                Err(e) => {
-                    return make_error_response_page(
-                        Some(StatusCode::INTERNAL_SERVER_ERROR),
-                        &mut HttpResponse::InternalServerError(),
-                        rest_operation.to_string(),
-                        &format!("{rest_handler} failed to get owner secret for {REST_TYPE} - {e}"),
-                    );
-                }
-            });
+    // This method contains the logic for determining which if any app ID is to
+    // be used as well as deriving the object's owner secret.
+    let pointer_secret = match request_params.derive_object_owner_secret(
+        POINTER_DERIVATION_INDEX,
+        &history_address.into_inner(),
+        &archive_address.into_inner(),
+    ) {
+        Ok(derived_secret) => derived_secret,
+        Err(e) => {
+            return make_error_response_page(
+                Some(StatusCode::BAD_REQUEST),
+                &mut HttpResponse::BadRequest(),
+                rest_operation.to_string(),
+                &format!("{rest_handler} failed to derive owner secret for {REST_TYPE} - {e}"),
+            );
+        }
+    };
 
     let target = match dweb_pointer.pointer_target() {
         Ok(target) => target,
@@ -472,14 +481,6 @@ pub async fn pointer_put(
     };
 
     let payment_option = client.payment_option().clone();
-
-    let pointer_secret = derive_named_object_secret(
-        owner_secret,
-        POINTER_DERIVATION_INDEX,
-        &request_params.type_derivation_index,
-        request_params.object_name,
-    );
-
     let pointer = Pointer::new(&pointer_secret, dweb_pointer.counter, target);
 
     let spends = Spends::new(&client, None).await;

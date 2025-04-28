@@ -74,9 +74,48 @@ pub const HISTORY_POINTER_DERIVATION_INDEX: &str = "History Pointer derivatatn. 
 //     derive_type_owner_secret(owner_secret, REGISTER_DERIVATION_INDEX)
 // }
 
+/// Derive the object owner secret when creating a mutable data object (e.g. Pointer or Scratchpad)
+///
+/// The owner_secret for a mutable objecct is based on the dweb derivation key for the type or a supplied string, an
+/// optional object name and optional app identifying strings from request headers.
+///
+/// If all mutable objects were created with the owner_secret they would all have the same address and only one
+/// would be permitted. To allow multiple objects to be created, the secret used to create them can be derived
+/// from from the owner secret using one or more derivation indexes (32 byte sequences) or strings (such as an app identifier
+/// and object name).
+pub fn derive_named_object_secret(
+    // Main owner secret
+    owner_secret: SecretKey,
+    // The dweb derivation index for the type
+    type_derivation_index: &str,
+    // Optional override of type_derivation_index (e.g. from request headers)
+    supplied_derivation_index: &Option<[u8; 32]>,
+    // Optional app ID to tie ownership of data to this app
+    app_id: Option<String>,
+    // Optional object name to differentiate objects of a type that are otherwise within the same scope
+    supplied_name: Option<String>,
+) -> SecretKey {
+    let object_type_derivation_index =
+        supplied_derivation_index.unwrap_or(type_derivation_index.as_bytes().try_into().unwrap());
+
+    let mut type_owner_secret: SecretKey = MainSecretKey::new(owner_secret)
+        .derive_key(&DerivationIndex::from_bytes(object_type_derivation_index))
+        .into();
+
+    if app_id.is_some() {
+        type_owner_secret = type_owner_secret.derive_child(app_id.unwrap().as_bytes());
+    };
+
+    if supplied_name.is_some() {
+        type_owner_secret.derive_child(supplied_name.unwrap().as_bytes())
+    } else {
+        type_owner_secret
+    }
+}
+
 /// Derive the object owner secret based on the dweb derivation key for the type or a supplied str, and an
 /// optional object name
-pub fn derive_named_object_secret(
+pub fn derive_named_object_secret_old(
     owner_secret: SecretKey,
     type_derivation_index: &str,
     supplied_derivation_index: &Option<[u8; 32]>,
@@ -95,33 +134,3 @@ pub fn derive_named_object_secret(
         type_owner_secret
     }
 }
-
-// /// Use the secret for a type to obtain the owner secret for creating or updating a named object of that type
-// fn derive_named_object_secret(type_owner_secret: SecretKey, name: Option<String>) -> SecretKey {
-//     if name.is_some() {
-//         type_owner_secret.derive_child(name.unwrap().as_bytes())
-//     } else {
-//         type_owner_secret
-//     }
-// }
-
-// /// Derive a secret key for a type using its derivation index
-// pub fn derive_type_owner_secret_str(
-//     main_owner_secret: SecretKey,
-//     derivation_index: &str,
-// ) -> SecretKey {
-//     let derivation_index: [u8; 32] = derivation_index.as_bytes().try_into().unwrap();
-//     MainSecretKey::new(main_owner_secret.clone())
-//         .derive_key(&DerivationIndex::from_bytes(derivation_index))
-//         .into()
-// }
-
-// /// Derive a secret key for a type using its derivation index
-// fn derive_type_owner_secret(
-//     main_owner_secret: SecretKey,
-//     derivation_index: &[u8; 32],
-// ) -> SecretKey {
-//     MainSecretKey::new(main_owner_secret.clone())
-//         .derive_key(&DerivationIndex::from_bytes(*derivation_index))
-//         .into()
-// }

@@ -31,10 +31,10 @@ use color_eyre::eyre::{eyre, ErrReport, Result};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use autonomi::SecretKey;
+use autonomi::{data::DataAddress, SecretKey};
 
-use dweb::client::DwebClient;
 use dweb::storage::DwebType;
+use dweb::{client::DwebClient, trove::HistoryAddress};
 
 use crate::services::helpers::*;
 
@@ -158,11 +158,13 @@ impl ParsedRequestParams {
     /// Process request headers and query parameters. Query parameters have precedance over request headers
     ///
     /// Returns ParsedRequestParams or an error if an invalid parameter was encountered
-    pub(crate) fn process_header_and_mutate_query_params(
+    pub(crate) fn process_mutable_type_header_and_query_params(
         client: &DwebClient,
         headers: &HeaderMap,
         query_params: &MutateQueryParams,
     ) -> Result<ParsedRequestParams> {
+        println!("DEBUG process_mutable_type_header_and_query_params()");
+
         // TODO return error if appropriate - I'm not sure it is worth reporting header_valud.to_str() errors
         let mut tries = query_params.tries.clone();
         if tries.is_none() {
@@ -206,7 +208,7 @@ impl ParsedRequestParams {
             };
         };
 
-        // TODO consider not reporting header_valud.to_str() errors
+        // TODO consider not reporting header_valid.to_str() errors
         let mut type_derivation_index = None;
         if let Some(header_value) = headers.get(HEADER_ANT_DERIVATION_INDEX) {
             match header_value.to_str() {
@@ -242,6 +244,8 @@ impl ParsedRequestParams {
 
     /// Parse any app id headers
     fn parse_app_id_header_params(&mut self, headers: &HeaderMap) -> Result<()> {
+        println!("DEBUG parse_app_id_header_params()");
+
         if let Some(header_value) = headers.get(HEADER_ANT_APP_ID) {
             match header_value.to_str() {
                 Ok(header_str) => self.app_id = Some(header_str.to_string()),
@@ -284,8 +288,81 @@ impl ParsedRequestParams {
 
         Ok(())
     }
-}
 
+    /// Derive the object owner secret for creating a mutable data object (e.g. Pointer or Scratchpad)
+    ///
+    /// The owner_secret for a mutable object is based on derivation index for the type, an
+    /// optional object name and optional app identity string. This is controlled by the supplied
+    /// derivation index and request parameters, and provides flexibility that is not present
+    /// if the owner secret was used as is.
+    ///
+    /// If all mutable objects were created with the owner_secret they would all have the same address
+    /// and only one object would be permitted. To allow multiple objects to be created, this function
+    /// is used to derive a secret from the owner secret depending on the request parameters supplied
+    /// as headers by an app.
+    pub fn derive_object_owner_secret(
+        &self,
+        type_derivation_index: &str,
+        history_address: &Option<HistoryAddress>,
+        archive_address: &Option<DataAddress>,
+    ) -> Result<SecretKey> {
+        // Handle determine the App ID to use from the request
+        let app_id = match self.owner_mode {
+            DwebOwnerMode::None => None,
+            DwebOwnerMode::AppID => {
+                if self.app_id.is_some() {
+                    self.app_id.clone()
+                } else {
+                    return Err(eyre!(
+                        "Missing header {HEADER_ANT_APP_ID} for {HEADER_ANT_APP_OWNER_MODE}: {}",
+                        DwebOwnerMode::AppID.value()
+                    ));
+                }
+            }
+            DwebOwnerMode::OtherAppID => {
+                if self.other_app_id.is_some() {
+                    self.other_app_id.clone()
+                } else {
+                    return Err(eyre!(
+                        "Missing header {HEADER_ANT_OTHER_APP_ID} for {HEADER_ANT_APP_OWNER_MODE}: {}",
+                        DwebOwnerMode::OtherAppID.value()
+                    ));
+                }
+            }
+            DwebOwnerMode::DwebID => {
+                if history_address.is_some() {
+                    Some(history_address.unwrap().to_hex())
+                } else if archive_address.is_some() {
+                    Some(archive_address.unwrap().to_hex())
+                } else {
+                    return Err(eyre!(
+                        "{HEADER_ANT_APP_OWNER_MODE} '{}' app/site address (for use as a dweb app ID) is not available on the main 'dweb serve' server. You must open the website/app first (e.g. using 'dweb open') and have the app make the request itself.",
+                        DwebOwnerMode::DwebID.value()
+                    ));
+                }
+            }
+        };
+
+        // TODO use separate owner_secret from DwebClient when available
+        let owner_secret =
+            self.owner_secret
+                .clone()
+                .unwrap_or(match dweb::helpers::get_app_secret_key() {
+                    Ok(secret_key) => secret_key,
+                    Err(e) => {
+                        return Err(eyre!("failed to get owner secret - {e}"));
+                    }
+                });
+
+        Ok(dweb::types::derive_named_object_secret(
+            owner_secret,
+            type_derivation_index,
+            &self.type_derivation_index,
+            app_id,
+            self.object_name.clone(),
+        ))
+    }
+}
 /// MutateResult is used to return the result of POST or PUT operations for several network data types
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct MutateResult {

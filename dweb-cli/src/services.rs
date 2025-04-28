@@ -76,6 +76,16 @@ pub async fn serve_with_ports(
     let directory_version_with_port_copy = directory_version_with_port.clone();
     let directory_version_with_port = directory_version_with_port;
 
+    let (history_address, archive_address) =
+        if let Some(directory_version_with_port) = directory_version_with_port {
+            (
+                directory_version_with_port.history_address,
+                Some(directory_version_with_port.archive_address),
+            )
+        } else {
+            (None, None)
+        };
+
     // TODO control logger using CLI? (this enables Autonomi and HttpRequest logging to terminal)
     // env_logger::init_from_env(Env::default().default_filter_or("info"));
 
@@ -167,7 +177,8 @@ pub async fn serve_with_ports(
                 SwaggerUi::new("/swagger-ui/{_:.*}").url("/api/openapi.json", api)
             })
             .app_data(Data::new(client.clone()))
-            .app_data(Data::new(directory_version_with_port.clone()))
+            .app_data(Data::new(history_address.clone()))
+            .app_data(Data::new(archive_address.clone()))
             .app_data(Data::new(is_local_network))
             .app_data(Data::new(is_main_server))
             .into_app()
@@ -175,9 +186,8 @@ pub async fn serve_with_ports(
     .keep_alive(Duration::from_secs(crate::services::CONNECTION_TIMEOUT));
 
     if spawn_server {
-        // TODO keep a map of struct {handle, port, history address, version, archive address}
-        // TODO main server uses this to kill all spawned servers when it shuts down
-        // TODO provide a command to list runnning servers and addresses
+        // TODO maybe keep a map of struct {handle, port, history address, version, archive address}
+        // TODO and provide a command to list runnning servers and addresses
         // TODO maybe provide a command to kill by port or port range
         let directory_version = match directory_version_with_port_copy {
             None => {

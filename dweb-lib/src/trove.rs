@@ -616,6 +616,7 @@ impl<T: Trove<T> + Clone> History<T> {
             &HISTORY_POINTER_DERIVATION_INDEX,
             &None,
             None,
+            None,
         )
     }
 

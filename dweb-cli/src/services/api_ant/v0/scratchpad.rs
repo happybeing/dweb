@@ -28,12 +28,11 @@ use color_eyre::eyre::eyre;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use autonomi::{data::DataAddress, Bytes, Scratchpad, ScratchpadAddress, SecretKey};
+use autonomi::{Bytes, Scratchpad, ScratchpadAddress, SecretKey};
 
 use dweb::helpers::retry::retry_until_ok;
 use dweb::storage::DwebType;
 use dweb::token::Spends;
-use dweb::trove::HistoryAddress;
 use dweb::types::{
     derive_named_object_secret, PRIVATE_SCRATCHPAD_DERIVATION_INDEX,
     PUBLIC_SCRATCHPAD_DERIVATION_INDEX,
@@ -148,7 +147,7 @@ pub async fn scratchpad_private_get(
         ("object_name" = Option<String>, Query, description = "optional name, used to allow more than one scratchpad per owner secret/app id combination"),
         ("Ant-App-ID" = Option<String>, Header, description = "a unique string identifier for this app (as suggested by Autonomi and used to derive the VaultContentType used by an app)"),
         ("Ant-Other-App-ID" = Option<String>, Header, description = "the identifier of another app so this app can access data created by any app for which it knows the identifier"),
-        ("Ant-App-Owner-Mode" = Option<String>, Header, description = "the DwebOwnerMode which determines what is to be used for the app ID in this operation: none | app-id | other-app-id | dweb-id")),
+        ("Ant-App-Owner-Mode" = Option<String>, Header, description = "the DwebOwnerMode which determines what is to be used for the app ID in this operation: none | app-id | other-app-id")),
         // Support Query params using headers but don't document in the SwaggerUI to keep it simple
         // ("Ant-API-Tries" = Option<u32>, Header, description = "optional number of time to try a mutation operation before returning failure (0 = unlimited)"),
         // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one scratchpad per owner secret/app id combination")),
@@ -166,8 +165,6 @@ pub async fn scratchpad_private_get_owned(
     query_params: web::Query<MutateQueryParams>,
     request: HttpRequest,
     client: Data<dweb::client::DwebClient>,
-    history_address: Data<Option<HistoryAddress>>,
-    archive_address: Data<Option<DataAddress>>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
     const REST_TYPE: &str = "private Scratchpad";
@@ -193,21 +190,18 @@ pub async fn scratchpad_private_get_owned(
 
     // This method contains the logic for determining which if any app ID is to
     // be used as well as deriving the object's owner secret.
-    let scratchpad_secret = match request_params.derive_object_owner_secret(
-        PRIVATE_SCRATCHPAD_DERIVATION_INDEX,
-        &history_address.into_inner(),
-        &archive_address.into_inner(),
-    ) {
-        Ok(derived_secret) => derived_secret,
-        Err(e) => {
-            return make_error_response_page(
-                Some(StatusCode::BAD_REQUEST),
-                &mut HttpResponse::BadRequest(),
-                rest_operation.to_string(),
-                &format!("{rest_handler} failed to derive owner secret for {REST_TYPE} - {e}"),
-            );
-        }
-    };
+    let scratchpad_secret =
+        match request_params.derive_object_owner_secret(PRIVATE_SCRATCHPAD_DERIVATION_INDEX) {
+            Ok(derived_secret) => derived_secret,
+            Err(e) => {
+                return make_error_response_page(
+                    Some(StatusCode::BAD_REQUEST),
+                    &mut HttpResponse::BadRequest(),
+                    rest_operation.to_string(),
+                    &format!("{rest_handler} failed to derive owner secret for {REST_TYPE} - {e}"),
+                );
+            }
+        };
 
     let scratchpad_address = ScratchpadAddress::new(scratchpad_secret.public_key());
 
@@ -275,7 +269,7 @@ pub async fn scratchpad_private_get_owned(
         ("object_name" = Option<String>, Query, description = "optional name, used to allow more than one scratchpad per owner secret/app id combination"),
         ("Ant-App-ID" = Option<String>, Header, description = "a unique string identifier for this app (as suggested by Autonomi and used to derive the VaultContentType used by an app)"),
         ("Ant-Other-App-ID" = Option<String>, Header, description = "the identifier of another app so this app can access data created by any app for which it knows the identifier"),
-        ("Ant-App-Owner-Mode" = Option<String>, Header, description = "the DwebOwnerMode which determines what is to be used for the app ID in this operation: none | app-id | other-app-id | dweb-id")),
+        ("Ant-App-Owner-Mode" = Option<String>, Header, description = "the DwebOwnerMode which determines what is to be used for the app ID in this operation: none | app-id | other-app-id")),
         // Support Query params using headers but don't document in the SwaggerUI to keep it simple
         // ("Ant-API-Tries" = Option<u32>, Header, description = "optional number of time to try a mutation operation before returning failure (0 = unlimited)"),
         // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one scratchpad per owner secret/app id combination")),
@@ -296,8 +290,6 @@ pub async fn scratchpad_private_post(
     scratchpad: web::Json<DwebScratchpad>,
     query_params: web::Query<MutateQueryParams>,
     client: Data<dweb::client::DwebClient>,
-    history_address: Data<Option<HistoryAddress>>,
-    archive_address: Data<Option<DataAddress>>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
     const REST_TYPE: &str = "private Scratchpad";
@@ -324,21 +316,18 @@ pub async fn scratchpad_private_post(
 
     // This method contains the logic for determining which if any app ID is to
     // be used as well as deriving the object's owner secret.
-    let scratchpad_secret = match request_params.derive_object_owner_secret(
-        PRIVATE_SCRATCHPAD_DERIVATION_INDEX,
-        &history_address.into_inner(),
-        &archive_address.into_inner(),
-    ) {
-        Ok(derived_secret) => derived_secret,
-        Err(e) => {
-            return make_error_response_page(
-                Some(StatusCode::BAD_REQUEST),
-                &mut HttpResponse::BadRequest(),
-                rest_operation.to_string(),
-                &format!("{rest_handler} failed to derive owner secret for {REST_TYPE} - {e}"),
-            );
-        }
-    };
+    let scratchpad_secret =
+        match request_params.derive_object_owner_secret(PRIVATE_SCRATCHPAD_DERIVATION_INDEX) {
+            Ok(derived_secret) => derived_secret,
+            Err(e) => {
+                return make_error_response_page(
+                    Some(StatusCode::BAD_REQUEST),
+                    &mut HttpResponse::BadRequest(),
+                    rest_operation.to_string(),
+                    &format!("{rest_handler} failed to derive owner secret for {REST_TYPE} - {e}"),
+                );
+            }
+        };
 
     let payment_option = client.payment_option().clone();
     let content_type = scratchpad.data_encoding;
@@ -441,7 +430,7 @@ pub async fn scratchpad_private_post(
         ("object_name" = Option<String>, Query, description = "optional name, used to allow more than one scratchpad per owner secret/app id combination"),
         ("Ant-App-ID" = Option<String>, Header, description = "a unique string identifier for this app (as suggested by Autonomi and used to derive the VaultContentType used by an app)"),
         ("Ant-Other-App-ID" = Option<String>, Header, description = "the identifier of another app so this app can access data created by any app for which it knows the identifier"),
-        ("Ant-App-Owner-Mode" = Option<String>, Header, description = "the DwebOwnerMode which determines what is to be used for the app ID in this operation: none | app-id | other-app-id | dweb-id")),
+        ("Ant-App-Owner-Mode" = Option<String>, Header, description = "the DwebOwnerMode which determines what is to be used for the app ID in this operation: none | app-id | other-app-id")),
         // Support Query params using headers but don't document in the SwaggerUI to keep it simple
         // ("Ant-API-Tries" = Option<u32>, Header, description = "optional number of time to try a mutation operation before returning failure (0 = unlimited)"),
         // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one scratchpad per owner secret/app id combination")),
@@ -462,8 +451,6 @@ pub async fn scratchpad_private_put(
     scratchpad: web::Json<DwebScratchpad>,
     query_params: web::Query<MutateQueryParams>,
     client: Data<dweb::client::DwebClient>,
-    history_address: Data<Option<HistoryAddress>>,
-    archive_address: Data<Option<DataAddress>>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
     const REST_TYPE: &str = "private Scratchpad";
@@ -491,21 +478,18 @@ pub async fn scratchpad_private_put(
 
     // This method contains the logic for determining which if any app ID is to
     // be used as well as deriving the object's owner secret.
-    let scratchpad_secret = match request_params.derive_object_owner_secret(
-        PRIVATE_SCRATCHPAD_DERIVATION_INDEX,
-        &history_address.into_inner(),
-        &archive_address.into_inner(),
-    ) {
-        Ok(derived_secret) => derived_secret,
-        Err(e) => {
-            return make_error_response_page(
-                Some(StatusCode::BAD_REQUEST),
-                &mut HttpResponse::BadRequest(),
-                rest_operation.to_string(),
-                &format!("{rest_handler} failed to derive owner secret for {REST_TYPE} - {e}"),
-            );
-        }
-    };
+    let scratchpad_secret =
+        match request_params.derive_object_owner_secret(PRIVATE_SCRATCHPAD_DERIVATION_INDEX) {
+            Ok(derived_secret) => derived_secret,
+            Err(e) => {
+                return make_error_response_page(
+                    Some(StatusCode::BAD_REQUEST),
+                    &mut HttpResponse::BadRequest(),
+                    rest_operation.to_string(),
+                    &format!("{rest_handler} failed to derive owner secret for {REST_TYPE} - {e}"),
+                );
+            }
+        };
 
     let content_type = dweb_scratchpad.data_encoding;
 
@@ -661,7 +645,7 @@ pub async fn scratchpad_public_get(
         ("object_name" = Option<String>, Query, description = "optional name, used to allow more than one scratchpad per owner secret/app id combination"),
         ("Ant-App-ID" = Option<String>, Header, description = "a unique string identifier for this app (as suggested by Autonomi and used to derive the VaultContentType used by an app)"),
         ("Ant-Other-App-ID" = Option<String>, Header, description = "the identifier of another app so this app can access data created by any app for which it knows the identifier"),
-        ("Ant-App-Owner-Mode" = Option<String>, Header, description = "the DwebOwnerMode which determines what is to be used for the app ID in this operation: none | app-id | other-app-id | dweb-id")),
+        ("Ant-App-Owner-Mode" = Option<String>, Header, description = "the DwebOwnerMode which determines what is to be used for the app ID in this operation: none | app-id | other-app-id")),
         // Support Query params using headers but don't document in the SwaggerUI to keep it simple
         // ("Ant-API-Tries" = Option<u32>, Header, description = "optional number of time to try a mutation operation before returning failure (0 = unlimited)"),
         // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one scratchpad per owner secret/app id combination")),
@@ -679,8 +663,6 @@ pub async fn scratchpad_public_get_owned(
     query_params: web::Query<MutateQueryParams>,
     request: HttpRequest,
     client: Data<dweb::client::DwebClient>,
-    history_address: Data<Option<HistoryAddress>>,
-    archive_address: Data<Option<DataAddress>>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
     const REST_TYPE: &str = "public Scratchpad";
@@ -706,21 +688,18 @@ pub async fn scratchpad_public_get_owned(
 
     // This method contains the logic for determining which if any app ID is to
     // be used as well as deriving the object's owner secret.
-    let scratchpad_secret = match request_params.derive_object_owner_secret(
-        PUBLIC_SCRATCHPAD_DERIVATION_INDEX,
-        &history_address.into_inner(),
-        &archive_address.into_inner(),
-    ) {
-        Ok(derived_secret) => derived_secret,
-        Err(e) => {
-            return make_error_response_page(
-                Some(StatusCode::BAD_REQUEST),
-                &mut HttpResponse::BadRequest(),
-                rest_operation.to_string(),
-                &format!("{rest_handler} failed to derive owner secret for {REST_TYPE} - {e}"),
-            );
-        }
-    };
+    let scratchpad_secret =
+        match request_params.derive_object_owner_secret(PUBLIC_SCRATCHPAD_DERIVATION_INDEX) {
+            Ok(derived_secret) => derived_secret,
+            Err(e) => {
+                return make_error_response_page(
+                    Some(StatusCode::BAD_REQUEST),
+                    &mut HttpResponse::BadRequest(),
+                    rest_operation.to_string(),
+                    &format!("{rest_handler} failed to derive owner secret for {REST_TYPE} - {e}"),
+                );
+            }
+        };
 
     let scratchpad_address = ScratchpadAddress::new(scratchpad_secret.public_key());
 
@@ -790,7 +769,7 @@ pub async fn scratchpad_public_get_owned(
         ("object_name" = Option<String>, Query, description = "optional name, used to allow more than one scratchpad per owner secret/app id combination"),
         ("Ant-App-ID" = Option<String>, Header, description = "a unique string identifier for this app (as suggested by Autonomi and used to derive the VaultContentType used by an app)"),
         ("Ant-Other-App-ID" = Option<String>, Header, description = "the identifier of another app so this app can access data created by any app for which it knows the identifier"),
-        ("Ant-App-Owner-Mode" = Option<String>, Header, description = "the DwebOwnerMode which determines what is to be used for the app ID in this operation: none | app-id | other-app-id | dweb-id")),
+        ("Ant-App-Owner-Mode" = Option<String>, Header, description = "the DwebOwnerMode which determines what is to be used for the app ID in this operation: none | app-id | other-app-id")),
       // Support Query params using headers but don't document in the SwaggerUI to keep it simple
         // ("Ant-API-Tries" = Option<u32>, Header, description = "optional number of time to try a mutation operation before returning failure (0 = unlimited)"),
         // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one scratchpad per owner secret/app id combination")),
@@ -811,8 +790,6 @@ pub async fn scratchpad_public_post(
     scratchpad: web::Json<DwebScratchpad>,
     query_params: web::Query<MutateQueryParams>,
     client: Data<dweb::client::DwebClient>,
-    history_address: Data<Option<HistoryAddress>>,
-    archive_address: Data<Option<DataAddress>>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
     const REST_TYPE: &str = "public Scratchpad";
@@ -839,21 +816,18 @@ pub async fn scratchpad_public_post(
 
     // This method contains the logic for determining which if any app ID is to
     // be used as well as deriving the object's owner secret.
-    let scratchpad_secret = match request_params.derive_object_owner_secret(
-        PUBLIC_SCRATCHPAD_DERIVATION_INDEX,
-        &history_address.into_inner(),
-        &archive_address.into_inner(),
-    ) {
-        Ok(derived_secret) => derived_secret,
-        Err(e) => {
-            return make_error_response_page(
-                Some(StatusCode::BAD_REQUEST),
-                &mut HttpResponse::BadRequest(),
-                rest_operation.to_string(),
-                &format!("{rest_handler} failed to derive owner secret for {REST_TYPE} - {e}"),
-            );
-        }
-    };
+    let scratchpad_secret =
+        match request_params.derive_object_owner_secret(PUBLIC_SCRATCHPAD_DERIVATION_INDEX) {
+            Ok(derived_secret) => derived_secret,
+            Err(e) => {
+                return make_error_response_page(
+                    Some(StatusCode::BAD_REQUEST),
+                    &mut HttpResponse::BadRequest(),
+                    rest_operation.to_string(),
+                    &format!("{rest_handler} failed to derive owner secret for {REST_TYPE} - {e}"),
+                );
+            }
+        };
 
     let payment_option = client.payment_option().clone();
     let content_type = scratchpad.data_encoding;
@@ -951,7 +925,7 @@ pub async fn scratchpad_public_post(
         ("object_name" = Option<String>, Query, description = "optional name, used to allow more than one scratchpad per owner secret/app id combination"),
         ("Ant-App-ID" = Option<String>, Header, description = "a unique string identifier for this app (as suggested by Autonomi and used to derive the VaultContentType used by an app)"),
         ("Ant-Other-App-ID" = Option<String>, Header, description = "the identifier of another app so this app can access data created by any app for which it knows the identifier"),
-        ("Ant-App-Owner-Mode" = Option<String>, Header, description = "the DwebOwnerMode which determines what is to be used for the app ID in this operation: none | app-id | other-app-id | dweb-id")),
+        ("Ant-App-Owner-Mode" = Option<String>, Header, description = "the DwebOwnerMode which determines what is to be used for the app ID in this operation: none | app-id | other-app-id")),
         // Support Query params using headers but don't document in the SwaggerUI to keep it simple
         // ("Ant-API-Tries" = Option<u32>, Header, description = "optional number of time to try a mutation operation before returning failure (0 = unlimited)"),
         // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one scratchpad per owner secret/app id combination")),
@@ -972,8 +946,6 @@ pub async fn scratchpad_public_put(
     scratchpad: web::Json<DwebScratchpad>,
     query_params: web::Query<MutateQueryParams>,
     client: Data<dweb::client::DwebClient>,
-    history_address: Data<Option<HistoryAddress>>,
-    archive_address: Data<Option<DataAddress>>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
     const REST_TYPE: &str = "public Scratchpad";
@@ -1001,21 +973,18 @@ pub async fn scratchpad_public_put(
 
     // This method contains the logic for determining which if any app ID is to
     // be used as well as deriving the object's owner secret.
-    let scratchpad_secret = match request_params.derive_object_owner_secret(
-        PUBLIC_SCRATCHPAD_DERIVATION_INDEX,
-        &history_address.into_inner(),
-        &archive_address.into_inner(),
-    ) {
-        Ok(derived_secret) => derived_secret,
-        Err(e) => {
-            return make_error_response_page(
-                Some(StatusCode::BAD_REQUEST),
-                &mut HttpResponse::BadRequest(),
-                rest_operation.to_string(),
-                &format!("{rest_handler} failed to derive owner secret for {REST_TYPE} - {e}"),
-            );
-        }
-    };
+    let scratchpad_secret =
+        match request_params.derive_object_owner_secret(PUBLIC_SCRATCHPAD_DERIVATION_INDEX) {
+            Ok(derived_secret) => derived_secret,
+            Err(e) => {
+                return make_error_response_page(
+                    Some(StatusCode::BAD_REQUEST),
+                    &mut HttpResponse::BadRequest(),
+                    rest_operation.to_string(),
+                    &format!("{rest_handler} failed to derive owner secret for {REST_TYPE} - {e}"),
+                );
+            }
+        };
 
     let payment_option = client.payment_option().clone();
     let content_type = dweb_scratchpad.data_encoding;

@@ -74,7 +74,6 @@ pub const HEADER_ANT_OTHER_APP_ID: &str = "Ant-Other-App-ID";
 ///    "none" (default) - use default owner secret without app specificity when deriving the address for mutation (e.g. for POST/create)
 ///    "app-id" - use Ant-App-ID when deriving an owner key (e.g. when creating an object) This acts like an extra "object name"
 ///    "other-app-id" - use the value of Ant-Other-App-ID instead of Ant-App-ID
-///    "dweb-id" - use the History or Archive address from which this app was loaded. Error if not known
 pub const HEADER_ANT_APP_OWNER_MODE: &str = "Ant-App-Owner-Mode";
 
 #[derive(Debug)]
@@ -82,7 +81,6 @@ pub enum DwebOwnerMode {
     None,
     AppID,
     OtherAppID,
-    DwebID,
 }
 
 impl DwebOwnerMode {
@@ -91,7 +89,6 @@ impl DwebOwnerMode {
             DwebOwnerMode::None => "none",
             DwebOwnerMode::AppID => "app-id",
             DwebOwnerMode::OtherAppID => "other-app-id",
-            DwebOwnerMode::DwebID => "dweb-id",
         }
     }
 }
@@ -104,7 +101,6 @@ impl std::str::FromStr for DwebOwnerMode {
             "none" => Ok(DwebOwnerMode::None),
             "app-id" => Ok(DwebOwnerMode::AppID),
             "other-app-id" => Ok(DwebOwnerMode::OtherAppID),
-            "dweb-id" => Ok(DwebOwnerMode::DwebID),
             _ => Err(eyre!("Invalid DwebOwnerMode: {s}")),
         }
     }
@@ -301,12 +297,7 @@ impl ParsedRequestParams {
     /// and only one object would be permitted. To allow multiple objects to be created, this function
     /// is used to derive a secret from the owner secret depending on the request parameters supplied
     /// as headers by an app.
-    pub fn derive_object_owner_secret(
-        &self,
-        type_derivation_index: &str,
-        history_address: &Option<HistoryAddress>,
-        archive_address: &Option<DataAddress>,
-    ) -> Result<SecretKey> {
+    pub fn derive_object_owner_secret(&self, type_derivation_index: &str) -> Result<SecretKey> {
         // Handle determine the App ID to use from the request
         let app_id = match self.owner_mode {
             DwebOwnerMode::None => None,
@@ -327,18 +318,6 @@ impl ParsedRequestParams {
                     return Err(eyre!(
                         "Missing header {HEADER_ANT_OTHER_APP_ID} for {HEADER_ANT_APP_OWNER_MODE}: {}",
                         DwebOwnerMode::OtherAppID.value()
-                    ));
-                }
-            }
-            DwebOwnerMode::DwebID => {
-                if history_address.is_some() {
-                    Some(history_address.unwrap().to_hex())
-                } else if archive_address.is_some() {
-                    Some(archive_address.unwrap().to_hex())
-                } else {
-                    return Err(eyre!(
-                        "{HEADER_ANT_APP_OWNER_MODE} '{}' app/site address (for use as a dweb app ID) is not available on the main 'dweb serve' server. You must open the website/app first (e.g. using 'dweb open') and have the app make the request itself.",
-                        DwebOwnerMode::DwebID.value()
                     ));
                 }
             }

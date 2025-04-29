@@ -81,6 +81,7 @@ impl Default for ApiControl {
 pub struct DwebClient {
     pub client: Client,
     pub network: Network,
+    pub is_local: bool,
     pub wallet: Wallet, // Must be loaded and funded for writing to the network
 
     pub api_control: ApiControl,
@@ -109,7 +110,8 @@ impl DwebClient {
         api_control: ApiControl,
     ) -> Result<DwebClient> {
         println!("Dweb Autonomi client initialising...");
-        let evm_network = autonomi::get_evm_network(init_peers_config.local)?;
+        let is_local = init_peers_config.local;
+        let evm_network = autonomi::get_evm_network(is_local)?;
         let config = autonomi::ClientConfig {
             init_peers_config,
             evm_network,
@@ -150,6 +152,7 @@ impl DwebClient {
         Ok(DwebClient {
             client: client.clone(),
             network: client.evm_network().clone(),
+            is_local,
             wallet,
             api_control,
             ant_rate,

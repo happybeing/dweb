@@ -73,11 +73,12 @@ pub async fn serve_with_ports(
     is_local_network: bool,
 ) -> io::Result<()> {
     register_builtin_names(is_local_network);
-    let directory_version_with_port_copy = directory_version_with_port.clone();
+    let directory_version_with_port_copy1 = directory_version_with_port.clone();
+    let directory_version_with_port_copy2 = directory_version_with_port.clone();
     let directory_version_with_port = directory_version_with_port;
 
     let (history_address, archive_address) =
-        if let Some(directory_version_with_port) = directory_version_with_port {
+        if let Some(directory_version_with_port) = directory_version_with_port_copy1 {
             (
                 directory_version_with_port.history_address,
                 Some(directory_version_with_port.archive_address),
@@ -170,7 +171,8 @@ pub async fn serve_with_ports(
                     .service(api_dweb::v0::name::api_dwebname_list)
                     .service(api_dweb::v0::file::file_get)
                     .service(api_dweb::v0::form::data_put)
-                    .service(api_dweb::v0::form::data_put_list),
+                    .service(api_dweb::v0::form::data_put_list)
+                    .service(api_dweb::v0::app_settings::app_settings),
             )
             .default_service(web::get().to(www::www_handler))
             .openapi_service(|api| {
@@ -179,7 +181,7 @@ pub async fn serve_with_ports(
             .app_data(Data::new(client.clone()))
             .app_data(Data::new(history_address.clone()))
             .app_data(Data::new(archive_address.clone()))
-            .app_data(Data::new(is_local_network))
+            .app_data(Data::new(directory_version_with_port.clone()))
             .app_data(Data::new(is_main_server))
             .into_app()
     })
@@ -189,12 +191,12 @@ pub async fn serve_with_ports(
         // TODO maybe keep a map of struct {handle, port, history address, version, archive address}
         // TODO and provide a command to list runnning servers and addresses
         // TODO maybe provide a command to kill by port or port range
-        let directory_version = match directory_version_with_port_copy {
+        let directory_version = match directory_version_with_port_copy2 {
             None => {
                 println!("DEBUG cannot spawn serve_with_ports when provided directory_version_with_port is None");
                 return Ok(());
             }
-            Some(directory_version_with_port_copy) => directory_version_with_port_copy,
+            Some(directory_version_with_port) => directory_version_with_port,
         };
 
         let server = server.bind((host.clone(), directory_version.port))?.run();

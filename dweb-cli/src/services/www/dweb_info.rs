@@ -49,6 +49,7 @@ pub async fn dweb_info(
     client: Data<dweb::client::DwebClient>,
     our_directory_version: Data<Option<DirectoryVersionWithPort>>,
     _is_local_network: Data<bool>,
+    _is_main_server: Data<bool>,
 ) -> impl Responder {
     println!("DEBUG dweb_info()...");
 

@@ -416,6 +416,8 @@ impl<T: Trove<T> + Clone> History<T> {
             ))
             }
         };
+        println!("DEBUG INSPECT pointer_counter: {}", pointer.counter());
+        println!("DEBUG INSPECT pointer_target : {}", pointer_target.to_hex());
 
         let mut history = History::<T> {
             client,

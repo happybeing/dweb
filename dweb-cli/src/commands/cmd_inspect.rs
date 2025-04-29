@@ -91,6 +91,11 @@ pub async fn handle_inspect_history(
         let mut entry_iter = history.get_graph_entry(index).await?;
 
         while index <= last {
+            println!(
+                "DEBUG INSPECT history.pointer_counter(): {}",
+                history.pointer_counter()
+            );
+
             let pointer_indicator = if history.pointer_counter() == index {
                 "P>"
             } else {

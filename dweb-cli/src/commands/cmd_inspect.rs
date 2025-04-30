@@ -20,9 +20,9 @@ use chrono::DateTime;
 use color_eyre::{eyre::eyre, Result};
 use std::time::{Duration, UNIX_EPOCH};
 
-use ant_protocol::storage::{GraphEntry, GraphEntryAddress, Pointer, PointerAddress};
 use autonomi::client::key_derivation::{DerivationIndex, MainPubkey};
 use autonomi::files::archive_public::ArchiveAddress;
+use autonomi::{GraphEntry, GraphEntryAddress, Pointer, PointerAddress};
 use autonomi::{Scratchpad, ScratchpadAddress};
 
 use dweb::client::DwebClient;

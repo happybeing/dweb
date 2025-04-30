@@ -45,7 +45,7 @@ async fn main() -> Result<()> {
 
     let opt = Opt::parse();
     if let Some(network_id) = opt.network_id {
-        ant_protocol::version::set_network_id(network_id);
+        autonomi::version::set_network_id(network_id);
     }
 
     // TODO Keep up-to-date with autonomi/ant-cli/src/main.rs init_logging_and_metrics()

@@ -129,9 +129,7 @@ pub async fn pointer_get(
 #[utoipa::path(
     params(
         ("object_name" = Option<String>, Query, description = "optional name, used to allow more than one pointer per owner secret/app id combination"),
-        ("Ant-App-ID" = Option<String>, Header, description = "a unique string identifier for this app (as suggested by Autonomi and used to derive the VaultContentType used by an app)"),
-        ("Ant-Other-App-ID" = Option<String>, Header, description = "the identifier of another app so this app can access data created by any app for which it knows the identifier"),
-        ("Ant-App-Owner-Mode" = Option<String>, Header, description = "the DwebOwnerMode which determines what is to be used for the app ID in this operation: none | app-id | other-app-id")),
+        ("Ant-App-ID" = Option<String>, Header, description = "a unique string identifier for this app (as suggested by Autonomi and used to derive the VaultContentType used by an app)")),
         // Support Query params using headers but don't document in the SwaggerUI to keep it simple
         // ("Ant-API-Tries" = Option<u32>, Header, description = "optional number of time to try a mutation operation before returning failure (0 = unlimited)"),
         // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one pointer per owner secret/app id combination")),
@@ -237,9 +235,7 @@ pub async fn pointer_get_owned(
     params(
         ("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi upload API for each put, 0 means unlimited. This overrides the API control setting in the server."),
         ("object_name" = Option<String>, Query, description = "optional name, used to allow more than one pointer per owner secret/app id combination"),
-        ("Ant-App-ID" = Option<String>, Header, description = "a unique string identifier for this app (as suggested by Autonomi and used to derive the VaultContentType used by an app)"),
-        ("Ant-Other-App-ID" = Option<String>, Header, description = "the identifier of another app so this app can access data created by any app for which it knows the identifier"),
-        ("Ant-App-Owner-Mode" = Option<String>, Header, description = "the DwebOwnerMode which determines what is to be used for the app ID in this operation: none | app-id | other-app-id")),
+        ("Ant-App-ID" = Option<String>, Header, description = "a unique string identifier for this app (as suggested by Autonomi and used to derive the VaultContentType used by an app)")),
         // Support for query params using headers but don't document in the SwaggerUI to keep it simple
         // ("Ant-API-Tries" = Option<u32>, Header, description = "optional number of time to try a mutation operation before returning failure (0 = unlimited)"),
         // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one pointer per owner secret/app id combination")),
@@ -385,9 +381,7 @@ pub async fn pointer_post(
     params(
         ("tries" = Option<u32>, Query, description = "number of times to try calling the Autonomi upload API for each put, 0 means unlimited. This overrides the API control setting in the server."),
         ("object_name" = Option<String>, Query, description = "optional name, used to allow more than one pointer per owner secret/app id combination"),
-        ("Ant-App-ID" = Option<String>, Header, description = "a unique string identifier for this app (as suggested by Autonomi and used to derive the VaultContentType used by an app)"),
-        ("Ant-Other-App-ID" = Option<String>, Header, description = "the identifier of another app so this app can access data created by any app for which it knows the identifier"),
-        ("Ant-App-Owner-Mode" = String, Header, description = "the identifier of another app so this app can access data created by any app for which it knows the identifier")),
+        ("Ant-App-ID" = Option<String>, Header, description = "a unique string identifier for this app (as suggested by Autonomi and used to derive the VaultContentType used by an app)")),
         // Support Query params using headers but don't document in the SwaggerUI to keep it simple
         // ("Ant-API-Tries" = Option<u32>, Header, description = "optional number of time to try a mutation operation before returning failure (0 = unlimited)"),
         // ("Ant-Object-Name" = Option<String>, Header, description = "optional name, used to allow more than one pointer per owner secret/app id combination")),

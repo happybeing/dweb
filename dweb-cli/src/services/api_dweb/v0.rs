@@ -21,21 +21,19 @@ pub mod form;
 pub mod name;
 // pub mod publish;
 
-use std::str::FromStr;
-
 use actix_web::{
     get,
     http::{header, header::ContentType, header::HeaderMap, StatusCode},
     HttpRequest, HttpResponse, HttpResponseBuilder, Responder,
 };
-use color_eyre::eyre::{eyre, ErrReport, Result};
+use color_eyre::eyre::{eyre, Result};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use autonomi::{data::DataAddress, SecretKey};
+use autonomi::SecretKey;
 
+use dweb::client::DwebClient;
 use dweb::storage::DwebType;
-use dweb::{client::DwebClient, trove::HistoryAddress};
 
 use crate::services::helpers::*;
 
@@ -67,44 +65,6 @@ pub const HEADER_ANT_DERIVATION_INDEX: &str = "Ant-Derivation-Index";
 /// a unique string identifier for this app (as suggested by Autonomi and used to derive the VaultContentType used by an app)
 pub const HEADER_ANT_APP_ID: &str = "Ant-App-ID";
 /// the identifier of another app so this app can access data created by any app for which it knows the identifier
-pub const HEADER_ANT_OTHER_APP_ID: &str = "Ant-Other-App-ID";
-/// a string value from one of the following, which indicates which id to use when deriving a mutable data address from
-/// the owner secret for the REST mutation (e.g. POST creating a new object).
-///
-///    "none" (default) - use default owner secret without app specificity when deriving the address for mutation (e.g. for POST/create)
-///    "app-id" - use Ant-App-ID when deriving an owner key (e.g. when creating an object) This acts like an extra "object name"
-///    "other-app-id" - use the value of Ant-Other-App-ID instead of Ant-App-ID
-pub const HEADER_ANT_APP_OWNER_MODE: &str = "Ant-App-Owner-Mode";
-
-#[derive(Debug)]
-pub enum DwebOwnerMode {
-    None,
-    AppID,
-    OtherAppID,
-}
-
-impl DwebOwnerMode {
-    pub fn value(&self) -> &str {
-        match self {
-            DwebOwnerMode::None => "none",
-            DwebOwnerMode::AppID => "app-id",
-            DwebOwnerMode::OtherAppID => "other-app-id",
-        }
-    }
-}
-
-impl std::str::FromStr for DwebOwnerMode {
-    type Err = ErrReport;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_ascii_lowercase().as_str() {
-            "none" => Ok(DwebOwnerMode::None),
-            "app-id" => Ok(DwebOwnerMode::AppID),
-            "other-app-id" => Ok(DwebOwnerMode::OtherAppID),
-            _ => Err(eyre!("Invalid DwebOwnerMode: {s}")),
-        }
-    }
-}
 #[derive(Deserialize, Debug, ToSchema)]
 pub struct MutateQueryParams {
     /// An optional name for the object being created or updated. Only one object of each type is permitted per object_name.
@@ -130,11 +90,6 @@ pub struct ParsedRequestParams {
     pub type_derivation_index: Option<[u8; 32]>,
     /// optional unique string identifier for this app (as suggested by Autonomi and used to derive the VaultContentType used by an app)
     pub app_id: Option<String>,
-    /// the identifier of another app so this app can access data created by any app for which it knows the identifier
-    pub other_app_id: Option<String>,
-    /// app identifier mode that determines which id string to use when deriving a mutable data address from
-    /// the owner secret for the REST mutation (e.g. POST creating a new object).
-    pub owner_mode: DwebOwnerMode,
 }
 
 impl Default for ParsedRequestParams {
@@ -145,8 +100,6 @@ impl Default for ParsedRequestParams {
             owner_secret: None,
             type_derivation_index: None,
             app_id: None,
-            other_app_id: None,
-            owner_mode: DwebOwnerMode::None,
         }
     }
 }
@@ -254,35 +207,6 @@ impl ParsedRequestParams {
             };
         }
 
-        if let Some(header_value) = headers.get(HEADER_ANT_OTHER_APP_ID) {
-            match header_value.to_str() {
-                Ok(header_str) => self.other_app_id = Some(header_str.to_string()),
-                Err(e) => {
-                    return Err(eyre!(
-                        "Request header {HEADER_ANT_OTHER_APP_ID} is not a string - {e}"
-                    ))
-                }
-            };
-        }
-
-        if let Some(header_value) = headers.get(HEADER_ANT_APP_OWNER_MODE) {
-            match header_value.to_str() {
-                Ok(header_str) => match DwebOwnerMode::from_str(header_str) {
-                    Ok(owner_mode) => self.owner_mode = owner_mode,
-                    Err(e) => {
-                        return Err(eyre!(
-                            "Request header {HEADER_ANT_APP_OWNER_MODE} is not valid - {e}"
-                        ))
-                    }
-                },
-                Err(e) => {
-                    return Err(eyre!(
-                        "Request header {HEADER_ANT_APP_OWNER_MODE} is not a string - {e}"
-                    ))
-                }
-            };
-        }
-
         Ok(())
     }
 
@@ -298,31 +222,6 @@ impl ParsedRequestParams {
     /// is used to derive a secret from the owner secret depending on the request parameters supplied
     /// as headers by an app.
     pub fn derive_object_owner_secret(&self, type_derivation_index: &str) -> Result<SecretKey> {
-        // Handle determine the App ID to use from the request
-        let app_id = match self.owner_mode {
-            DwebOwnerMode::None => None,
-            DwebOwnerMode::AppID => {
-                if self.app_id.is_some() {
-                    self.app_id.clone()
-                } else {
-                    return Err(eyre!(
-                        "Missing header {HEADER_ANT_APP_ID} for {HEADER_ANT_APP_OWNER_MODE}: {}",
-                        DwebOwnerMode::AppID.value()
-                    ));
-                }
-            }
-            DwebOwnerMode::OtherAppID => {
-                if self.other_app_id.is_some() {
-                    self.other_app_id.clone()
-                } else {
-                    return Err(eyre!(
-                        "Missing header {HEADER_ANT_OTHER_APP_ID} for {HEADER_ANT_APP_OWNER_MODE}: {}",
-                        DwebOwnerMode::OtherAppID.value()
-                    ));
-                }
-            }
-        };
-
         // TODO use separate owner_secret from DwebClient when available
         let owner_secret =
             self.owner_secret
@@ -338,7 +237,7 @@ impl ParsedRequestParams {
             owner_secret,
             type_derivation_index,
             &self.type_derivation_index,
-            app_id,
+            self.app_id.clone(),
             self.object_name.clone(),
         ))
     }

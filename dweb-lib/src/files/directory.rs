@@ -32,7 +32,7 @@ use autonomi::files::archive_public::ArchiveAddress;
 use crate::client::DwebClient;
 use crate::files::archive::{DualArchive, ARCHIVE_PATH_SEPARATOR};
 use crate::storage::DwebType;
-use crate::trove::{History, Trove};
+use crate::history::{History, Trove};
 
 // The Trove type for a Tree
 const FILE_TREE_TYPE: &str = "ee383f084cffaab845617b1c43ffaee8b5c17e8fbbb3ad3d379c96b5b844f24e";

@@ -29,7 +29,7 @@ use dweb::client::DwebClient;
 use dweb::files::directory::Tree;
 use dweb::helpers::convert::tuple_from_address_or_name;
 use dweb::helpers::graph_entry::graph_entry_get;
-use dweb::trove::History;
+use dweb::history::History;
 
 use crate::cli_options::{EntriesRange, FilesArgs};
 

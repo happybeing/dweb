@@ -26,7 +26,7 @@ use actix_web::{
 use crate::services::helpers::*;
 use dweb::files::directory::{get_content_using_hex, Tree};
 use dweb::helpers::convert::*;
-use dweb::trove::History;
+use dweb::history::History;
 
 /// Get a file from a content History or directory on the network
 ///

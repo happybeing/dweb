@@ -34,7 +34,7 @@ use crate::cache::directory_with_name::HISTORY_NAMES;
 use crate::client::DwebClient;
 use crate::files::directory::Tree;
 use crate::helpers::convert::*;
-use crate::trove::HistoryAddress;
+use crate::history::HistoryAddress;
 
 // TODO: tune cache size values
 const WITH_PORT_CAPACITY: u32 = u16::MAX as u32; // When exceeded, port servers will be forgotten and new versions inaccessible
@@ -147,7 +147,7 @@ pub async fn lookup_or_create_directory_version_with_port(
     // Get the archive address and Tree
     let archive_address = if archive_address.is_none() {
         let min_entry = version.unwrap_or(1);
-        match crate::trove::History::<Tree>::from_history_address(
+        match crate::history::History::<Tree>::from_history_address(
             client.clone(),
             history_address.unwrap(),
             false,

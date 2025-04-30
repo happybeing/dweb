@@ -24,7 +24,7 @@ use autonomi::client::vault::VaultSecretKey as SecretKey;
 use autonomi::client::Client;
 use autonomi::{graph::GraphError, GraphEntry, GraphEntryAddress};
 
-use crate::trove::HistoryValue;
+use crate::history::HistoryValue;
 
 /// Print a summary for a GraphEntry. If main_owner.is_some() the output
 /// will use this to show the addresses of parent and descendents instead

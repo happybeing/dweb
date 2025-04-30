@@ -23,7 +23,7 @@ pub mod files;
 pub mod helpers;
 pub mod storage;
 pub mod token;
-pub mod trove;
+pub mod history;
 pub mod types;
 pub mod web;
 

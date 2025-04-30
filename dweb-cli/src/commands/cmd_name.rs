@@ -17,7 +17,7 @@
 
 use color_eyre::eyre::Result;
 
-use dweb::trove::HistoryAddress;
+use dweb::history::HistoryAddress;
 
 pub(crate) async fn handle_name_register(
     dweb_name: String,

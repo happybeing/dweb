@@ -31,8 +31,8 @@ use autonomi::PointerAddress;
 use autonomi::ScratchpadAddress;
 
 use dweb::helpers::convert::*;
+use dweb::history::HistoryAddress;
 use dweb::token::ShowCost;
-use dweb::trove::HistoryAddress;
 use dweb::web::name::validate_dweb_name;
 
 // TODO add example to each CLI subcommand

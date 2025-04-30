@@ -35,7 +35,7 @@ use crate::files::directory::{
     DWEB_DIRECTORY_HISTORY_CONTENT, DWEB_HISTORY_DIRECTORY, DWEB_SETTINGS_PATH,
 };
 use crate::helpers::retry::retry_until_ok;
-use crate::trove::{History, HistoryAddress};
+use crate::history::{History, HistoryAddress};
 
 /// Network data types for dweb APIs
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, ToSchema)]

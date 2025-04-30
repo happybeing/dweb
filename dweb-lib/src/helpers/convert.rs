@@ -26,7 +26,7 @@ use autonomi::PointerAddress;
 use autonomi::ScratchpadAddress;
 
 use crate::cache::directory_with_name::HISTORY_NAMES;
-use crate::trove::HistoryAddress;
+use crate::history::HistoryAddress;
 
 use super::HISTORY_ADDRESS_LEN;
 

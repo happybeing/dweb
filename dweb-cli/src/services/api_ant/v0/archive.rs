@@ -39,7 +39,7 @@ use dweb::files::archive::DualArchive;
 use dweb::files::directory::Tree;
 use dweb::helpers::{convert::*, retry::retry_until_ok, web::*};
 use dweb::storage::DwebType;
-use dweb::trove::History;
+use dweb::history::History;
 use dweb::types::derive_named_object_secret;
 
 use crate::services::api_dweb::v0::{MutateQueryParams, MutateResult, ParsedRequestParams};

@@ -27,7 +27,7 @@ use autonomi::client::files::archive_public::ArchiveAddress;
 
 use crate::client::DwebClient;
 use crate::files::directory::{get_content_using_hex, Tree};
-use crate::trove::{History, HistoryAddress};
+use crate::history::{History, HistoryAddress};
 use crate::web::name::decode_dweb_host;
 use crate::web::name::DwebHost;
 use crate::{

@@ -15,6 +15,17 @@ You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
+/// A History is a generic type for storing a series of versions of
+/// any serialised data structure.
+///
+/// To implement a history for your data type you implement the history::Trove
+/// trait for your type. You then use this type with the generic History<T: impl Trove>
+/// to store and retrieve any version of your type.
+///
+/// This is similar to the Autonomi Register type, but intended to be easier
+/// to use. It ensures that Histories for different types can be named without
+/// clashes and manages the naming of your History objects for you without the
+/// need to manage different owner secrets.
 use std::marker::PhantomData;
 
 use autonomi::client::payment::PaymentOption;

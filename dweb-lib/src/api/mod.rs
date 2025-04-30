@@ -20,7 +20,7 @@ use color_eyre::eyre::{eyre, Error, Result};
 ///! A Rust interface to dweb server APIs
 ///!
 ///! TODO keep this and the with ports APIs in sync
-use crate::trove::HistoryAddress;
+use crate::history::HistoryAddress;
 use crate::web::name::RecognisedName;
 use crate::web::request::main_server_request;
 

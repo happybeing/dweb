@@ -441,6 +441,9 @@ pub enum Subcommands {
         /// The address of a Scratchpad on Autonomi
         #[clap(name = "SCRATCHPAD-ADDRESS", value_parser = str_to_scratchpad_address)]
         scratchpad_address: ScratchpadAddress,
+        /// Attempt to show the data as text. Only works for unencrypted Scratchpads
+        #[clap(long = "", short = 't', default_value = "false")]
+        data_as_text: bool,
     },
 
     /// Print information about files in a directory on Autonomi

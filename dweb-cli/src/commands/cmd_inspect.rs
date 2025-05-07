@@ -233,6 +233,7 @@ fn print_pointer(pointer: &Pointer, pointer_address: &PointerAddress) {
 pub async fn handle_inspect_scratchpad(
     client: DwebClient,
     scratchpad_address: ScratchpadAddress,
+    data_as_text: bool,
 ) -> Result<()> {
     let scratchpad = match client.client.scratchpad_get(&scratchpad_address).await {
         Ok(scratchpad) => scratchpad,
@@ -243,18 +244,29 @@ pub async fn handle_inspect_scratchpad(
         }
     };
 
-    print_scratchpad(&scratchpad, &scratchpad_address);
+    print_scratchpad(&scratchpad, &scratchpad_address, data_as_text);
 
     Ok(())
 }
 
-fn print_scratchpad(scratchpad: &Scratchpad, scratchpad_address: &ScratchpadAddress) {
+fn print_scratchpad(
+    scratchpad: &Scratchpad,
+    scratchpad_address: &ScratchpadAddress,
+    data_as_text: bool,
+) {
     println!("scratchpad  : {}", scratchpad_address.to_hex());
     println!("  encoding  : {:x}", scratchpad.data_encoding());
     println!("  counter   : {}", scratchpad.counter());
     println!("  owner     : {}", scratchpad.owner().to_hex());
     println!("  counter   : {}", scratchpad.counter());
-    println!("  data      : {:?}", scratchpad.encrypted_data());
+
+    if data_as_text {
+        let data_as_vec: Vec<u8> = (*scratchpad.encrypted_data()).clone().into();
+        let string = String::from_utf8(data_as_vec).unwrap_or("<not a UTF8 string>".to_string());
+        println!("  data      : {string}");
+    } else {
+        println!("  data      : {:?}", scratchpad.encrypted_data());
+    }
 }
 
 /// Implement 'inspect-graphentry' subcommand

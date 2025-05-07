@@ -20,9 +20,9 @@ use color_eyre::{eyre::eyre, Report, Result};
 use autonomi::{AttoTokens, InitialPeersConfig};
 
 use dweb::client::{ApiControl, DwebClient};
+use dweb::history::HistoryAddress;
 use dweb::storage::{publish_or_update_files, report_content_published_or_updated};
 use dweb::token::{show_spend_return_value, Spends};
-use dweb::history::HistoryAddress;
 use dweb::web::request::{main_server_request, make_main_server_url};
 use dweb::web::{LOCALHOST_STR, SERVER_HOSTS_MAIN_PORT, SERVER_PORTS_MAIN_PORT};
 
@@ -372,11 +372,15 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             }
         }
 
-        Some(Subcommands::Inspect_scratchpad { scratchpad_address }) => {
+        Some(Subcommands::Inspect_scratchpad {
+            scratchpad_address,
+            data_as_text,
+        }) => {
             let (client, _) = connect_and_announce(opt.peers, ApiControl::default(), true).await;
             match crate::commands::cmd_inspect::handle_inspect_scratchpad(
                 client,
                 scratchpad_address,
+                data_as_text,
             )
             .await
             {

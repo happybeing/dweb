@@ -113,7 +113,7 @@ pub async fn scratchpad_private_get(
     match dweb::helpers::get_app_secret_key() {
         Ok(owner_secret) => match scratchpad.decrypt_data(&derive_named_object_secret(owner_secret, PRIVATE_SCRATCHPAD_DERIVATION_INDEX, &None, None, None)) {
             Ok(bytes) => {
-                dweb_scratchpad.unencryped_data = bytes.to_vec();
+                dweb_scratchpad.unencrypted_data = bytes.to_vec();
                 println!("DEBUG {rest_handler} decrypted data: {bytes:?}");
             },
             Err(_e) => println!("DEBUG {rest_handler} scratchpad decryption failed. This will fail if scratchpad was created with an object_name. In that case use the route which takes an object_name not scratchpad_address.")
@@ -226,7 +226,7 @@ pub async fn scratchpad_private_get_owned(
 
     match scratchpad.decrypt_data(&scratchpad_secret) {
         Ok(bytes) => {
-            dweb_scratchpad.unencryped_data = bytes.to_vec();
+            dweb_scratchpad.unencrypted_data = bytes.to_vec();
             println!("DEBUG {rest_operation} successfully decrypted scratchpad data");
         }
         Err(e) => {
@@ -255,7 +255,11 @@ pub async fn scratchpad_private_get_owned(
 
 /// Create a new private Scratchpad on the network
 ///
-/// Note: This implementation differs from the Autonomi APIs in that you can have
+/// Notes:
+/// - if you leave the Scratchpad content_type as 0 and provide an app ID, the content_type will be
+/// set in the scratchpad to the value of app_name_to_vault_content_type(app_id + "-scratchpad-" + object_name).
+///
+/// - this implementation differs from the Autonomi APIs in that you can have
 /// any number of scratchpads with the same owner but different names, and these will
 /// not clash with other types also using the same owner.
 ///
@@ -326,9 +330,22 @@ pub async fn scratchpad_private_post(
         };
 
     let payment_option = client.payment_option().clone();
-    let content_type = scratchpad.data_encoding;
+    let mut content_type = scratchpad.data_encoding;
+    if content_type == 0 && request_params.app_id.is_some() {
+        let object_name = request_params.object_name.unwrap_or("".to_string());
+        let scratchpad_id_string = format!(
+            "{}-scratchpad-{}",
+            request_params.app_id.unwrap(),
+            &object_name
+        );
+        content_type = autonomi::client::vault::app_name_to_vault_content_type(scratchpad_id_string)
+    }
 
-    let initial_data = match scratchpad.unencryped_data.clone().try_into_bytes() {
+    println!(
+        "DEBUG scratchpad.unencrypted_data: {:?}",
+        scratchpad.unencrypted_data
+    );
+    let initial_data = match scratchpad.unencrypted_data.clone().try_into_bytes() {
         Ok(bytes) => bytes,
         Err(_e) => {
             return MutateResult {
@@ -487,7 +504,7 @@ pub async fn scratchpad_private_put(
 
     let content_type = dweb_scratchpad.data_encoding;
 
-    let new_data = match dweb_scratchpad.unencryped_data.try_into_bytes() {
+    let new_data = match dweb_scratchpad.unencrypted_data.try_into_bytes() {
         Ok(bytes) => bytes,
         Err(_e) => {
             return MutateResult {
@@ -606,7 +623,7 @@ pub async fn scratchpad_public_get(
         dweb_type: DwebType::PublicScratchpad,
         scratchpad_address: scratchpad.address().to_hex(),
         data_encoding: scratchpad.data_encoding(),
-        unencryped_data: scratchpad.encrypted_data().to_vec(),
+        unencrypted_data: scratchpad.encrypted_data().to_vec(),
         counter: scratchpad.counter(),
         ..Default::default()
     };
@@ -711,14 +728,14 @@ pub async fn scratchpad_public_get_owned(
         dweb_type: DwebType::PublicScratchpad,
         scratchpad_address: scratchpad.address().to_hex(),
         data_encoding: scratchpad.data_encoding(),
-        unencryped_data: scratchpad.encrypted_data().to_vec(),
+        unencrypted_data: scratchpad.encrypted_data().to_vec(),
         counter: scratchpad.counter(),
         ..Default::default()
     };
 
     match scratchpad.decrypt_data(&scratchpad_secret) {
         Ok(bytes) => {
-            dweb_scratchpad.unencryped_data = bytes.to_vec();
+            dweb_scratchpad.unencrypted_data = bytes.to_vec();
             println!("DEBUG {rest_operation} successfully decrypted scratchpad data");
         }
         Err(e) => {
@@ -822,7 +839,7 @@ pub async fn scratchpad_public_post(
     let payment_option = client.payment_option().clone();
     let content_type = scratchpad.data_encoding;
 
-    let initial_data = match scratchpad.unencryped_data.clone().try_into_bytes() {
+    let initial_data = match scratchpad.unencrypted_data.clone().try_into_bytes() {
         Ok(bytes) => bytes,
         Err(_e) => {
             return MutateResult {
@@ -977,7 +994,7 @@ pub async fn scratchpad_public_put(
     let payment_option = client.payment_option().clone();
     let content_type = dweb_scratchpad.data_encoding;
 
-    let new_data = match dweb_scratchpad.unencryped_data.try_into_bytes() {
+    let new_data = match dweb_scratchpad.unencrypted_data.try_into_bytes() {
         Ok(bytes) => bytes,
         Err(_e) => {
             return MutateResult {
@@ -1095,7 +1112,7 @@ pub struct DwebScratchpad {
     scratchpad_address: String,
     data_encoding: u64,
     encryped_data: Vec<u8>,
-    unencryped_data: Vec<u8>,
+    unencrypted_data: Vec<u8>,
     counter: u64,
 }
 
@@ -1107,7 +1124,7 @@ impl Default for DwebScratchpad {
             counter: 0,
             data_encoding: 0,
             encryped_data: Vec::<u8>::new(),
-            unencryped_data: Vec::<u8>::new(),
+            unencrypted_data: Vec::<u8>::new(),
         }
     }
 }

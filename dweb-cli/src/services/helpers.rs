@@ -153,7 +153,7 @@ pub(crate) fn make_error_response_page(
     heading: String,
     message: &str,
 ) -> HttpResponse {
-    println!("make_error_response_page() - message: {message}");
+    println!("DEBUG make_error_response_page() - message: {message}");
 
     let status_code = if let Some(status_code) = status_code {
         &format!("{status_code}")

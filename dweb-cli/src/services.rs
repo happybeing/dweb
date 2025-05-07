@@ -97,6 +97,9 @@ pub async fn serve_with_ports(
             .wrap(
                 actix_cors::Cors::default()
                     .allow_any_origin()
+                    .allow_any_header()
+                    .allow_any_method()
+                    .expose_any_header()
                     .send_wildcard(),
             )
             // Macro logging using env_logger for both actix and libs such as Autonomi

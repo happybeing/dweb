@@ -92,7 +92,6 @@ pub async fn serve_with_hosts(
             //
             // <ARCHIVE-ADDRESS>|[vN].<HISTORY-ADDRESS>.www-dweb.au services must be
             // after above routes or will consume them too!
-            .service(www::test::init_service())
             .service(www::www::init_service())
             .service(www::debug::init_service())
             //

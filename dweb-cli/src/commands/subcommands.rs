@@ -17,7 +17,7 @@
 
 use color_eyre::{eyre::eyre, Report, Result};
 
-use autonomi::{AttoTokens, InitialPeersConfig};
+use autonomi::AttoTokens;
 
 use dweb::client::{ApiControl, DwebClient};
 use dweb::history::HistoryAddress;
@@ -46,7 +46,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             port,
         }) => {
             let (client, is_local_network) =
-                connect_and_announce(opt.peers, api_control, true).await;
+                connect_and_announce(opt.local, opt.alpha, api_control, true).await;
 
             if !experimental {
                 // Start the main server (for port based browsing), which will handle /dweb-open URLs  opened by 'dweb open'
@@ -195,7 +195,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
         }
 
         Some(Subcommands::Estimate { files_root }) => {
-            let (client, _) = connect_and_announce(opt.peers, api_control, true).await;
+            let (client, _) = connect_and_announce(opt.local, opt.alpha, api_control, true).await;
             match client.client.file_cost(&files_root).await {
                 Ok(tokens) => println!("Cost estimate: {tokens}"),
                 Err(e) => println!("Unable to estimate cost: {e}"),
@@ -209,7 +209,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             is_new_network: _,
         }) => {
             let app_secret_key = dweb::helpers::get_app_secret_key()?;
-            let (client, _) = connect_and_announce(opt.peers, api_control, true).await;
+            let (client, _) = connect_and_announce(opt.local, opt.alpha, api_control, true).await;
             let spends = Spends::new(&client, Some(&"Publish new cost: ")).await?;
             let (cost, name, history_address, version) = match publish_or_update_files(
                 &client,
@@ -250,7 +250,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             dweb_settings,
         }) => {
             let app_secret_key = dweb::helpers::get_app_secret_key()?;
-            let (client, _) = connect_and_announce(opt.peers, api_control, true).await;
+            let (client, _) = connect_and_announce(opt.local, opt.alpha, api_control, true).await;
             let spends = Spends::new(&client, Some(&"Publish update cost: ")).await?;
 
             let (cost, name, history_address, version) = match publish_or_update_files(
@@ -288,7 +288,8 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
         }
 
         Some(Subcommands::Wallet_info {}) => {
-            let (client, _) = connect_and_announce(opt.peers, ApiControl::default(), true).await;
+            let (client, _) =
+                connect_and_announce(opt.local, opt.alpha, ApiControl::default(), true).await;
             let tokens = client.wallet.balance_of_tokens().await?;
             let gas = client.wallet.balance_of_gas_tokens().await?;
             let network = client.network.identifier();
@@ -312,7 +313,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                 ignore_pointers: Some(true),
                 ..Default::default()
             };
-            let (client, _) = connect_and_announce(opt.peers, api_control, true).await;
+            let (client, _) = connect_and_announce(opt.local, opt.alpha, api_control, true).await;
             match crate::commands::cmd_inspect::handle_inspect_history(
                 client,
                 &address_or_name,
@@ -342,7 +343,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                 ignore_pointers: Some(true),
                 ..Default::default()
             };
-            let (client, _) = connect_and_announce(opt.peers, api_control, true).await;
+            let (client, _) = connect_and_announce(opt.local, opt.alpha, api_control, true).await;
             match crate::commands::cmd_inspect::handle_inspect_graphentry(
                 client,
                 graph_entry_address,
@@ -360,7 +361,8 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
         }
 
         Some(Subcommands::Inspect_pointer { pointer_address }) => {
-            let (client, _) = connect_and_announce(opt.peers, ApiControl::default(), true).await;
+            let (client, _) =
+                connect_and_announce(opt.local, opt.alpha, ApiControl::default(), true).await;
             match crate::commands::cmd_inspect::handle_inspect_pointer(client, pointer_address)
                 .await
             {
@@ -376,7 +378,8 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             scratchpad_address,
             data_as_text,
         }) => {
-            let (client, _) = connect_and_announce(opt.peers, ApiControl::default(), true).await;
+            let (client, _) =
+                connect_and_announce(opt.local, opt.alpha, ApiControl::default(), true).await;
             match crate::commands::cmd_inspect::handle_inspect_scratchpad(
                 client,
                 scratchpad_address,
@@ -396,7 +399,8 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             archive_address,
             files_args,
         }) => {
-            let (client, _) = connect_and_announce(opt.peers, ApiControl::default(), true).await;
+            let (client, _) =
+                connect_and_announce(opt.local, opt.alpha, ApiControl::default(), true).await;
             match crate::commands::cmd_inspect::handle_inspect_files(
                 client,
                 archive_address,
@@ -466,22 +470,25 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
 }
 
 async fn connect_and_announce(
-    peers: InitialPeersConfig,
+    local_network: bool,
+    alpha_network: bool,
     api_control: ApiControl,
     announce: bool,
 ) -> (DwebClient, bool) {
-    let is_local_network = peers.local;
-    let client = dweb::client::DwebClient::initialise_and_connect(peers, api_control)
-        .await
-        .expect("Failed to connect to Autonomi Network");
+    let client =
+        dweb::client::DwebClient::initialise_and_connect(local_network, alpha_network, api_control)
+            .await
+            .expect("Failed to connect to Autonomi Network");
 
     if announce {
-        if is_local_network {
+        if local_network {
             println!("-> local network: {}", client.network);
+        } else if alpha_network {
+            println!("-> alpha network {}", client.network);
         } else {
             println!("-> public network {}", client.network);
         };
     };
 
-    (client, is_local_network)
+    (client, local_network)
 }

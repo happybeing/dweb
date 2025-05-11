@@ -23,12 +23,10 @@ mod www;
 use std::io;
 use std::time::Duration;
 
-use crate::cli_options::Opt;
 use actix_web::{
     dev::Service, get, http::StatusCode, middleware::Logger, post, web, web::Data, App,
     HttpRequest, HttpResponse, HttpServer, Responder,
 };
-use clap::Parser;
 
 use dweb::cache::directory_with_port::DirectoryVersionWithPort;
 use dweb::client::DwebClient;
@@ -211,12 +209,7 @@ async fn test_fetch_file(
 }
 
 async fn manual_test_connect() -> impl Responder {
-    let opt = Opt::parse();
-    let config = autonomi::ClientConfig {
-        init_peers_config: opt.peers,
-        ..Default::default()
-    };
-    if let Ok(_client) = autonomi::client::Client::init_with_config(config).await {
+    if let Ok(_client) = autonomi::client::Client::init().await {
         return HttpResponse::Ok().body(
             "Testing connect to Autonomi..\
         SUCCESS!",

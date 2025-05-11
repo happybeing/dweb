@@ -6,7 +6,7 @@
 // KIND, either express or implied. Please review the Licences for the specific language governing
 // permissions and limitations relating to use of the SAFE Network Software.
 
-use crate::autonomi::wallet::load_wallet_private_key;
+use super::super::wallet::load_wallet_private_key;
 use autonomi::client::register::SecretKey as RegisterSecretKey;
 use autonomi::client::vault::VaultSecretKey;
 use autonomi::{Network, Wallet};
@@ -51,7 +51,7 @@ pub fn create_register_signing_key_file(key: RegisterSecretKey) -> Result<PathBu
     Ok(file_path)
 }
 
-fn parse_register_signing_key(key_hex: &str) -> Result<RegisterSecretKey> {
+pub fn parse_register_signing_key(key_hex: &str) -> Result<RegisterSecretKey> {
     RegisterSecretKey::from_hex(key_hex)
         .wrap_err("Failed to parse register signing key")
         .with_suggestion(|| {

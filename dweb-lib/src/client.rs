@@ -24,7 +24,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 use color_eyre::Result;
 
 use autonomi::client::{payment::PaymentOption, Client};
-use autonomi::{InitialPeersConfig, TransactionConfig};
+use autonomi::TransactionConfig;
 use autonomi::{Network, Wallet};
 
 use crate::token::{Rate, ShowCost};
@@ -106,19 +106,20 @@ impl DwebClient {
     /// variable. For example, setting this to 'arbitrum-sepolia' selects the
     /// Artbitrum test network.
     pub async fn initialise_and_connect(
-        init_peers_config: InitialPeersConfig,
+        local_network: bool,
+        alpha_network: bool,
         api_control: ApiControl,
     ) -> Result<DwebClient> {
         println!("Dweb Autonomi client initialising...");
-        let is_local = init_peers_config.local;
-        let evm_network = autonomi::get_evm_network(is_local)?;
-        let config = autonomi::ClientConfig {
-            init_peers_config,
-            evm_network,
-            ..Default::default()
+
+        let client = if local_network {
+            Client::init_local().await?
+        } else if alpha_network {
+            Client::init_alpha().await?
+        } else {
+            Client::init().await?
         };
 
-        let client = autonomi::client::Client::init_with_config(config).await?;
         let mut wallet = match crate::autonomi::wallet::load_wallet(&client.evm_network()) {
             Ok(wallet) => wallet,
             Err(_e) => {
@@ -152,7 +153,7 @@ impl DwebClient {
         Ok(DwebClient {
             client: client.clone(),
             network: client.evm_network().clone(),
-            is_local,
+            is_local: local_network,
             wallet,
             api_control,
             ant_rate,

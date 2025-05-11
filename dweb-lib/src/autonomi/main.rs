@@ -97,6 +97,7 @@ fn init_logging_and_metrics(opt: &Opt) -> Result<(ReloadHandle, Option<WorkerGua
         ("autonomi".to_string(), Level::TRACE),
         ("evmlib".to_string(), Level::TRACE),
         ("ant_logging".to_string(), Level::TRACE),
+        ("ant_protocol".to_string(), Level::TRACE),
         ("ant_cli".to_string(), Level::TRACE),
     ];
     let mut log_builder = LogBuilder::new(logging_targets);

@@ -23,19 +23,18 @@ fixed-dweb-hosts = []
 [dependencies]
 # awe only crates: ant-networking ant-bootstrap
 #
-# Generated using: awe-dependencies --branch autonomi-v0.4.5
-autonomi = { version = "0.4.5" }
-#ant-bootstrap = { version = "0.2.2" }
+# Generated using: awe-dependencies --branch autonomi-v0.4.6
+autonomi = { version = "0.4.6" }
 ant-build-info = { version = "0.1.27" }
 ant-logging = { version = "0.2.49" }
-#ant-networking = { version = "0.3.11" }
-evmlib = { version = "0.3.0" }
-
-# Generated using: awe-dependencies --branch autonomi-v0.4.4
-#autonomi = { version = "0.4.4" }
+evmlib = { version = "0.4.0" }
+#
+# awe only crates: ant-networking ant-bootstrap
+#
+# Generated using: awe-dependencies --branch autonomi-v0.4.5
+#autonomi = { version = "0.4.5" }
 #ant-build-info = { version = "0.1.27" }
 #ant-logging = { version = "0.2.49" }
-#ant-protocol = { version = "1.0.4" }
 #evmlib = { version = "0.3.0" }
 
 dweb = { path = "../dweb-lib", version = "0.6.2", features = ["development"]}

@@ -358,7 +358,7 @@ Then in another terminal:
 ```
 dweb openapi-docs
 ```
-<img src="./misc/screenshot-swagger-ui.png" alt="Screenshot of Swagger UI">
+![Screenshot of Swagger UI](./misc/screenshot-swagger-ui.png?raw=true "Screenshot of Swagger UI")
 
 A sample of each kind of API are listed below but the Swagger UI provides a complete reference and live playground.
 

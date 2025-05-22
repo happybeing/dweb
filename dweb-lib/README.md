@@ -14,11 +14,15 @@
 ### Status
 The dweb library is a work in progress so expect breaking changes expecially in newly added features. The web publishing format and command line interface are more stable but breaking changes are still possible.
 
-## Contributing
-Contributions under the AGPL3.0 license are welcome and any contributions or PRs submitted will be assumed to be offered under that license unless clearly and prominently specified otherwise.
+## Contributions
+Contributions under the AGPL3.0 license are welcome and any contributions or PRs submitted will be assumed to be offered under that license unless clearly and prominently specified otherwise. Any contributions are accepted on the condition they conform to that license and the following conditions:
+
+- that by submitting a contribution you are confirming that you are the sole author, understand all the submitted code in depth, and that no AI or other code generation tool that has ingested copyright material was used in generating content in your contribution.
+
+Thanks for understanding that I don't want to accept material of unknown provenance nor spend time reviewing code that the contributor doesn't understand completely.
 
 ## LICENSE
 
-Everything is licensed under AGPL3.0 unless otherwise stated. Any contributions are accepted on the condition they conform to this license.
+Everything is licensed under AGPL3.0 unless otherwise stated.
 
 See also [./LICENSE](./LICENSE)

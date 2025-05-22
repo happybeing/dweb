@@ -382,7 +382,10 @@ pub async fn scratchpad_private_post(
             .await
         {
             Ok(result) => Ok(result),
-            Err(e) => Err(eyre!(e)),
+            Err(e) => {
+                println!("DEBUG /scratchpad-private POST failed to create scratchpad - {e}");
+                return Err(eyre!(e));
+            }
         },
     )
     .await;
@@ -396,7 +399,7 @@ pub async fn scratchpad_private_post(
             let (cost_in_ant, cost_in_arb_eth) = match spends {
                 Ok(spends) => {
                     let (cost_in_ant, cost_in_arb_eth) = spends.get_spend_strings().await;
-                    println!("DEBUG {rest_operation} cost in ANT  : {cost_in_ant}");
+                    println!("DEBUG {rest_operation} cost in ANT    : {cost_in_ant}");
                     println!("DEBUG {rest_operation} cost in ARB-ETH: {cost_in_arb_eth}");
                     (cost_in_ant, cost_in_arb_eth)
                 }
@@ -883,7 +886,7 @@ pub async fn scratchpad_public_post(
             let (cost_in_ant, cost_in_arb_eth) = match spends {
                 Ok(spends) => {
                     let (cost_in_ant, cost_in_arb_eth) = spends.get_spend_strings().await;
-                    println!("DEBUG {rest_operation} cost in ANT  : {cost_in_ant}");
+                    println!("DEBUG {rest_operation} cost in ANT    : {cost_in_ant}");
                     println!("DEBUG {rest_operation} cost in ARB-ETH: {cost_in_arb_eth}");
                     (cost_in_ant, cost_in_arb_eth)
                 }
@@ -1040,7 +1043,7 @@ pub async fn scratchpad_public_put(
             let (cost_in_ant, cost_in_arb_eth) = match spends {
                 Ok(spends) => {
                     let (cost_in_ant, cost_in_arb_eth) = spends.get_spend_strings().await;
-                    println!("DEBUG {rest_operation} cost in ANT  : {cost_in_ant}");
+                    println!("DEBUG {rest_operation} cost in ANT    : {cost_in_ant}");
                     println!("DEBUG {rest_operation} cost in ARB-ETH: {cost_in_arb_eth}");
                     (cost_in_ant, cost_in_arb_eth)
                 }

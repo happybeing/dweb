@@ -336,7 +336,7 @@ pub async fn pointer_post(
             let (cost_in_ant, cost_in_arb_eth) = match spends {
                 Ok(spends) => {
                     let (cost_in_ant, cost_in_arb_eth) = spends.get_spend_strings().await;
-                    println!("DEBUG {rest_operation} cost in ANT  : {cost_in_ant}");
+                    println!("DEBUG {rest_operation} cost in ANT    : {cost_in_ant}");
                     println!("DEBUG {rest_operation} cost in ARB-ETH: {cost_in_arb_eth}");
                     (cost_in_ant, cost_in_arb_eth)
                 }
@@ -483,7 +483,7 @@ pub async fn pointer_put(
             let (cost_in_ant, cost_in_arb_eth) = match spends {
                 Ok(spends) => {
                     let (cost_in_ant, cost_in_arb_eth) = spends.get_spend_strings().await;
-                    println!("DEBUG {rest_operation} cost in ANT  : {cost_in_ant}");
+                    println!("DEBUG {rest_operation} cost in ANT    : {cost_in_ant}");
                     println!("DEBUG {rest_operation} cost in ARB-ETH: {cost_in_arb_eth}");
                     (cost_in_ant, cost_in_arb_eth)
                 }

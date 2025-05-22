@@ -414,6 +414,7 @@ The following instructions assume using the Svelte framework, but any web toolin
 
 ### Example dweb Apps
 Several examples are available to show how to build a dweb app:
+- **ScratchChat** - chat anonymously over Autonomi. A single file of hand-crafted HTML. [github](https://github.com/happybeing/dweb-app-scratchchat)
 - **Names** - list, create and delete memorable names for Autonomi websites. A Svelte app, see [github](https://github.com/happybeing/dweb-app-names)
 - **Fileman** - viewing versioned files on Autonomi by address or name. A Svelte app, see [github](https://github.com/happybeing/dweb-app-fileman)
 
@@ -491,11 +492,15 @@ You can preview the production build with `npm run preview`.
 
 After building this as a static app you can use `dweb` to publish it on your local testnet, and eventually on the public main net. See the dweb [github](https://github.com/happybeing/dweb/blob/main/dweb-cli/README.md#dweb-command-line-app) for more about this.
 
-## Contributing
-Contributions under the AGPL3.0 license are welcome and any contributions or PRs submitted will be assumed to be offered under that license unless clearly and prominently specified otherwise.
+## Contributions
+Contributions under the AGPL3.0 license are welcome and any contributions or PRs submitted will be assumed to be offered under that license unless clearly and prominently specified otherwise. Any contributions are accepted on the condition they conform to that license and the following conditions:
+
+- that by submitting a contribution you are confirming that you are the sole author, understand all the submitted code in depth, and that no AI or other code generation tool that has ingested copyright material was used in generating content in your contribution.
+
+Thanks for understanding that I don't want to accept material of unknown provenance nor spend time reviewing code that the contributor doesn't understand completely.
 
 ## LICENSE
 
-Everything is licensed under AGPL3.0 unless otherwise stated. Any contributions are accepted on the condition they conform to this license.
+Everything is licensed under AGPL3.0 unless otherwise stated.
 
 See also [./LICENSE](./LICENSE)

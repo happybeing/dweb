@@ -24,6 +24,8 @@
 
 use std::fmt::{self, Display, Formatter};
 use std::sync::{LazyLock, Mutex};
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 
 use color_eyre::eyre::{eyre, Result};
 use schnellru::{ByLength, LruMap};
@@ -39,12 +41,17 @@ use crate::history::HistoryAddress;
 // TODO: tune cache size values
 const WITH_PORT_CAPACITY: u32 = u16::MAX as u32; // When exceeded, port servers will be forgotten and new versions inaccessible
 
+
 /// A cache of DirectoryVersionWithPort
 ///
 /// Key:     ARCHIVE_ADDRESS
 ///
 /// Entry:   DirectoryVersionWithPort
 ///
+
+// Port configuration for the deterministic port algorithm
+const DETERMINISTIC_PORT_RANGE: u64 = 20_000;
+const DETERMINISTIC_PORT_BASE: u64 = 30_000;
 
 pub fn key_for_directory_versions_with_port(archive_address: ArchiveAddress) -> String {
     format!("{}", archive_address.to_hex()).to_ascii_lowercase()
@@ -69,6 +76,22 @@ pub static DIRECTORY_VERSIONS_WITH_PORT: LazyLock<Mutex<LruMap<String, Directory
             WITH_PORT_CAPACITY,
         )))
     });
+
+/// Generates a deterministic port number from a name.
+/// The algorithm:
+/// 1. Converts the name to a hash value
+/// 2. Takes the hash modulo PORT_RANGE
+/// 3. Adds PORT_BASE as a base to get a port in the range PORT_BASE to PORT_RANGE_END
+fn deterministic_port_from_name(name: &str) -> u16 {
+    // Create a hasher and hash the name
+    let mut hasher = DefaultHasher::new();
+    name.hash(&mut hasher);
+    let hash = hasher.finish();
+    
+    // Take modulo PORT_RANGE and add PORT_BASE
+    ((hash % DETERMINISTIC_PORT_RANGE) + DETERMINISTIC_PORT_BASE) as u16
+}
+
 #[derive(Clone)]
 pub struct DirectoryVersionWithPort {
     /// The port on which a listener has been started - used for redirection of a URL by another listener
@@ -200,31 +223,43 @@ pub async fn lookup_or_create_directory_version_with_port(
         }
     };
 
-    // Create a new one on a free port
-    if let Some(port) = port_check::free_local_port() {
-        let directory_version = DirectoryVersionWithPort::new(
-            port,
-            history_address,
-            version,
-            archive_address,
-            directory_tree,
-        );
-
-        // Add it to the cache
-        if let Ok(lock) = &mut DIRECTORY_VERSIONS_WITH_PORT.lock() {
-            let key = key_for_directory_versions_with_port(archive_address);
-            if lock.insert(key, directory_version.clone()) {
-                return Ok((directory_version, false));
-            } else {
-                let msg = format!("Failed to add new DirectoryVersionWithPort to the cache");
-                println!("DEBUG {msg}");
-                return Err(eyre!(msg));
+    // Create a new one with a deterministic port based on the name
+    let port = deterministic_port_from_name(address_or_name);
+    
+    // Check if the port is available, fallback to a random port if not
+    let port = if port_check::is_local_ipv4_port_free(port) {
+        port
+    } else {
+        // Fallback to a random free port if the deterministic port is not available
+        match port_check::free_local_port() {
+            Some(free_port) => {
+                println!("DEBUG Deterministic port {} is not available, using random port {} instead", port, free_port);
+                free_port
+            },
+            None => {
+                return Err(eyre!("Unable to spawn a dweb server - no free ports available"));
             }
         }
-        Ok((directory_version, false))
-    } else {
-        return Err(eyre!(
-            "Unable to spawn a dweb server - no free ports available"
-        ));
+    };
+    
+    let directory_version = DirectoryVersionWithPort::new(
+        port,
+        history_address,
+        version,
+        archive_address,
+        directory_tree,
+    );
+
+    // Add it to the cache
+    if let Ok(lock) = &mut DIRECTORY_VERSIONS_WITH_PORT.lock() {
+        let key = key_for_directory_versions_with_port(archive_address);
+        if lock.insert(key, directory_version.clone()) {
+            return Ok((directory_version, false));
+        } else {
+            let msg = format!("Failed to add new DirectoryVersionWithPort to the cache");
+            println!("DEBUG {msg}");
+            return Err(eyre!(msg));
+        }
     }
+    Ok((directory_version, false))
 }

@@ -31,11 +31,11 @@ use autonomi::files::archive_public::ArchiveAddress;
 
 use crate::client::DwebClient;
 use crate::files::archive::{DualArchive, ARCHIVE_PATH_SEPARATOR};
-use crate::storage::DwebType;
 use crate::history::{History, Trove};
+use crate::storage::DwebType;
 
-// The Trove type for a Tree
-const FILE_TREE_TYPE: &str = "ee383f084cffaab845617b1c43ffaee8b5c17e8fbbb3ad3d379c96b5b844f24e";
+// The Trove type for a Tree (now fixed, previously was 'builtin' AWV_REG_TYPE_PUBLIC)
+const FILE_TREE_TYPE: &str = "89d56e1dd78941e18b36d75d339014aa845bee4d8cce2ca9d608c0e8e432308a";
 
 // Default favicon.ico file, fixed by content addressing
 //

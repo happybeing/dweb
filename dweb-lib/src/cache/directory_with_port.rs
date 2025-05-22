@@ -80,15 +80,15 @@ pub static DIRECTORY_VERSIONS_WITH_PORT: LazyLock<Mutex<LruMap<String, Directory
 /// Generates a deterministic port number from a name.
 /// The algorithm:
 /// 1. Converts the name to a hash value
-/// 2. Takes the hash modulo PORT_RANGE
-/// 3. Adds PORT_BASE as a base to get a port in the range PORT_BASE to PORT_RANGE_END
+/// 2. Takes the hash modulo DETERMINISTIC_PORT_RANGE
+/// 3. Adds DETERMINISTIC_PORT_BASE as a base to get a port in the range DETERMINISTIC_PORT_BASE + DETERMINISTIC_PORT_RANGE
 fn deterministic_port_from_name(name: &str) -> u16 {
     // Create a hasher and hash the name
     let mut hasher = DefaultHasher::new();
     name.hash(&mut hasher);
     let hash = hasher.finish();
     
-    // Take modulo PORT_RANGE and add PORT_BASE
+    // Take modulo DETERMINISTIC_PORT_RANGE and add DETERMINISTIC_PORT_BASE
     ((hash % DETERMINISTIC_PORT_RANGE) + DETERMINISTIC_PORT_BASE) as u16
 }
 

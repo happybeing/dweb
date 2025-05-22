@@ -37,7 +37,7 @@ evmlib = { version = "0.4.0" }
 #ant-logging = { version = "0.2.49" }
 #evmlib = { version = "0.3.0" }
 
-dweb = { path = "../dweb-lib", version = "0.7.0", features = ["development"]}
+dweb = { path = "../dweb-lib", version = "0.7.1", features = ["development"]}
 
 clap = "4.5.21"
 color-eyre = "0.6.3"

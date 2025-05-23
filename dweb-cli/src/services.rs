@@ -24,12 +24,15 @@ pub(crate) mod www;
 
 use std::io;
 use std::time::Duration;
+use std::sync::Arc;
 
 use actix_web::{dev::Service, middleware::Logger, web, web::Data, App, HttpServer};
 use utoipa::OpenApi;
 use utoipa_actix_web::scope::scope;
 use utoipa_actix_web::AppExt;
 use utoipa_swagger_ui::SwaggerUi;
+use rustls::{ServerConfig, pki_types::{CertificateDer, PrivateKeyDer}};
+use rcgen::{generate_simple_self_signed, CertifiedKey};
 
 use dweb::cache::directory_with_port::DirectoryVersionWithPort;
 use dweb::client::DwebClient;
@@ -41,8 +44,41 @@ pub const CONNECTION_TIMEOUT: u64 = 75;
 #[cfg(feature = "development")]
 const DWEB_SERVICE_DEBUG: &str = "debug-dweb.au";
 
-#[cfg(feature = "development")]
-const DWEB_SERVICE_DEBUG: &str = "debug-dweb.au";
+/// Generate a self-signed certificate for HTTPS
+fn generate_self_signed_cert() -> std::io::Result<(Vec<CertificateDer<'static>>, PrivateKeyDer<'static>)> {
+    let subject_alt_names = vec![
+        "localhost".to_string(),
+        "127.0.0.1".to_string(),
+        "::1".to_string(),
+    ];
+    
+    let CertifiedKey { cert, key_pair } = generate_simple_self_signed(subject_alt_names)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("Failed to generate certificate: {}", e)))?;
+
+    let cert_der = cert.der().to_vec();
+    let key_der = key_pair.serialize_der();
+
+    let cert_chain = vec![CertificateDer::from(cert_der)];
+    let private_key = PrivateKeyDer::try_from(key_der)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("Failed to parse private key: {}", e)))?;
+
+    Ok((cert_chain, private_key))
+}
+
+/// Create rustls ServerConfig with self-signed certificate
+fn create_rustls_config() -> std::io::Result<ServerConfig> {
+    // Install the default crypto provider if not already installed
+    let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+    
+    let (cert_chain, private_key) = generate_self_signed_cert()?;
+
+    let config = ServerConfig::builder()
+        .with_no_client_auth()
+        .with_single_cert(cert_chain, private_key)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("Failed to create TLS config: {}", e)))?;
+
+    Ok(config)
+}
 
 /// serve_with_ports may be called as follows:
 ///
@@ -71,6 +107,8 @@ pub async fn serve_with_ports(
     // Either spawn a thread for the server and return, or do server.await
     spawn_server: bool,
     is_local_network: bool,
+    // Enable HTTPS with self-signed certificate
+    https: bool,
 ) -> io::Result<()> {
     register_builtin_names(is_local_network);
     let directory_version_with_port_copy1 = directory_version_with_port.clone();
@@ -202,10 +240,17 @@ pub async fn serve_with_ports(
             Some(directory_version_with_port) => directory_version_with_port,
         };
 
-        let server = server.bind((host.clone(), directory_version.port))?.run();
-        actix_web::rt::spawn(server);
+        let server_future = if https {
+            let config = create_rustls_config()?;
+            server.bind_rustls_0_23((host.clone(), directory_version.port), config)?.run()
+        } else {
+            server.bind((host.clone(), directory_version.port))?.run()
+        };
+        
+        actix_web::rt::spawn(server_future);
+        let protocol = if https { "https" } else { "http" };
         println!(
-            "Started a dweb server listening on {host}:{} for version {:?} at {:?} -> {}",
+            "Started a dweb server listening on {protocol}://{host}:{} for version {:?} at {:?} -> {}",
             directory_version.port,
             directory_version.version,
             directory_version.history_address,
@@ -221,7 +266,15 @@ pub async fn serve_with_ports(
             }
             Some(port) => port,
         };
-        println!("dweb main server listening on {host}:{port}");
-        server.bind((host, port))?.run().await
+        
+        let protocol = if https { "https" } else { "http" };
+        println!("dweb main server listening on {protocol}://{host}:{port}");
+        
+        if https {
+            let config = create_rustls_config()?;
+            server.bind_rustls_0_23((host, port), config)?.run().await
+        } else {
+            server.bind((host, port))?.run().await
+        }
     }
 }

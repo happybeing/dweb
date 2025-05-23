@@ -155,6 +155,9 @@ pub enum Subcommands {
         /// This is only needed when not using defaults, so hidden to de-clutter the CLI help
         #[clap(hide = true, long, value_name = "PORT", value_parser = parse_port_number)]
         port: Option<u16>,
+        /// Enable HTTPS with automatically generated self-signed certificate
+        #[clap(long = "https", default_value = "false")]
+        https: bool,
     },
 
     /// Open a browser to view a website on Autonomi (requires 'dweb serve' running)

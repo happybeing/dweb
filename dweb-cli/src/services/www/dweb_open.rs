@@ -135,6 +135,14 @@ pub async fn dweb_open_as(
     .await
 }
 
+/// Detect if the main server is running with HTTPS
+fn detect_main_server_https_status() -> bool {
+    use dweb::cache::spawn::detect_server_protocol;
+    
+    let (_, protocol) = detect_server_protocol();
+    matches!(protocol, Some(dweb::cache::spawn::ServerProtocol::Https))
+}
+
 pub async fn handle_dweb_open(
     request: &HttpRequest,
     client: Data<dweb::client::DwebClient>,
@@ -176,7 +184,7 @@ pub async fn handle_dweb_open(
                     None,
                     true,
                     *is_local_network.into_inner().as_ref(),
-                    true, // HTTPS for spawned servers too
+                    detect_main_server_https_status(),
                 )
                 .await
                 {

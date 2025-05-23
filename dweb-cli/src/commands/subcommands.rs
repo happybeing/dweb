@@ -44,6 +44,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             experimental,
             host,
             port,
+            https,
         }) => {
             let (client, is_local_network) =
                 connect_and_announce(opt.local, opt.alpha, api_control, true).await;
@@ -52,7 +53,11 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                 // Start the main server (for port based browsing), which will handle /dweb-open URLs  opened by 'dweb open'
                 let default_host = LOCALHOST_STR.to_string();
                 let host = host.unwrap_or(default_host);
-                let port = port.unwrap_or(SERVER_PORTS_MAIN_PORT);
+                let port = port.unwrap_or(if https { 
+                    dweb::web::DEFAULT_HTTPS_PORT 
+                } else { 
+                    SERVER_PORTS_MAIN_PORT 
+                });
                 match crate::services::serve_with_ports(
                     &client,
                     None,
@@ -60,6 +65,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                     Some(port),
                     false,
                     is_local_network,
+                    https,
                 )
                 .await
                 {
@@ -105,23 +111,22 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             if !experimental {
                 let default_host = LOCALHOST_STR.to_string();
                 let host = host.unwrap_or(default_host);
-                let port = port.unwrap_or(SERVER_PORTS_MAIN_PORT);
                 crate::commands::cmd_browse::handle_browse_with_ports(
                     &address_name_or_link,
                     version,
                     as_name,
                     remote_path,
                     Some(&host),
-                    Some(port),
+                    port,
                 );
             } else {
                 let default_host = dweb::web::DWEB_SERVICE_API.to_string();
                 let host = host.unwrap_or(default_host);
                 let port = port.unwrap_or(SERVER_HOSTS_MAIN_PORT);
-                crate::commands::cmd_browse::handle_browse_with_ports(
+                crate::commands::cmd_browse::handle_browse_with_hosts(
+                    None,
                     &address_name_or_link,
                     version,
-                    as_name,
                     remote_path,
                     Some(&host),
                     Some(port),

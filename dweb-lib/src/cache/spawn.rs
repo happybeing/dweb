@@ -20,6 +20,40 @@
 // TODO web API and CLI for listing active ports and what they are serving
 // TODO see TODOs in serve_with_ports()
 
+use std::net::TcpStream;
+use std::time::Duration;
+use crate::web::{SERVER_PORTS_MAIN_PORT, DEFAULT_HTTPS_PORT, LOCALHOST_STR};
+
+#[derive(Debug, Clone, Copy)]
+pub enum ServerProtocol {
+    Http,
+    Https,
+}
+
 pub fn is_main_server_with_ports_running() -> bool {
     return true; // TODO look-up the main server in the spawned servers struct
+}
+
+/// Detect if a dweb server is running and which protocol (HTTP/HTTPS) it uses
+/// Returns (is_running, protocol) where protocol is None if no server is detected
+pub fn detect_server_protocol() -> (bool, Option<ServerProtocol>) {
+    let timeout = Duration::from_millis(500);
+    
+    // Try HTTPS port first (8443)
+    if let Ok(_) = TcpStream::connect_timeout(
+        &format!("{}:{}", LOCALHOST_STR, DEFAULT_HTTPS_PORT).parse().unwrap(),
+        timeout
+    ) {
+        return (true, Some(ServerProtocol::Https));
+    }
+    
+    // Try HTTP port (8080)
+    if let Ok(_) = TcpStream::connect_timeout(
+        &format!("{}:{}", LOCALHOST_STR, SERVER_PORTS_MAIN_PORT).parse().unwrap(),
+        timeout
+    ) {
+        return (true, Some(ServerProtocol::Http));
+    }
+    
+    (false, None)
 }

@@ -17,8 +17,40 @@
 
 use std::u16;
 
-use dweb::cache::spawn::is_main_server_with_ports_running;
+use dweb::cache::spawn::{detect_server_protocol, ServerProtocol};
 use dweb::web::{DWEB_SERVICE_API, LOCALHOST_STR};
+
+/// Shared function to determine protocol and build URL consistently
+fn determine_protocol_and_build_url(
+    host: &str,
+    port: u16,
+    route: &str,
+) -> String {
+    let (is_running, detected_protocol) = detect_server_protocol();
+    
+    if !is_running {
+        // If no server detected, default to HTTP
+        return format!("http://{host}:{port}{route}");
+    }
+
+    // Use auto-detection to determine protocol
+    let use_https = if let Some(protocol) = detected_protocol {
+        let detected_https = matches!(protocol, ServerProtocol::Https);
+        if detected_https {
+            println!("Auto-detected HTTPS server on port {}", dweb::web::DEFAULT_HTTPS_PORT);
+        } else {
+            println!("Auto-detected HTTP server on port {}", dweb::web::SERVER_PORTS_MAIN_PORT);
+        }
+        detected_https
+    } else {
+        // Fallback to HTTP if detection fails
+        println!("Could not auto-detect protocol, defaulting to HTTP");
+        false
+    };
+    
+    let protocol = if use_https { "https" } else { "http" };
+    format!("{protocol}://{host}:{port}{route}")
+}
 
 /// Open a browser to view a website on Autonomi.
 ///
@@ -34,6 +66,14 @@ pub(crate) fn handle_browse_with_hosts(
     host: Option<&String>,
     port: Option<u16>,
 ) {
+    let (is_running, _) = detect_server_protocol();
+    
+    if !is_running {
+        println!("Please start the dweb server before using 'dweb open'");
+        println!("For help, type 'dweb serve --help'");
+        return;
+    }
+
     let default_host = DWEB_SERVICE_API.to_string();
     let host = host.unwrap_or(&default_host);
     let port = port.unwrap_or(dweb::web::SERVER_HOSTS_MAIN_PORT);
@@ -49,8 +89,7 @@ pub(crate) fn handle_browse_with_hosts(
 
     // open a browser on a localhost URL at that port
     let route = format!("/dweb-open/v{version}/{address_name_or_link}/{remote_path}");
-
-    let url = format!("http://{host}:{port}{route}");
+    let url = determine_protocol_and_build_url(host, port, &route);
     println!("DEBUG url: {url}");
 
     let _ = open::that(url);
@@ -69,9 +108,11 @@ pub(crate) fn handle_browse_with_ports(
     host: Option<&String>,
     port: Option<u16>,
 ) {
-    if !is_main_server_with_ports_running() {
-        println!("Please  start the dweb server before using 'dweb open'");
-        println!("For help, type 'dweb serve --help");
+    let (is_running, detected_protocol) = detect_server_protocol();
+    
+    if !is_running {
+        println!("Please start the dweb server before using 'dweb open'");
+        println!("For help, type 'dweb serve --help'");
         return;
     }
 
@@ -79,7 +120,19 @@ pub(crate) fn handle_browse_with_ports(
 
     let default_host = LOCALHOST_STR.to_string();
     let host = host.unwrap_or(&default_host);
-    let port = port.unwrap_or(dweb::web::SERVER_PORTS_MAIN_PORT);
+    
+    // Use auto-detection to determine the correct port if not explicitly set
+    let port = port.unwrap_or_else(|| {
+        if let Some(protocol) = detected_protocol {
+            match protocol {
+                ServerProtocol::Https => dweb::web::DEFAULT_HTTPS_PORT,
+                ServerProtocol::Http => dweb::web::SERVER_PORTS_MAIN_PORT,
+            }
+        } else {
+            dweb::web::SERVER_PORTS_MAIN_PORT
+        }
+    });
+    
     let version = if version.is_some() {
         &format!("{}", version.unwrap())
     } else {
@@ -96,7 +149,7 @@ pub(crate) fn handle_browse_with_ports(
     } else {
         format!("/dweb-open/v{version}/{address_name_or_link}/{remote_path}")
     };
-    let url = format!("http://{host}:{port}{route}");
+    let url = determine_protocol_and_build_url(host, port, &route);
     println!("DEBUG url: {url}");
 
     let _ = open::that(url);

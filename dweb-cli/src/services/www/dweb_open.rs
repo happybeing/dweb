@@ -176,6 +176,7 @@ pub async fn handle_dweb_open(
                     None,
                     true,
                     *is_local_network.into_inner().as_ref(),
+                    true, // HTTPS for spawned servers too
                 )
                 .await
                 {

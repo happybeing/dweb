@@ -33,32 +33,18 @@ The above opens your browser and loads a website from Autonomi containing links 
 
 ## Contents
 - [Browse the DWeb](#browse-the-dweb)
-    - [Get Rust](#get-rust)
-    - [Install dweb-cli](#install-dweb-cli)
-    - [Browse websites on Autonomi](#browse-websites-on-autonomi)
-    - [Advanced Browsing](#advanced-browsing)
-- [The Decentralised Web (DWeb)](#the-decentralised-web-dweb)
-    - [The Permanent Web](#the-permanent-web)
-    - [Publish a Website](#publish-a-website)
-    - [Linking to Websites on Autonomi](#linking-to-websites-on-autonomi)
-    - [Browse your Website on Autonomi](#browse-your-website-on-autonomi)
-    - [How to Pay the Autonomi Network](#how-to-pay-the-autonomi-network)
+- [About the Decentralised Web (DWeb)](#about-the-decentralised-web-dweb)
 - [Current Features and Future Plans](#current-features-and-future-plans)
-    - [Current Features](#current-features)
-        - [Command Line](#command-line)
-        - [Web API](#web-api)
-        - [Rust API](#rust-api)
-    - [Future Features Roadmap](#future-features-roadmap)
 - [Develop a Decentralised Web App](#develop-a-decentralised-web-app)
-    - [Setting Up](#setting-up)
-    - [Create your own dweb App](#create-your-own-dweb-app)
-    - [Develop your App](#develop-your-app)
-    - [Test your App](#test-your-app)
-    - [Build your App](#build-your-app)
 - [Contributing](#contributing)
 - [LICENSE](#license)
 
 ## Browse the dweb
+
+- [Get Rust](#get-rust)
+- [Install dweb-cli](#install-dweb-cli)
+- [Browse websites on Autonomi](#browse-websites-on-autonomi)
+- [Advanced Browsing](#advanced-browsing)
 
 ### Get Rust
 
@@ -70,16 +56,15 @@ In time, downloads will be provided to avoid the need to install Rust, but until
 
 ### Install dweb-cli
 ```
-cargo install --locked dweb-cli
+cargo install dweb-cli --locked
 ```
+Note: when installing dweb on Ubuntu, you may encounter missing openssl libraries. Do a `sudo apt update` and then `sudo apt install librust-openssl-dev`, and finally restart the dweb install.
+
+Once you have `dweb` installed you'll be able to find other websites and apps in the **awesome index** with `dweb open awesome`.
 
 If you need help, you can list the dweb subcommands and options with:
 ```
 dweb help
-```
-And on individual commands such as `publish-new` with the `--help` option:
-```
-dweb publish-new --help
 ```
 
 ### Browse websites on Autonomi
@@ -189,7 +174,13 @@ dweb open testing
 ```
 
 
-## The Decentralised Web (DWeb)
+## About the Decentralised Web (DWeb)
+- [The Permanent Web](#the-permanent-web)
+- [Publish a Website](#publish-a-website)
+- [Linking to Websites on Autonomi](#linking-to-websites-on-autonomi)
+- [Browse your Website on Autonomi](#browse-your-website-on-autonomi)
+- [Set up a Wallet](#set-up-a-wallet)
+
 A decentralised web means having everything we have now but with autonomy and freedoms baked in such as:
 - always on access free from service shutdown or failure
 - data secured against hacking and surveillance
@@ -211,9 +202,9 @@ So using dweb for publishing on Autonomi ensures that every version of a website
 ### Publish a Website
 Publishing your website is a one line command, and a similar command to update it later. Each dweb site has it's own history which ensures past and present versions available forever.
 
-A payment is made to the network whenever you publish or update your website, but there are no storage or renewal fees after that. So whatever you publish stays published (for the lifetime of the Autonomi network).
+When you publish, you will have to pay the Autonomi decentralised network a one-off upload fee. In fact you pay some of the nodes which will store your data. The cost is good value since there are no recurring fees once your data has been uploaded.
 
-So before you can publish anything you need to set up a wallet with tokens, see How to Pay the Autonomi Network below.
+So before you can publish anything you need to set up a wallet with tokens, see [Setup a Wallet](set-up-a-wallet)
 
 Publication is a transaction between you and a decentralised peer-to-peer network, so no gatekeepers or intermediaries are involved.
 
@@ -265,7 +256,7 @@ For example, after publishing my blog I can open it from the command. But first 
 
 You only have to do this once after reboot:
 
-`dweb server`
+`dweb serve`
 
 As long as the server is running, in another terminal I can view my blog using:
 ```
@@ -302,10 +293,28 @@ Notes about dweb names:
 - although the publish-update command recognised the name 'toast' this is not available for use with `dweb open` or other commands which can accept a name until you have registered it with the running dweb server.
 - dweb names are not yet stored and so will be forgotten whenever you restart the dweb server.
 
-### How to Pay the Autonomi Network
-The detail of this is not explained here, but essentially you will need a local Autonomi wallet on your computer containing enough tokens to pay for all the files you are publishing or updating.
+### Set up a Wallet
+You will need a wallet if you wish to upload data to Autonomi, or use a web application which stores data on the network.
 
-Look for more on this in the help and support sections of `autonomi.com`:
+You don't need a wallet just to browse websites or download files published by others. If you want to upload data, you can set-up your wallet as follows.
+
+1. Check if you have a wallet using the `ant-cli` (install with `cargo install ant-cli --locked` if you don't have that yet):
+   ```
+   ant wallet balance
+   ```
+2. If you don't have a wallet yet, create it with `ant wallet create` or import an existing wallet for which you already have the private key, with `ant wallet import`
+
+3. If you don't have funds, head over to the [Autonomi Community Faucet](https://forum.autonomi.community/t/community-faucet-live/41299?u=ambled)
+4. You will need to share the secret key of your wallet with `dweb`, so get your secret key with:
+   ```
+   ant wallet export
+   ```
+5. On Linux and MacOS you can either put `export SECRET_KEY=<PRIVATE-KEY>` in your `.bashrc` and then *open a new terminal*, or pass it when you start the dweb server with:
+   ```
+   export SECRET_KEY=<PRIVATE-KEY> dweb serve
+   ```
+
+If you need help with this, see the help and support sections of `autonomi.com`:
 - User focussed documentation ([docs.autonomi.com](https://docs.autonomi.com))
 - Autonomi support ([Discord](https://discord.gg/autonomi))
 - Community forum ([Discourse](https://forum.autonomi.community/))
@@ -314,9 +323,14 @@ Payment is handled automatically, and you can check the cost beforehand using `d
 ```
 dweb cost --files-root blog
 ```
-At the time of writing the cost is not accurately reported by the Autonomi network, but is usually very cheap compared to cloud storage.
+At the time of writing the cost is not accurately reported by the Autonomi network, but is usually very cheap compared to cloud storage. Especially as your data will be stored for the lifetime of the Autonomi network at no extra cost.
 
 ## Current Features and Future Plans
+- [Current Features](#current-features)
+    - [Command Line](#command-line)
+    - [Web API](#web-api)
+    - [Rust API](#rust-api)
+- [Future Features Roadmap](#future-features-roadmap)
 
 The design of dweb creates a lot of possibilities. One is to to expand the **RESTful access to Autonomi APIs** to make it easy to create powerful web apps served and storing their data on its secure, decentralised replacement for cloud services.
 
@@ -409,6 +423,11 @@ If you have **web front-end skills** there are plenty of things to improve or wr
 That's a long list for a one-person project so each area is available for others to contribute to, so if a feature is not implemented yet and you want it faster you might be able to make that happen! See 'Contributing' below.
 
 ## Develop a Decentralised Web App
+- [Setting Up](#setting-up)
+- [Create your own dweb App](#create-your-own-dweb-app)
+- [Develop your App](#develop-your-app)
+- [Test your App](#test-your-app)
+- [Build your App](#build-your-app)
 
 The following instructions assume using the Svelte framework, but any web tooling will do so long as it allows you to create a static website.
 

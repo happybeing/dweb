@@ -98,5 +98,6 @@ pub fn register_builtin_names(is_local: bool) {
         // Mainnet History is at: a27b3fdb495870ace8f91005223998dc675c8e1bceb50bac66c993bb720a013c9f83d7a46e6d0daecbb3530d5249e587
         // v1 Archive: 40ea2e530a60645363ae561c8a50c165f79d8a034c4458f68f1b848c11386e45
         let _ = register_name_from_string("scratchchat", "a27b3fdb495870ace8f91005223998dc675c8e1bceb50bac66c993bb720a013c9f83d7a46e6d0daecbb3530d5249e587");
+        let _ = register_name_from_string("toast", "95be239165b7016b7f6dada20134438e038d0456bff04ec37943e95742726854225aa03faeed4e7bbd96f5383a8f9448");
     }
 }

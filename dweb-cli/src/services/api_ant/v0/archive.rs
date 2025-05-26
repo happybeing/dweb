@@ -38,11 +38,11 @@ use dweb::client::DwebClient;
 use dweb::files::archive::DualArchive;
 use dweb::files::directory::Tree;
 use dweb::helpers::{convert::*, retry::retry_until_ok, web::*};
-use dweb::storage::DwebType;
 use dweb::history::History;
-use dweb::types::derive_named_object_secret;
+use dweb::storage::DwebType;
 
-use crate::services::api_dweb::v0::{MutateQueryParams, MutateResult, ParsedRequestParams};
+use crate::services::api_dweb::v0::MutateResult;
+use crate::web::etag;
 
 use crate::services::helpers::*;
 
@@ -70,13 +70,21 @@ pub async fn archive_get(
     client: Data<dweb::client::DwebClient>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
-    let rest_operation = "/archive-version GET";
+    let rest_operation = "/archive GET";
     let rest_handler = "archive_get()";
 
     let (datamap_chunk, _history_address, archive_address) =
         tuple_from_datamap_address_or_name(&datamap_or_address);
 
-    let tree = match Tree::from_datamap_or_address(&client, datamap_chunk, archive_address).await {
+    if let Some(response) =
+        etag::immutable_conditional_response(&request, &datamap_chunk, archive_address)
+    {
+        return response;
+    }
+
+    let tree = match Tree::from_datamap_or_address(&client, datamap_chunk.clone(), archive_address)
+        .await
+    {
         Ok(archive) => archive,
         Err(e) => {
             let message = format!("{rest_operation} {rest_handler} failed - {e}");
@@ -105,9 +113,15 @@ pub async fn archive_get(
 
     println!("DEBUG DwebArchive as JSON: {json:?}");
 
-    HttpResponse::Ok()
-        .insert_header(ContentType(mime::APPLICATION_JSON))
-        .body(json)
+    etag::response_with_etag(
+        &request,
+        etag::address(datamap_chunk, archive_address),
+        false,
+        None,
+        false,
+        Some(ContentType(mime::APPLICATION_JSON)),
+    )
+    .body(json)
 }
 
 /// Get a versioned directory tree from a dweb History of PublicArchive or PrivateArchive
@@ -160,6 +174,9 @@ pub async fn archive_get_version(
     let (version, _as_name, address_or_name, _remote_path) = decoded_params;
     let version = version.clone();
     let mut history_metadata = None;
+    let mut most_recent = false;
+    let mut is_versioned = false;
+    let mut actual_version = 0;
 
     let (history_address, archive_address) = tuple_from_address_or_name(&address_or_name);
     if history_address.is_none() && archive_address.is_none() {
@@ -175,24 +192,36 @@ pub async fn archive_get_version(
     let archive_address = if archive_address.is_some() {
         archive_address
     } else {
+        println!(
+            "DEBUG client.api_control.ignore_pointers is {:?}",
+            client.api_control.ignore_pointers
+        );
+        let ignore_pointer = client.api_control.ignore_pointers;
         let history_address = history_address.unwrap();
-        let mut history =
-            match History::<Tree>::from_history_address(client.clone(), history_address, false, 0)
-                .await
-            {
-                Ok(history) => history,
-                Err(e) => {
-                    let message = format!("{rest_operation} failed to get directory History - {e}");
-                    return make_error_response_page(
-                        None,
-                        &mut HttpResponse::NotFound(),
-                        "{rest_operation} error".to_string(),
-                        &message,
-                    );
-                }
-            };
+        is_versioned = true;
+        most_recent = version.is_none();
+        let mut history = match History::<Tree>::from_history_address(
+            client.clone(),
+            history_address,
+            ignore_pointer,
+            0,
+        )
+        .await
+        {
+            Ok(history) => history,
+            Err(e) => {
+                let message = format!("{rest_operation} failed to get directory History - {e}");
+                return make_error_response_page(
+                    None,
+                    &mut HttpResponse::NotFound(),
+                    "{rest_operation} error".to_string(),
+                    &message,
+                );
+            }
+        };
 
-        let ignore_pointer = false;
+        println!("DEBUG history.num_entries() is {}", history.num_entries());
+        actual_version = history.num_entries() - 1;
         let version = version.unwrap_or(0);
         history_metadata = Some(DwebHistoryReference {
             version,
@@ -200,6 +229,7 @@ pub async fn archive_get_version(
             history_size: history.num_entries() - 1,
         });
 
+        let ignore_pointer = false;
         match history
             .get_version_entry_value(version, ignore_pointer)
             .await
@@ -247,9 +277,15 @@ pub async fn archive_get_version(
 
     println!("DEBUG DwebArchive as JSON: {json:?}");
 
-    HttpResponse::Ok()
-        .insert_header(ContentType(mime::APPLICATION_JSON))
-        .body(json)
+    etag::response_with_etag(
+        &request,
+        etag::address(None, archive_address),
+        is_versioned,
+        Some(actual_version),
+        most_recent,
+        Some(ContentType(mime::APPLICATION_JSON)),
+    )
+    .body(json)
 }
 
 /// Get the file metadata in a directory tree
@@ -311,22 +347,27 @@ pub async fn api_directory_load(
     let archive_address = if archive_address.is_some() {
         archive_address.unwrap()
     } else {
+        let ignore_pointer = client.api_control.ignore_pointers;
         let history_address = history_address.unwrap();
-        let mut history =
-            match History::<Tree>::from_history_address(client.clone(), history_address, false, 0)
-                .await
-            {
-                Ok(history) => history,
-                Err(e) => {
-                    let message = format!("{rest_operation} failed to get directory History - {e}");
-                    return make_error_response_page(
-                        None,
-                        &mut HttpResponse::NotFound(),
-                        rest_operation.to_string(),
-                        &message,
-                    );
-                }
-            };
+        let mut history = match History::<Tree>::from_history_address(
+            client.clone(),
+            history_address,
+            ignore_pointer,
+            0,
+        )
+        .await
+        {
+            Ok(history) => history,
+            Err(e) => {
+                let message = format!("{rest_operation} failed to get directory History - {e}");
+                return make_error_response_page(
+                    None,
+                    &mut HttpResponse::NotFound(),
+                    rest_operation.to_string(),
+                    &message,
+                );
+            }
+        };
 
         let ignore_pointer = false;
         let version = version.unwrap_or(0);
@@ -699,17 +740,10 @@ impl DwebArchive {
                     directories_added.insert(web_path.clone());
                 }
 
-                let data_address = match DataAddress::from_hex(&datamap_chunk.address()) {
-                    Ok(data_address) => Some(data_address),
-                    Err(e) => {
-                        println!("DEBUG DwebArchive::from_private_archive() failed to decode datamap_chunk - {e}");
-                        None
-                    }
-                };
                 if !files_added.contains(&file_full_path) {
                     dweb_archive.entries.push(DwebArchiveEntry::new_file(
                         file_full_path.clone(),
-                        data_address,
+                        None,
                         Some(datamap_chunk.clone()),
                         metadata,
                     ));

@@ -14,25 +14,29 @@
  You should have received a copy of the GNU Affero General Public License
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
+use std::hash::{DefaultHasher, Hasher};
 
 use actix_web::{
     get,
+    http::header,
+    http::header::{ETag, EntityTag, HeaderName, HttpDate},
     http::StatusCode,
-    post,
     web::{self, Data},
     HttpRequest, HttpResponse, HttpResponseBuilder,
 };
 use color_eyre::eyre::eyre;
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use utoipa::{openapi::security::Http, ToSchema};
 
-use autonomi::{Chunk, ChunkAddress};
+use autonomi::data::private::DataMapChunk;
+use autonomi::{data::DataAddress, Chunk, ChunkAddress};
 
 use dweb::helpers::{convert::*, retry::retry_until_ok};
 use dweb::storage::DwebType;
 
 use crate::services::api_dweb::v0::MutateResult;
 use crate::services::helpers::*;
+use crate::web::etag;
 
 /// Get data from the network using a hex encoded datamap or data address
 #[utoipa::path(
@@ -59,8 +63,18 @@ pub async fn data_get(
     let rest_operation = "/data GET errror";
     let rest_handler = "data_get()";
 
+    if let Some(response) =
+        etag::immutable_conditional_response(&request, &datamap_chunk, data_address)
+    {
+        return response;
+    }
+
     let content = if datamap_chunk.is_some() {
-        match client.client.data_get(&datamap_chunk.unwrap()).await {
+        match client
+            .client
+            .data_get(&datamap_chunk.clone().unwrap())
+            .await
+        {
             Ok(bytes) => bytes,
             Err(e) => {
                 return make_error_response_page(
@@ -92,7 +106,15 @@ pub async fn data_get(
         );
     };
 
-    HttpResponseBuilder::new(StatusCode::OK).body(content)
+    etag::response_with_etag(
+        &request,
+        etag::address(datamap_chunk, data_address),
+        false,
+        None,
+        false,
+        None,
+    )
+    .body(content)
 }
 
 /// Put data to the network including its datamap

@@ -306,7 +306,7 @@ impl<T: Trove<T> + Clone> History<T> {
                 "History::from_name() failed - cannot use an empty name"
             ));
         }
-        let ignore_pointer = client.api_control.ignore_pointers.unwrap_or(ignore_pointer);
+        let ignore_pointer = client.api_control.ignore_pointers;
 
         let history_secret_key =
             Self::history_main_secret_key(owner_secret_key).derive_child(name.as_bytes());
@@ -366,6 +366,9 @@ impl<T: Trove<T> + Clone> History<T> {
                 .await
             {
                 Ok(pointer_head) => {
+                    if pointer.counter() == 0 {
+                        println!("WARNING: initialising History with pointer.counter() of 0");
+                    }
                     history.num_entries = pointer.counter() + 1;
                     history.head_graphentry = Some(pointer_head);
                     history.pointer_counter = pointer.counter() + 1;
@@ -403,7 +406,7 @@ impl<T: Trove<T> + Clone> History<T> {
             "DEBUG History::from_history_address({})",
             history_address.to_hex()
         );
-        let ignore_pointer = client.api_control.ignore_pointers.unwrap_or(ignore_pointer);
+        let ignore_pointer = client.api_control.ignore_pointers;
 
         // Check it exists to avoid accidental creation (and payment)
         let pointer_address = Self::pointer_address_from_history_address(history_address.clone())?;
@@ -456,6 +459,9 @@ impl<T: Trove<T> + Clone> History<T> {
                 .await
             {
                 Ok(pointer_head) => {
+                    if pointer.counter() == 0 {
+                        println!("WARNING: initialising History with pointer.counter() of 0");
+                    }
                     history.num_entries = pointer.counter() + 1;
                     history.head_graphentry = Some(pointer_head);
                     history.pointer_counter = pointer.counter() + 1;
@@ -691,8 +697,7 @@ impl<T: Trove<T> + Clone> History<T> {
     /// This is one more than the number of versions
     /// because the first entry is reserved for use
     /// as a type (which may point to metadata about
-    /// the Trove type). Example types include file
-    /// system and website.
+    /// the Trove type). Tree is an example Trove type.
     pub fn num_entries(&self) -> u32 {
         self.num_entries
     }

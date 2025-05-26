@@ -24,6 +24,7 @@ mod experimental;
 mod generated_rs;
 mod helpers;
 mod services;
+mod web;
 
 use clap::Parser;
 use color_eyre::Result;

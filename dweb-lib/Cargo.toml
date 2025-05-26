@@ -91,3 +91,8 @@ utoipa-swagger-ui = { version = "9.0.1", features = ["reqwest", "actix-web"] }
 #[dependencies.zip]
 # Downgrade zip until utoipa fix released
 #version = "=2.3.0"
+
+[package.metadata.docs.rs]
+features = ["actix-web", "vendored", "cache"]
+no-default-features = true
+rustdoc-args = ["--cfg", "doc_cfg"]

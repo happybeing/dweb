@@ -114,9 +114,10 @@ pub struct Opt {
     /// When true, uploads may succeed more often but will cost more than if they are succeeding without retries.
     #[clap(long, hide = true, default_value = "true")]
     pub upload_file_by_file: bool,
-    // Control API use of pointers: when present ignores or trusts rather than the default which varies
-    #[clap(long, hide = true)]
-    pub ignore_pointers: Option<bool>,
+    // Control API use of Pointers for versioned operations (e.g. for History and Registers).
+    // By default it ignores Pointers as they aren't updating on mainnet.
+    #[clap(long, hide = true, default_value = "true")]
+    pub ignore_pointers: bool,
 }
 
 fn greater_than_0(s: &str) -> Result<u64, String> {

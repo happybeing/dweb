@@ -54,7 +54,7 @@ pub struct ApiControl {
     /// of a graph.
     ///
     /// Can be used to investigate behaviour such as Pointers not updating on the public network.
-    pub ignore_pointers: Option<bool>,
+    pub ignore_pointers: bool,
     /// Show the cost of dweb API calls after each call in tokens, gas, both or none
     pub show_dweb_costs: ShowCost,
     /// Optional maximum fee in Gwei (units of 0.000000001 ETH), to pay for a transaction on the Arbitrum network.
@@ -68,7 +68,7 @@ impl Default for ApiControl {
             tries: 1,
             use_public_archive: false,
             upload_file_by_file: false,
-            ignore_pointers: None,
+            ignore_pointers: true,
             show_dweb_costs: ShowCost::Both,
             max_fee_per_gas: None,
         }

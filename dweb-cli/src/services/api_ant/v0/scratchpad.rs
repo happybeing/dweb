@@ -133,7 +133,7 @@ pub async fn scratchpad_private_get(
         }
     };
 
-    println!("DEBUG DwebScratchpad as JSON: {json:?}");
+    // println!("DEBUG DwebScratchpad as JSON: {json:?}");
 
     HttpResponse::Ok()
         .insert_header(ContentType(mime::APPLICATION_JSON))
@@ -246,7 +246,7 @@ pub async fn scratchpad_private_get_owned(
         }
     };
 
-    println!("DEBUG DwebScratchpad as JSON: {json:?}");
+    // println!("DEBUG DwebScratchpad as JSON: {json:?}");
 
     HttpResponse::Ok()
         .insert_header(ContentType(mime::APPLICATION_JSON))
@@ -643,7 +643,7 @@ pub async fn scratchpad_public_get(
         }
     };
 
-    println!("DEBUG DwebScratchpad as JSON: {json:?}");
+    // println!("DEBUG DwebScratchpad as JSON: {json:?}");
 
     HttpResponse::Ok()
         .insert_header(ContentType(mime::APPLICATION_JSON))
@@ -758,7 +758,7 @@ pub async fn scratchpad_public_get_owned(
         }
     };
 
-    println!("DEBUG DwebScratchpad as JSON: {json:?}");
+    // println!("DEBUG DwebScratchpad as JSON: {json:?}");
 
     HttpResponse::Ok()
         .insert_header(ContentType(mime::APPLICATION_JSON))

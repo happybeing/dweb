@@ -20,13 +20,17 @@ pub(crate) mod dweb_info;
 pub(crate) mod dweb_open;
 pub(crate) mod dweb_version;
 
-use actix_web::{http::StatusCode, web::Data, HttpRequest, HttpResponse};
+use actix_web::{
+    http::header::ContentType, http::StatusCode, web::Data, HttpRequest, HttpResponse,
+};
+use mime::Mime;
 
 use dweb::cache::directory_with_port::DirectoryVersionWithPort;
 use dweb::files::directory::get_content_using_hex;
 use dweb::web::fetch::response_with_body;
 
 use super::helpers::*;
+use crate::web::etag;
 
 /// Handle Autonomi www requests of the form:
 ///     http://localhost:<PORT>/here/is/a/path.html
@@ -88,12 +92,31 @@ pub async fn www_handler(
         .lookup_file(&path, true)
     {
         Ok((datamap_chunk, data_address, content_type)) => {
-            match get_content_using_hex(&client, datamap_chunk, data_address).await {
+            if let Some(response) = etag::immutable_conditional_response(&request, &None, None) {
+                return response;
+            }
+
+            match get_content_using_hex(&client, datamap_chunk.clone(), data_address.clone()).await
+            {
                 Ok(content) => {
-                    let mut response = HttpResponse::Ok();
-                    if let Some(content_type) = content_type {
-                        response.insert_header(("Content-Type", content_type.as_str()));
-                    }
+                    let content_type = if let Some(content_type) = content_type {
+                        if let Ok(mime) = content_type.parse::<Mime>() {
+                            Some(ContentType(mime))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    };
+
+                    let mut response = etag::response_with_etag(
+                        &request,
+                        etag::address_from_strings(datamap_chunk, data_address),
+                        false,
+                        None,
+                        false,
+                        content_type,
+                    );
                     return response.body(content);
                 }
                 Err(e) => {

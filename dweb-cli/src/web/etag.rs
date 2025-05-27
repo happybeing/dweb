@@ -120,6 +120,21 @@ pub(crate) fn address(
     address_string
 }
 
+/// Return an abridged address string for use building an ETag value,
+/// based on either a datamap_chunk or data_address
+pub(crate) fn address_from_strings(datamap_chunk: String, data_address: String) -> String {
+    let mut address_string = if !datamap_chunk.is_empty() {
+        datamap_chunk
+    } else if !data_address.is_empty() {
+        data_address
+    } else {
+        "unknown".to_string()
+    };
+
+    let _ = address_string.split_off(ETAG_ADDRESS_LEN);
+    address_string
+}
+
 /// Handle conditional headers for an immutable request
 ///
 /// Return None if the operation should proceed, or Some HttpResponseBuilder

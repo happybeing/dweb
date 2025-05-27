@@ -42,9 +42,8 @@ use dweb::history::History;
 use dweb::storage::DwebType;
 
 use crate::services::api_dweb::v0::MutateResult;
-use crate::web::etag;
-
 use crate::services::helpers::*;
+use crate::web::etag;
 
 // TODO archive_public_post() for POST
 // TODO remove /directory-load and update Fileman example to use it
@@ -187,6 +186,8 @@ pub async fn archive_get_version(
             &format!("{rest_operation} parameter error - unrecognised DWEB-NAME or invalid address: '{address_or_name}'"),
         );
     }
+
+    // TODO handle response based on etag
 
     let client = client.into_inner().as_ref().clone();
     let archive_address = if archive_address.is_some() {

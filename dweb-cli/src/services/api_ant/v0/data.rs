@@ -14,27 +14,16 @@
  You should have received a copy of the GNU Affero General Public License
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-use std::hash::{DefaultHasher, Hasher};
 
 use actix_web::{
     get,
-    http::header,
-    http::header::{ETag, EntityTag, HeaderName, HttpDate},
     http::StatusCode,
     web::{self, Data},
-    HttpRequest, HttpResponse, HttpResponseBuilder,
+    HttpRequest, HttpResponse,
 };
-use color_eyre::eyre::eyre;
-use serde::{Deserialize, Serialize};
-use utoipa::{openapi::security::Http, ToSchema};
 
-use autonomi::data::private::DataMapChunk;
-use autonomi::{data::DataAddress, Chunk, ChunkAddress};
+use dweb::helpers::convert::*;
 
-use dweb::helpers::{convert::*, retry::retry_until_ok};
-use dweb::storage::DwebType;
-
-use crate::services::api_dweb::v0::MutateResult;
 use crate::services::helpers::*;
 use crate::web::etag;
 
@@ -63,9 +52,8 @@ pub async fn data_get(
     let rest_operation = "/data GET errror";
     let rest_handler = "data_get()";
 
-    if let Some(response) =
-        etag::immutable_conditional_response(&request, &datamap_chunk, data_address)
-    {
+    // No need to pass an ETag because this data cannot change
+    if let Some(response) = etag::immutable_conditional_response(&request, None) {
         return response;
     }
 
@@ -106,15 +94,8 @@ pub async fn data_get(
         );
     };
 
-    etag::response_with_etag(
-        &request,
-        etag::address(datamap_chunk, data_address),
-        false,
-        None,
-        false,
-        None,
-    )
-    .body(content)
+    let etag = etag::etag(&request, etag::address(datamap_chunk, data_address), None);
+    HttpResponse::Ok().insert_header(etag).body(content)
 }
 
 /// Put data to the network including its datamap

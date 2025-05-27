@@ -75,9 +75,7 @@ pub async fn archive_get(
     let (datamap_chunk, _history_address, archive_address) =
         tuple_from_datamap_address_or_name(&datamap_or_address);
 
-    if let Some(response) =
-        etag::immutable_conditional_response(&request, &datamap_chunk, archive_address)
-    {
+    if let Some(response) = etag::immutable_conditional_response(&request, None) {
         return response;
     }
 
@@ -111,16 +109,17 @@ pub async fn archive_get(
     };
 
     println!("DEBUG DwebArchive as JSON: {json:?}");
-
-    etag::response_with_etag(
+    let content_type = ContentType(mime::APPLICATION_JSON);
+    let etag = etag::etag(
         &request,
         etag::address(datamap_chunk, archive_address),
-        false,
-        None,
-        false,
-        Some(ContentType(mime::APPLICATION_JSON)),
-    )
-    .body(json)
+        Some(content_type.clone()),
+    );
+
+    HttpResponse::Ok()
+        .insert_header(content_type)
+        .insert_header(etag)
+        .body(json)
 }
 
 /// Get a versioned directory tree from a dweb History of PublicArchive or PrivateArchive
@@ -187,7 +186,7 @@ pub async fn archive_get_version(
         );
     }
 
-    // TODO handle response based on etag
+    // TODO handle if none match in request based on etag
 
     let client = client.into_inner().as_ref().clone();
     let archive_address = if archive_address.is_some() {
@@ -277,16 +276,27 @@ pub async fn archive_get_version(
     };
 
     println!("DEBUG DwebArchive as JSON: {json:?}");
+    let content_type = ContentType(mime::APPLICATION_JSON);
+    let etag = if is_versioned {
+        etag::versioned_etag(
+            &request,
+            etag::address(None, archive_address),
+            Some(content_type.clone()),
+            actual_version,
+            most_recent,
+        )
+    } else {
+        etag::etag(
+            &request,
+            etag::address(None, archive_address),
+            Some(content_type.clone()),
+        )
+    };
 
-    etag::response_with_etag(
-        &request,
-        etag::address(None, archive_address),
-        is_versioned,
-        Some(actual_version),
-        most_recent,
-        Some(ContentType(mime::APPLICATION_JSON)),
-    )
-    .body(json)
+    HttpResponse::Ok()
+        .insert_header(content_type)
+        .insert_header(etag)
+        .body(json)
 }
 
 /// Get the file metadata in a directory tree

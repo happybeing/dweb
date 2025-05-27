@@ -400,11 +400,11 @@ pub fn register_name_from_string(dweb_name: &str, history_address_str: &str) -> 
 
     match register_name(dweb_name, history_address) {
         Ok(_) => {
-            println!("DEBUG: Registered built-in DWEB-NAME: {dweb_name} -> {history_address_str}");
+            println!("DEBUG Registered built-in DWEB-NAME: {dweb_name} -> {history_address_str}");
             Ok(())
         }
         Err(e) => {
-            println!("DEBUG: failed to register built-in DWEB-NAME '{dweb_name}' - {e}");
+            println!("DEBUG failed to register built-in DWEB-NAME '{dweb_name}' - {e}");
             Err(e)
         }
     }

@@ -92,31 +92,33 @@ pub async fn www_handler(
         .lookup_file(&path, true)
     {
         Ok((datamap_chunk, data_address, content_type)) => {
-            if let Some(response) = etag::immutable_conditional_response(&request, &None, None) {
+            let content_type = if let Some(content_type) = content_type {
+                if let Ok(mime) = content_type.parse::<Mime>() {
+                    Some(ContentType(mime))
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+            let etag = etag::etag(
+                &request,
+                etag::address_from_strings(&datamap_chunk, &data_address),
+                content_type.clone(),
+            );
+
+            if let Some(response) = etag::immutable_conditional_response(&request, Some(&etag)) {
                 return response;
             }
 
-            match get_content_using_hex(&client, datamap_chunk.clone(), data_address.clone()).await
-            {
+            match get_content_using_hex(&client, datamap_chunk, data_address).await {
                 Ok(content) => {
-                    let content_type = if let Some(content_type) = content_type {
-                        if let Ok(mime) = content_type.parse::<Mime>() {
-                            Some(ContentType(mime))
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    };
-
-                    let mut response = etag::response_with_etag(
-                        &request,
-                        etag::address_from_strings(datamap_chunk, data_address),
-                        false,
-                        None,
-                        false,
-                        content_type,
-                    );
+                    let mut response = HttpResponse::Ok();
+                    if content_type.is_some() {
+                        response.insert_header(content_type.unwrap());
+                    }
+                    response.insert_header(etag);
                     return response.body(content);
                 }
                 Err(e) => {

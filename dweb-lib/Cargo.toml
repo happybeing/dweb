@@ -28,7 +28,7 @@ no-default-features = true
 rustdoc-args = ["--cfg", "doc_cfg"]
 
 [build-dependencies]
-#utoipa-swagger-ui-vendored = { version = "0.1.2", path = "../utoipa-swagger-ui-vendored", optional = true }
+#utoipa-swagger-ui-vendored = { version = "0.1.2", path = "utoipa-swagger-ui-vendored", optional = true }
 utoipa-swagger-ui-vendored = "0.1.2"
 
 [dependencies]

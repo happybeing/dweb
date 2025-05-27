@@ -28,7 +28,39 @@ use autonomi::data::DataAddress;
 
 const ETAG_ADDRESS_LEN: usize = 10; // Length of the abridged data address part of an ETag
 
-/// Provide a resonse with headers that allow conditional requests for fixed or versioned data
+/// Provide an ETag that will allow conditional requests for immutable data when
+/// accessed via a mutable indirection (e.g. versioned History or Register)
+///
+/// Where the data requested is immutable, we never need to do eTag matching to know if it has
+/// changed but when the version requested is most_recent rather than an explicit version the
+/// data requested is not immutable
+///
+/// IMPORTANT: this assumes different content types are NOT allowed because then the comparison
+/// would need to be made in case the response content type is different. At this time there
+/// is no way for the REST API to respond with different content types, but if that changes
+/// this response method MUST NOT BE USED.
+///
+pub(crate) fn etag(
+    _request: &HttpRequest,
+    // The abbreviated address of immutable data (based on its datamap_chunk or data_address)
+    etag_address: String,
+    content_type: Option<header::ContentType>,
+) -> ETag {
+    let type_string: String = if let Some(content_type) = content_type.clone() {
+        format!("-{}", content_type.to_string())
+    } else {
+        "".to_string()
+    };
+
+    let version_string = "";
+    let mutability = "immutable-";
+
+    let etag = format!("{mutability}{etag_address}{version_string}{type_string}");
+    println!("DEBUG: immutable data with eTag: \"{etag}\"");
+    header::ETag(EntityTag::new_strong(etag))
+}
+
+/// Provide an ETag that will allow conditional requests for a versioned resource (e.g. History or Register)
 ///
 /// Where the data requested is immutable, we never need to do eTag matching to know if it has
 /// changed but when the version requested is most_recent rather than an explicit version the
@@ -50,34 +82,23 @@ const ETAG_ADDRESS_LEN: usize = 10; // Length of the abridged data address part 
 ///     updated weak validator. (TODO:) This is NOT YET IMPLEMENTED so for now, the server will always
 ///     re-fetch most_recent versioned data and return the corresponding weak validator.
 ///
-/// This function will insert an eTag which has resource and address information, the version
-/// if provided, and an optional content type.
-pub(crate) fn response_with_etag(
+pub(crate) fn versioned_etag(
     _request: &HttpRequest,
+    // The abbreviated address of immutable data (based on its datamap_chunk or data_address)
     etag_address: String,
-    is_versioned: bool,
-    actual_version: Option<u32>,
-    most_recent: bool,
     content_type: Option<header::ContentType>,
-) -> HttpResponseBuilder {
+    // For versioned data...
+    actual_version: u32,
+    most_recent: bool,
+) -> ETag {
     let type_string: String = if let Some(content_type) = content_type.clone() {
         format!("-{}", content_type.to_string())
     } else {
         "".to_string()
     };
 
-    let version_string: String = if is_versioned {
-        let version = if let Some(version) = actual_version {
-            version.to_string()
-        } else {
-            println!("BUG: version None provided for is_versioned eTag");
-            "".to_string()
-        };
-        let version_qualifier = if most_recent { "-latest" } else { "-actual" };
-        format!("version-{version}{version_qualifier}")
-    } else {
-        "".to_string()
-    };
+    let version_qualifier = if most_recent { "latest" } else { "actual" };
+    let version_string: String = format!("-version-{actual_version}-{version_qualifier}");
 
     let mutability = if most_recent {
         "mutable-"
@@ -85,21 +106,14 @@ pub(crate) fn response_with_etag(
         "immutable-"
     };
 
-    let etag = format!("{mutability}{etag_address}-{version_string}{type_string}");
-    let mut builder = HttpResponseBuilder::new(StatusCode::OK);
-
+    let etag = format!("{mutability}{etag_address}{version_string}{type_string}");
     if most_recent {
-        println!("DEBUG: returning mutable data with eTag: W/\"{etag}\"");
-        builder.insert_header(header::ETag(EntityTag::new_weak(etag)));
+        println!("DEBUG: most recent version eTag: W/\"{etag}\"");
+        header::ETag(EntityTag::new_weak(etag))
     } else {
-        println!("DEBUG: returning immutable data with eTag: \"{etag}\"");
-        builder.insert_header(header::ETag(EntityTag::new_strong(etag)));
+        println!("DEBUG: immutable data with eTag: \"{etag}\"");
+        header::ETag(EntityTag::new_strong(etag))
     }
-
-    if content_type.is_some() {
-        builder.insert_header(content_type.unwrap());
-    }
-    builder
 }
 
 /// Return an abridged address string for use building an ETag value,
@@ -122,11 +136,11 @@ pub(crate) fn address(
 
 /// Return an abridged address string for use building an ETag value,
 /// based on either a datamap_chunk or data_address
-pub(crate) fn address_from_strings(datamap_chunk: String, data_address: String) -> String {
+pub(crate) fn address_from_strings(datamap_chunk: &String, data_address: &String) -> String {
     let mut address_string = if !datamap_chunk.is_empty() {
-        datamap_chunk
+        datamap_chunk.to_string()
     } else if !data_address.is_empty() {
-        data_address
+        data_address.to_string()
     } else {
         "unknown".to_string()
     };
@@ -144,10 +158,9 @@ pub(crate) fn address_from_strings(datamap_chunk: String, data_address: String) 
 /// TODO extend for PUT and POST (OPTIONS?)
 pub(crate) fn immutable_conditional_response(
     request: &HttpRequest,
-    datamap_chunk: &Option<DataMapChunk>,
-    data_address: Option<DataAddress>,
+    match_etag: Option<&ETag>,
 ) -> Option<HttpResponse> {
-    if immutable_if_none_match(request, datamap_chunk, data_address) {
+    if immutable_if_none_match(request, match_etag) {
         // Condition met, so go ahead with method
         return None;
     }
@@ -162,10 +175,19 @@ pub(crate) fn immutable_conditional_response(
     }
 }
 
-/// Check for and handle a conditional If-None-Match for immutable data
+/// Check for and handle a conditional If-None-Match request
 ///
 /// The result can be used to determine the appropriate action and response
 /// according to which HTTP method is involved (GET/HEAD or POST/PUT/DELETE etc)
+///
+/// There is no need to provide an ETag for a known immutable resource, but
+/// note that for a versioned website the resource may change depending on
+/// which version is being accessed. So in that case an ETag based on
+/// the immutable address of the resource should be provided.
+///
+/// If an ETag is provided it will be compared to the ETag(s) included
+/// in the request, otherwise the presence of If-None-Match with an
+/// ETag will return false (indicating a 304 (Not Modified) response)
 ///
 /// ref: https://datatracker.ietf.org/doc/html/rfc7232#page-14
 ///
@@ -174,16 +196,13 @@ pub(crate) fn immutable_conditional_response(
 /// - false should prevent this, and return either 304 (Not Modified) or
 /// 412 (Precondition Failed) response status.
 ///
+///
 /// TODO Implement versioned_if_none_match() for History/Register based requests
 /// TODO If-None-Match is the most relevant for improving speed of access to
 /// TODO immutable data in dweb apps, but other conditions may be useful so:
 /// TODO provide if_match()
 /// TODO provide if_unmodified_since()
-pub(crate) fn immutable_if_none_match(
-    request: &HttpRequest,
-    _datamap_chunk: &Option<DataMapChunk>,
-    _data_address: Option<DataAddress>,
-) -> bool {
+pub(crate) fn immutable_if_none_match(request: &HttpRequest, etag: Option<&ETag>) -> bool {
     if let Some(if_none_match) = request.headers().get(header::IF_NONE_MATCH) {
         match if_none_match.to_str() {
             Ok(if_none_match) => {
@@ -197,8 +216,17 @@ pub(crate) fn immutable_if_none_match(
                     // rather than be 'lost'.
                     return true;
                 }
-                // As this is immutable data, if the client has an ETag for it we can know
-                // it has the current and unmodified represetation.
+                if let Some(etag) = etag {
+                    let etag = etag.to_string();
+                    for tag in if_none_match.split(',') {
+                        if tag == etag {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+
+                // When no ETag is provided we can assume the data cannot change
                 return false;
             }
             Err(_e) => {

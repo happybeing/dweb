@@ -155,6 +155,7 @@ pub async fn archive_get_version(
     println!("DEBUG archive::get_version() {}", request.path());
     let rest_operation = "/archive-version GET";
     let _rest_handler = "archive::get()";
+    let content_type = ContentType(mime::APPLICATION_JSON);
 
     let params = params.into_inner();
     let decoded_params = match parse_versioned_path_params(&params) {
@@ -189,7 +190,13 @@ pub async fn archive_get_version(
     // TODO handle if none match in request based on etag
 
     let client = client.into_inner().as_ref().clone();
+    let mut history_address_string = "".to_string();
     let archive_address = if archive_address.is_some() {
+        // If we have an Archive address the URL resolves to immutable data so ETag None is OK
+        if let Some(response) = etag::immutable_conditional_response(&request, None) {
+            return response;
+        }
+
         archive_address
     } else {
         println!(
@@ -198,8 +205,18 @@ pub async fn archive_get_version(
         );
         let ignore_pointer = client.api_control.ignore_pointers;
         let history_address = history_address.unwrap();
+        history_address_string = history_address.to_hex();
         is_versioned = true;
         most_recent = version.is_none();
+
+        // If the URL includes a specific version the URL resolves to immutable data
+        // so ETag None is OK for this check
+        if !most_recent {
+            if let Some(response) = etag::immutable_conditional_response(&request, None) {
+                return response;
+            }
+        }
+
         let mut history = match History::<Tree>::from_history_address(
             client.clone(),
             history_address,
@@ -223,6 +240,19 @@ pub async fn archive_get_version(
         println!("DEBUG history.num_entries() is {}", history.num_entries());
         actual_version = history.num_entries() - 1;
         let version = version.unwrap_or(0);
+
+        // Now we know the actual version we can generate the immutable ETag to compare with any in the request
+        let etag = etag::versioned_etag(
+            &request,
+            etag::address_from_strings(&"".to_string(), &history_address_string),
+            Some(content_type.clone()),
+            actual_version,
+        );
+
+        if let Some(response) = etag::immutable_conditional_response(&request, Some(&etag)) {
+            return response;
+        }
+
         history_metadata = Some(DwebHistoryReference {
             version,
             history_address: history_address.to_hex(),
@@ -276,14 +306,12 @@ pub async fn archive_get_version(
     };
 
     println!("DEBUG DwebArchive as JSON: {json:?}");
-    let content_type = ContentType(mime::APPLICATION_JSON);
     let etag = if is_versioned {
         etag::versioned_etag(
             &request,
-            etag::address(None, archive_address),
+            etag::address_from_strings(&"".to_string(), &history_address_string),
             Some(content_type.clone()),
             actual_version,
-            most_recent,
         )
     } else {
         etag::etag(

@@ -89,7 +89,6 @@ pub(crate) fn versioned_etag(
     content_type: Option<header::ContentType>,
     // For versioned data...
     actual_version: u32,
-    most_recent: bool,
 ) -> ETag {
     let type_string: String = if let Some(content_type) = content_type.clone() {
         format!("-{}", content_type.to_string())
@@ -97,23 +96,17 @@ pub(crate) fn versioned_etag(
         "".to_string()
     };
 
-    let version_qualifier = if most_recent { "latest" } else { "actual" };
-    let version_string: String = format!("-version-{actual_version}-{version_qualifier}");
+    // let version_qualifier = if most_recent { "-latest" } else { "-actual" };
+    let version_string: String = format!("-v{actual_version}");
 
-    let mutability = if most_recent {
-        "mutable-"
-    } else {
-        "immutable-"
-    };
-
-    let etag = format!("{mutability}{etag_address}{version_string}{type_string}");
-    if most_recent {
-        println!("DEBUG: most recent version eTag: W/\"{etag}\"");
-        header::ETag(EntityTag::new_weak(etag))
-    } else {
-        println!("DEBUG: immutable data with eTag: \"{etag}\"");
-        header::ETag(EntityTag::new_strong(etag))
-    }
+    let etag = format!("immutable{etag_address}{version_string}{type_string}");
+    // if most_recent {
+    //     println!("DEBUG: most recent version eTag: W/\"{etag}\"");
+    //     header::ETag(EntityTag::new_weak(etag))
+    // } else {
+    println!("DEBUG: immutable data with eTag: \"{etag}\"");
+    header::ETag(EntityTag::new_strong(etag))
+    // }
 }
 
 /// Return an abridged address string for use building an ETag value,
@@ -151,11 +144,12 @@ pub(crate) fn address_from_strings(datamap_chunk: &String, data_address: &String
 
 /// Handle conditional headers for an immutable request
 ///
-/// Return None if the operation should proceed, or Some HttpResponseBuilder
+/// Returns None if the operation should proceed, or Some HttpResponseBuilder
 /// with either a 304 (Not Modified) or 412 (Precondition Failed) if the
 /// operation should be pre-empted.
 ///
 /// TODO extend for PUT and POST (OPTIONS?)
+/// TODO remove immutable from name
 pub(crate) fn immutable_conditional_response(
     request: &HttpRequest,
     match_etag: Option<&ETag>,
@@ -165,7 +159,7 @@ pub(crate) fn immutable_conditional_response(
         return None;
     }
 
-    // Condition not met, so pre-emptive resopnse
+    // Condition not met, so pre-emptive response
     use actix_web::http::Method;
     match *request.method() {
         Method::GET | Method::HEAD => {

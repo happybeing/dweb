@@ -20,6 +20,16 @@ metrics = ["ant-logging/process-metrics"]
 skip-network-compatibility-check = []   # Avoid need to upload avp type and include xor address in build
 development = ["fixed-dweb-hosts"]
 fixed-dweb-hosts = []
+#vendored = ["dep:utoipa-swagger-ui-vendored"]
+
+[utoipa-swagger-ui.metadata.docs.rs]
+features = ["actix-web", "reqwest", "vendored"]
+no-default-features = true
+rustdoc-args = ["--cfg", "doc_cfg"]
+
+[build-dependencies]
+#utoipa-swagger-ui-vendored = { version = "0.1.2", path = "../utoipa-swagger-ui-vendored", optional = true }
+utoipa-swagger-ui-vendored = "0.1.2"
 
 [dependencies]
 # awe only crates: ant-networking ant-bootstrap
@@ -92,7 +102,3 @@ utoipa-swagger-ui = { version = "9.0.1", features = ["reqwest", "actix-web"] }
 # Downgrade zip until utoipa fix released
 #version = "=2.3.0"
 
-[package.metadata.docs.rs]
-features = ["actix-web", "vendored", "cache"]
-no-default-features = true
-rustdoc-args = ["--cfg", "doc_cfg"]

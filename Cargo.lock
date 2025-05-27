@@ -2642,6 +2642,7 @@ dependencies = [
  "utoipa",
  "utoipa-actix-web",
  "utoipa-swagger-ui",
+ "utoipa-swagger-ui-vendored",
  "walkdir",
  "xor_name",
 ]
@@ -7514,6 +7515,12 @@ dependencies = [
  "utoipa",
  "zip",
 ]
+
+[[package]]
+name = "utoipa-swagger-ui-vendored"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e2eebbbfe4093922c2b6734d7c679ebfebd704a0d7e56dfcb0d05818ce28977d"
 
 [[package]]
 name = "uuid"

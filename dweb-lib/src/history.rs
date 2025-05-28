@@ -28,7 +28,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 /// need to manage different owner secrets.
 use std::marker::PhantomData;
 
-use autonomi::client::payment::PaymentOption;
 use autonomi::files::archive_public::ArchiveAddress;
 use blsttc::PublicKey;
 use color_eyre::eyre::{eyre, Result};
@@ -299,14 +298,13 @@ impl<T: Trove<T> + Clone> History<T> {
         name: String,
         ignore_pointer: bool,
         minimum_entry_index: u32,
-    ) -> Result<(AttoTokens, Self)> {
+    ) -> Result<Self> {
         println!("DEBUG History::from_name({name})");
         if name.is_empty() {
             return Err(eyre!(
                 "History::from_name() failed - cannot use an empty name"
             ));
         }
-        let ignore_pointer = client.api_control.ignore_pointers;
 
         let history_secret_key =
             Self::history_main_secret_key(owner_secret_key).derive_child(name.as_bytes());
@@ -378,7 +376,7 @@ impl<T: Trove<T> + Clone> History<T> {
             };
         }
 
-        Ok((Into::into(0), history))
+        Ok(history)
     }
 
     /// Load a read-only History from the network
@@ -406,7 +404,6 @@ impl<T: Trove<T> + Clone> History<T> {
             "DEBUG History::from_history_address({})",
             history_address.to_hex()
         );
-        let ignore_pointer = client.api_control.ignore_pointers;
 
         // Check it exists to avoid accidental creation (and payment)
         let pointer_address = Self::pointer_address_from_history_address(history_address.clone())?;
@@ -549,7 +546,7 @@ impl<T: Trove<T> + Clone> History<T> {
         let mut final_index = iter_index;
         let mut final_entry;
         loop {
-            println!("DEBUG stepping forwards: iter_index {iter_index}");
+            println!("DEBUG get child of GraphEntry index {iter_index} - child...");
             final_entry = iter_entry.clone();
             iter_entry = if let Some(entry) = self.get_child_entry_of(&iter_entry, true).await {
                 iter_index = iter_index + 1;
@@ -1021,8 +1018,8 @@ impl<T: Trove<T> + Clone> History<T> {
         let spends = Spends::new(&self.client, Some(&"History update online cost: ")).await?;
         let pointer_address = Self::pointer_address_from_history_address(history_address.clone())?;
         match Self::get_and_verify_pointer(&self.client, &pointer_address).await {
-            Ok(old_pointer) => {
-                self.pointer_counter = old_pointer.counter();
+            Ok(pointer) => {
+                self.pointer_counter = pointer.counter();
                 let head_address = self.head_graphentry.clone().unwrap().address();
 
                 // Note: if head_address isn't the head, create_next_graph_entry_online() will retry until it reaches it
@@ -1044,34 +1041,27 @@ impl<T: Trove<T> + Clone> History<T> {
                     }
                 };
 
-                println!("Pointer retrieved with counter {}", old_pointer.counter());
+                println!("Pointer retrieved with counter {}", pointer.counter());
                 let pointer_secret_key = Self::history_pointer_secret_key(history_secret_key);
-                let new_pointer = Self::create_pointer_for_update(
-                    self.num_entries(),
-                    &next_address,
-                    &pointer_secret_key,
-                );
-                println!(
-                    "DEBUG created pointer at {}",
-                    new_pointer.address().to_hex()
-                );
 
                 println!(
-                    "Calling pointer_put() with new GraphEntry at: {}",
+                    "Updating pointer with new GraphEntry at: {}",
                     next_address.to_hex()
                 );
                 let client = self.client.client.clone();
-                let new_pointer_clone = new_pointer.clone();
-                let payment_option: PaymentOption = self.client.wallet.clone().into();
+                let pointer_target = PointerTarget::GraphEntryAddress(next_address);
                 match retry_until_ok(
                     self.client.api_control.tries,
-                    &"pointer_put()",
-                    (client, new_pointer_clone.clone(), payment_option),
-                    async move |(client, new_pointer_clone, payment_option)| match client
-                        .pointer_put(new_pointer_clone, payment_option)
+                    &"pointer_update()",
+                    (client, pointer_secret_key, pointer_target),
+                    async move |(client, pointer_secret_key, pointer_target)| match client
+                        .pointer_update(&pointer_secret_key, pointer_target)
                         .await
                     {
-                        Ok(result) => Ok(result),
+                        Ok(result) => {
+                            println!("Pointer updated");
+                            Ok(result)
+                        }
                         Err(e) => {
                             return Err(eyre!("Failed to add a trove to history: {e:?}"));
                         }
@@ -1079,27 +1069,13 @@ impl<T: Trove<T> + Clone> History<T> {
                 )
                 .await
                 {
-                    Ok((pointer_cost, _pointer_address)) => {
-                        self.pointer_counter = new_pointer_clone.counter();
-                        self.pointer_target = match new_pointer_clone.target() {
-                            PointerTarget::GraphEntryAddress(pointer_target) => {
-                                Some(*pointer_target)
-                            }
-                            other => {
-                                return show_spend_return_value::<Result<(AttoTokens, u32)>>(&spends, Err(eyre!(
-                                    "History::update_online() pointer target is not a GraphEntry - this is probably a bug. Target: {other:?}"
-                                )),
-                            )
-                            .await;
-                            }
-                        };
-                        let total_cost = pointer_cost.checked_add(graph_cost);
-                        if total_cost.is_none() {
-                            return Err(eyre!("Invalid cost"));
-                        }
+                    Ok(_) => {
+                        self.pointer_counter = pointer.counter();
+                        self.pointer_target = Some(next_address);
+
                         return show_spend_return_value::<Result<(AttoTokens, u32)>>(
                             &spends,
-                            Ok((total_cost.unwrap(), new_pointer_clone.counter())),
+                            Ok((graph_cost, self.pointer_counter)),
                         )
                         .await;
                     }
@@ -1107,6 +1083,60 @@ impl<T: Trove<T> + Clone> History<T> {
                 }
             }
             Err(e) => return Err(eyre!("DEBUG failed to get history prior to update!\n{e}")),
+        }
+    }
+
+    /// Use pointer_update() to bump the pointer counter and set the target
+    pub async fn heal_pointer(
+        &mut self,
+        owner_secret_key: SecretKey,
+        target_graphentry: &GraphEntry,
+    ) -> Result<u32> {
+        println!("DEBUG History::heal_pointer()");
+        let history_secret_key =
+            Self::history_main_secret_key(owner_secret_key).derive_child(self.name.as_bytes());
+        let history_address = HistoryAddress::new(history_secret_key.public_key());
+        println!("Updating History at {}", history_address.to_hex());
+
+        let history_address = self.history_address();
+        println!("Healing History at {}", history_address.to_hex());
+
+        let pointer_address = Self::pointer_address_from_history_address(history_address.clone())?;
+        match Self::get_and_verify_pointer(&self.client, &pointer_address).await {
+            Ok(pointer) => {
+                println!("Pointer retrieved with counter {}", pointer.counter());
+                let pointer_secret_key = Self::history_pointer_secret_key(history_secret_key);
+                let pointer_target = PointerTarget::GraphEntryAddress(target_graphentry.address());
+                println!("Updating pointer target to: {}", pointer_target.to_hex());
+                let client = self.client.client.clone();
+                match retry_until_ok(
+                    1, //self.client.api_control.tries,
+                    &"pointer_update()",
+                    (client, pointer_secret_key, pointer_target),
+                    async move |(client, pointer_secret_key, pointer_target)| match client
+                        .pointer_update(&pointer_secret_key, pointer_target)
+                        .await
+                    {
+                        Ok(result) => {
+                            println!("Pointer updated");
+                            Ok(result)
+                        }
+                        Err(e) => {
+                            return Err(eyre!("Failed to add a trove to history: {e:?}"));
+                        }
+                    },
+                )
+                .await
+                {
+                    Ok(_) => {
+                        self.pointer_counter = pointer.counter();
+                        self.pointer_target = Some(target_graphentry.address());
+                        return Ok(self.pointer_counter);
+                    }
+                    Err(e) => return Err(eyre!("Retries exceeded: {e:?}")),
+                }
+            }
+            Err(e) => return Err(eyre!("DEBUG failed to get history for update!\n{e}")),
         }
     }
 

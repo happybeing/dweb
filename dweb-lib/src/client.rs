@@ -68,7 +68,7 @@ impl Default for ApiControl {
             tries: 1,
             use_public_archive: false,
             upload_file_by_file: false,
-            ignore_pointers: true,
+            ignore_pointers: false,
             show_dweb_costs: ShowCost::Both,
             max_fee_per_gas: None,
         }

@@ -28,8 +28,8 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use autonomi::{
-    pointer::PointerTarget, AddressParseError, ChunkAddress, GraphEntryAddress, Pointer,
-    PointerAddress, ScratchpadAddress,
+    pointer::PointerTarget, AddressParseError, ChunkAddress, GraphEntryAddress, PointerAddress,
+    ScratchpadAddress,
 };
 
 use dweb::helpers::retry::retry_until_ok;
@@ -455,17 +455,13 @@ pub async fn pointer_put(
         }
     };
 
-    let payment_option = client.payment_option().clone();
-    let pointer = Pointer::new(&pointer_secret, dweb_pointer.counter, target);
-
-    let spends = Spends::new(&client, None).await;
     let result = retry_until_ok(
         request_params.tries,
         &rest_handler,
-        (pointer, payment_option),
-        async move |(pointer, payment_option)| match client
+        (pointer_secret, target),
+        async move |(pointer_secret, target)| match client
             .client
-            .pointer_put(pointer, payment_option)
+            .pointer_update(&pointer_secret, target)
             .await
         {
             Ok(result) => Ok(result),
@@ -475,39 +471,25 @@ pub async fn pointer_put(
     .await;
 
     match result {
-        Ok(result) => {
+        Ok(_) => {
             println!(
-                "DEBUG {rest_handler} stored {REST_TYPE} on the network at address {}",
-                result.1
+                "DEBUG {rest_handler} updated {REST_TYPE} on the network at address {}",
+                dweb_pointer.pointer_address,
             );
-            let (cost_in_ant, cost_in_arb_eth) = match spends {
-                Ok(spends) => {
-                    let (cost_in_ant, cost_in_arb_eth) = spends.get_spend_strings().await;
-                    println!("DEBUG {rest_operation} cost in ANT    : {cost_in_ant}");
-                    println!("DEBUG {rest_operation} cost in ARB-ETH: {cost_in_arb_eth}");
-                    (cost_in_ant, cost_in_arb_eth)
-                }
-                Err(e) => {
-                    println!("DEBUG {rest_operation} error: unable to report Spends - {e}");
-                    ("unkown".to_string(), "unknown".to_string())
-                }
-            };
 
             MutateResult {
                 rest_operation,
                 dweb_type,
                 status_code: StatusCode::OK.as_u16(),
                 status_message: "success".to_string(),
-                cost_in_ant,
-                cost_in_arb_eth,
-                network_address: result.1.to_hex(),
+                network_address: dweb_pointer.pointer_address,
                 ..Default::default()
             }
             .response(rest_handler)
         }
 
         Err(e) => {
-            let status_message = format!("failed store {REST_TYPE} on the network - {e}");
+            let status_message = format!("failed to update {REST_TYPE} on the network - {e}");
             println!("DEBUG {status_message}");
             MutateResult {
                 rest_operation,

@@ -124,7 +124,7 @@ pub async fn publish_or_update_files(
         )
         .await
         {
-            Ok((cost, history)) => (cost, history),
+            Ok(history) => (Into::into(0), history),
             Err(e) => {
                 let message = format!("Failed to publish update to content - {e}");
                 println!("{message}");

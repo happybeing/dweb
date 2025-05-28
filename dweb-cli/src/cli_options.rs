@@ -115,8 +115,10 @@ pub struct Opt {
     #[clap(long, hide = true, default_value = "true")]
     pub upload_file_by_file: bool,
     // Control API use of Pointers for versioned operations (e.g. for History and Registers).
-    // By default it ignores Pointers as they aren't updating on mainnet.
-    #[clap(long, hide = true, default_value = "true")]
+    //
+    // Using true can help accessing a History whose pointer has not updated.
+    // See also  the 'heal-history' subcommand.
+    #[clap(long, hide = true, default_value = "false")]
     pub ignore_pointers: bool,
 }
 
@@ -407,6 +409,30 @@ pub enum Subcommands {
         files_args: FilesArgs,
     },
 
+    /// Print information about a history of data stored on Autonomi.
+    #[allow(non_camel_case_types)]
+    Heal_history {
+        /// The NAME used when the website was first published.
+        /// If you didn't specify a name when doing publish-new, this will
+        /// be the name of the directory that contained the website.
+        #[clap()]
+        name: String,
+
+        /// Print a summary of the History including type (the value of entry 0) and number of entries
+        #[clap(long = "full", short = 'f', default_value = "true")]
+        print_history_full: bool,
+
+        /// Shorten GraphEntry hex strings to the first six characters plus '..'
+        #[clap(long = "brief", short = 'b', default_value = "false")]
+        shorten_hex_strings: bool,
+
+        /// Show the public keys in a GraphEntry rather than the addresses
+        /// of parent/descendents in the entry. Default is to show the
+        /// addresses.
+        #[clap(long = "graph-with-keys", short = 'k', default_value = "false")]
+        graph_keys: bool,
+    },
+
     /// Print information about a GraphEntry stored on Autonomi.
     ///
     /// Note: descendents are shown as public keys rather than addresses. This is for
@@ -494,6 +520,15 @@ pub struct FilesArgs {
     /// Print metadata about each file including path, modification time and size in bytes
     #[clap(long = "details", short = 'd', default_value = "false")]
     pub print_all_details: bool,
+}
+
+impl Default for FilesArgs {
+    fn default() -> FilesArgs {
+        FilesArgs {
+            print_paths: true,
+            print_all_details: false,
+        }
+    }
 }
 
 use regex::Regex;

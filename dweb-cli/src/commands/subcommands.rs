@@ -253,11 +253,45 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             let (client, _) = connect_and_announce(opt.local, opt.alpha, api_control, true).await;
             let spends = Spends::new(&client, Some(&"Publish update cost: ")).await?;
 
+            let name = if name.is_none() {
+                if let Some(osstr) = files_root.file_name() {
+                    dweb::files::directory::osstr_to_string(osstr)
+                } else {
+                    None
+                }
+            } else {
+                name
+            };
+            let name = if let Some(name) = name {
+                match crate::commands::cmd_heal_history::handle_heal_history(
+                    client.clone(),
+                    app_secret_key.clone(),
+                    &name.clone(),
+                    false,
+                    false,
+                    true,
+                )
+                .await
+                {
+                    Ok(()) => {}
+                    Err(e) => {
+                        println!("{e:?}");
+                        return Err(e);
+                    }
+                }
+
+                name
+            } else {
+                return Err(eyre!(
+                    "DEBUG failed to obtain directory name from files_root: {files_root:?}"
+                ));
+            };
+
             let (cost, name, history_address, version) = match publish_or_update_files(
                 &client,
                 &files_root,
                 app_secret_key,
-                name,
+                Some(name),
                 dweb_settings,
                 false,
             )
@@ -323,6 +357,36 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                 graph_keys,
                 shorten_hex_strings,
                 files_args,
+            )
+            .await
+            {
+                Ok(()) => return Ok(true),
+                Err(e) => {
+                    println!("{e:?}");
+                    return Err(e);
+                }
+            }
+        }
+
+        Some(Subcommands::Heal_history {
+            name,
+            print_history_full,
+            shorten_hex_strings,
+            graph_keys,
+        }) => {
+            let api_control = ApiControl {
+                ignore_pointers: true,
+                ..Default::default()
+            };
+            let app_secret_key = dweb::helpers::get_app_secret_key()?;
+            let (client, _) = connect_and_announce(opt.local, opt.alpha, api_control, true).await;
+            match crate::commands::cmd_heal_history::handle_heal_history(
+                client,
+                app_secret_key,
+                &name,
+                print_history_full,
+                graph_keys,
+                shorten_hex_strings,
             )
             .await
             {

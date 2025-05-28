@@ -404,7 +404,6 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             shorten_hex_strings,
         }) => {
             let api_control = ApiControl {
-                ignore_pointers: true,
                 ..Default::default()
             };
             let (client, _) = connect_and_announce(opt.local, opt.alpha, api_control, true).await;

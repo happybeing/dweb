@@ -305,14 +305,6 @@ You don't need a wallet just to browse websites or download files published by o
 2. If you don't have a wallet yet, create it with `ant wallet create` or import an existing wallet for which you already have the private key, with `ant wallet import`
 
 3. If you don't have funds, head over to the [Autonomi Community Faucet](https://forum.autonomi.community/t/community-faucet-live/41299?u=ambled)
-4. You will need to share the secret key of your wallet with `dweb`, so get your secret key with:
-   ```
-   ant wallet export
-   ```
-5. On Linux and MacOS you can either put `export SECRET_KEY=<PRIVATE-KEY>` in your `.bashrc` and then *open a new terminal*, or pass it when you start the dweb server with:
-   ```
-   export SECRET_KEY=<PRIVATE-KEY> dweb serve
-   ```
 
 If you need help with this, see the help and support sections of `autonomi.com`:
 - User focussed documentation ([docs.autonomi.com](https://docs.autonomi.com))
@@ -324,6 +316,14 @@ Payment is handled automatically, and you can check the cost beforehand using `d
 dweb cost --files-root blog
 ```
 At the time of writing the cost is not accurately reported by the Autonomi network, but is usually very cheap compared to cloud storage. Especially as your data will be stored for the lifetime of the Autonomi network at no extra cost.
+
+#### SECRET_KEY variable
+By default dweb will use the wallet you created or imported with the `ant` command (see above). If you have set a password for this, dweb will ask you for that so it can unlock the wallet when you run `dweb serve`. For some users and developers you can use a different wallet by setting the `SECRET_KEY` environment variable to the value of a wallet secret key. When `SECRET_KEY` is set, dweb will use this instead.
+
+On Linux and MacOS you can either put `export SECRET_KEY=<PRIVATE-KEY>` in your `.bashrc` and then *open a new terminal*, or pass it when you start the dweb server with:
+   ```
+   export SECRET_KEY=<PRIVATE-KEY> dweb serve
+   ```
 
 ## Current Features and Future Plans
 - [Current Features](#current-features)

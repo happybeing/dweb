@@ -133,9 +133,18 @@ pub async fn publish_or_update_files(
         }
     };
 
-    // When the directory belongs to a history add a file whose name is the address of the History
-    let history_file_path =
-        PathBuf::from(DWEB_HISTORY_DIRECTORY).join(files_history.history_address().to_hex());
+    // When the directory belongs to a history add a file whose name is History and version
+    let history_filename = if let Ok(num_versions) = files_history.num_versions() {
+        format!(
+            "{}:{}",
+            files_history.history_address().to_hex(),
+            num_versions + 1
+        )
+    } else {
+        files_history.history_address().to_hex()
+    };
+
+    let history_file_path = PathBuf::from(DWEB_HISTORY_DIRECTORY).join(history_filename);
     let autonomi_metadata = FileMetadata {
         created: 0,
         modified: 0,

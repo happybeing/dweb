@@ -115,30 +115,34 @@ pub(crate) fn address(
     datamap_chunk: Option<DataMapChunk>,
     data_address: Option<DataAddress>,
 ) -> String {
-    let mut address_string = if let Some(datamap_chunk) = datamap_chunk {
-        datamap_chunk.to_hex()
+    let address_string = if let Some(datamap_chunk) = datamap_chunk {
+        datamap_chunk.address()
     } else if let Some(data_address) = data_address {
-        data_address.to_hex()
+        data_address.to_hex()[..ETAG_ADDRESS_LEN].to_string()
     } else {
         "unknown".to_string()
     };
 
-    let _ = address_string.split_off(ETAG_ADDRESS_LEN);
     address_string
 }
 
 /// Return an abridged address string for use building an ETag value,
 /// based on either a datamap_chunk or data_address
 pub(crate) fn address_from_strings(datamap_chunk: &String, data_address: &String) -> String {
-    let mut address_string = if !datamap_chunk.is_empty() {
-        datamap_chunk.to_string()
+    let address_string = if !datamap_chunk.is_empty() {
+        match DataMapChunk::from_hex(datamap_chunk) {
+            Ok(datamap_chunk) => datamap_chunk.address(),
+            Err(_) => {
+                println!("BUG: invalid datamap_chunk when creating ETag: {datamap_chunk}");
+                "datamap-error".to_string()
+            }
+        }
     } else if !data_address.is_empty() {
-        data_address.to_string()
+        data_address.to_string()[..ETAG_ADDRESS_LEN].to_string()
     } else {
         "unknown".to_string()
     };
 
-    let _ = address_string.split_off(ETAG_ADDRESS_LEN);
     address_string
 }
 
@@ -213,6 +217,7 @@ pub(crate) fn immutable_if_none_match(request: &HttpRequest, etag: Option<&ETag>
                 if let Some(etag) = etag {
                     let etag = etag.to_string();
                     for tag in if_none_match.split(',') {
+                        println!("DEBUG ETAG COMPARING: {} and {}", tag, etag);
                         if tag == etag {
                             return false;
                         }

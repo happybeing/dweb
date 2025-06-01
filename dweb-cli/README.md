@@ -33,6 +33,7 @@ The above opens your browser and loads a website from Autonomi containing links 
 
 ## Contents
 - [Browse the DWeb](#browse-the-dweb)
+- [Publish a Website](#publish-a-website)
 - [About the Decentralised Web (DWeb)](#about-the-decentralised-web-dweb)
 - [Current Features and Future Plans](#current-features-and-future-plans)
 - [Develop a Decentralised Web App](#develop-a-decentralised-web-app)
@@ -204,7 +205,7 @@ Publishing your website is a one line command, and a similar command to update i
 
 When you publish, you will have to pay the Autonomi decentralised network a one-off upload fee. In fact you pay some of the nodes which will store your data. The cost is good value since there are no recurring fees once your data has been uploaded.
 
-So before you can publish anything you need to set up a wallet with tokens, see [Setup a Wallet](set-up-a-wallet)
+So before you can publish anything you need to set up a wallet with tokens, see [Setup a Wallet](#set-up-a-wallet)
 
 Publication is a transaction between you and a decentralised peer-to-peer network, so no gatekeepers or intermediaries are involved.
 

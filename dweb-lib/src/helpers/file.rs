@@ -19,8 +19,12 @@ use std::time::{Duration, SystemTime};
 
 use autonomi::files::Metadata;
 
-/// Get autonommi::files;:Metadata for a file.
-/// Defaults creation and modification times to zero if any error is encountered.
+/// Get autonommi::files;:Metadata for a file. The file created and modified times
+/// are stored as the number of seconds since SystemTime::UNIX_EPOCH which is
+/// defined as "1970-01-01 00:00:00 UTC" so these values are effectively in UTC
+/// and can be compared across systems regardless of local timezone.
+///
+/// Times will be set to zero if an error is encountered in calculating them.
 pub fn metadata_for_file(path: &str) -> Metadata {
     let unix_time = |property: &'static str, time: std::io::Result<SystemTime>| {
         time.inspect_err(|err| {

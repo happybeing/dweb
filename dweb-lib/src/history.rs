@@ -228,11 +228,15 @@ impl<T: Trove<T> + Clone> History<T> {
         };
 
         let pointer_secret_key = Self::history_pointer_secret_key(history_secret_key);
-        let pointer = Self::create_pointer_for_update(0, &root_entry_address, &pointer_secret_key);
-        println!("DEBUG created pointer at {}", pointer.address().to_hex());
+        let pointer_target = PointerTarget::GraphEntryAddress(root_entry_address);
+
         match client
             .client
-            .pointer_put(pointer, client.wallet.clone().into())
+            .pointer_create(
+                &pointer_secret_key,
+                pointer_target,
+                client.wallet.clone().into(),
+            )
             .await
         {
             Ok((pointer_cost, pointer_address)) => {
@@ -273,6 +277,90 @@ impl<T: Trove<T> + Clone> History<T> {
                 )
                 .await;
             }
+        }
+    }
+
+    /// Add a trove to the History and return the index of the most recent entry (1 = first trove entry, 0 = root entry)
+    async fn update_online(
+        &mut self,
+        owner_secret_key: SecretKey,
+        trove_address: ArchiveAddress,
+    ) -> Result<(AttoTokens, u32)> {
+        println!("DEBUG History::update_online()");
+        let history_secret_key =
+            Self::history_main_secret_key(owner_secret_key).derive_child(self.name.as_bytes());
+
+        let history_address = HistoryAddress::new(history_secret_key.public_key());
+        println!("Updating History at {}", history_address.to_hex());
+
+        let spends = Spends::new(&self.client, Some(&"History update online cost: ")).await?;
+        let pointer_address = Self::pointer_address_from_history_address(history_address.clone())?;
+        match Self::get_and_verify_pointer(&self.client, &pointer_address).await {
+            Ok(pointer) => {
+                self.pointer_counter = pointer.counter();
+                let head_address = self.head_graphentry.clone().unwrap().address();
+
+                // Note: if head_address isn't the head, create_next_graph_entry_online() will retry until it reaches it
+                let (graph_cost, next_address) = match self
+                    .create_next_graph_entry_online(
+                        history_secret_key.clone(),
+                        head_address,
+                        &trove_address,
+                    )
+                    .await
+                {
+                    Ok(result) => result,
+                    Err(e) => {
+                        return show_spend_return_value::<Result<(AttoTokens, u32)>>(
+                            &spends,
+                            Err(eyre!("failed to create next GraphEnry: {e}")),
+                        )
+                        .await;
+                    }
+                };
+
+                println!("Pointer retrieved with counter {}", pointer.counter());
+                let pointer_secret_key = Self::history_pointer_secret_key(history_secret_key);
+
+                println!(
+                    "Updating pointer with new GraphEntry at: {}",
+                    next_address.to_hex()
+                );
+                let client = self.client.client.clone();
+                let pointer_target = PointerTarget::GraphEntryAddress(next_address);
+                match retry_until_ok(
+                    self.client.api_control.tries,
+                    &"pointer_update()",
+                    (client, pointer_secret_key, pointer_target),
+                    async move |(client, pointer_secret_key, pointer_target)| match client
+                        .pointer_update(&pointer_secret_key, pointer_target)
+                        .await
+                    {
+                        Ok(result) => {
+                            println!("Pointer updated");
+                            Ok(result)
+                        }
+                        Err(e) => {
+                            return Err(eyre!("Failed to add a trove to history: {e:?}"));
+                        }
+                    },
+                )
+                .await
+                {
+                    Ok(_) => {
+                        self.pointer_counter = pointer.counter();
+                        self.pointer_target = Some(next_address);
+
+                        return show_spend_return_value::<Result<(AttoTokens, u32)>>(
+                            &spends,
+                            Ok((graph_cost, self.pointer_counter)),
+                        )
+                        .await;
+                    }
+                    Err(e) => return Err(eyre!("Retries exceeded: {e:?}")),
+                }
+            }
+            Err(e) => return Err(eyre!("DEBUG failed to get history prior to update!\n{e}")),
         }
     }
 
@@ -1000,90 +1088,6 @@ impl<T: Trove<T> + Clone> History<T> {
             hex::encode(new_derivation.as_bytes())
         );
         Ok((entry, new_derivation))
-    }
-
-    /// Add a trove to the History and return the index of the most recent entry (1 = first trove entry, 0 = root entry)
-    async fn update_online(
-        &mut self,
-        owner_secret_key: SecretKey,
-        trove_address: ArchiveAddress,
-    ) -> Result<(AttoTokens, u32)> {
-        println!("DEBUG History::update_online()");
-        let history_secret_key =
-            Self::history_main_secret_key(owner_secret_key).derive_child(self.name.as_bytes());
-
-        let history_address = HistoryAddress::new(history_secret_key.public_key());
-        println!("Updating History at {}", history_address.to_hex());
-
-        let spends = Spends::new(&self.client, Some(&"History update online cost: ")).await?;
-        let pointer_address = Self::pointer_address_from_history_address(history_address.clone())?;
-        match Self::get_and_verify_pointer(&self.client, &pointer_address).await {
-            Ok(pointer) => {
-                self.pointer_counter = pointer.counter();
-                let head_address = self.head_graphentry.clone().unwrap().address();
-
-                // Note: if head_address isn't the head, create_next_graph_entry_online() will retry until it reaches it
-                let (graph_cost, next_address) = match self
-                    .create_next_graph_entry_online(
-                        history_secret_key.clone(),
-                        head_address,
-                        &trove_address,
-                    )
-                    .await
-                {
-                    Ok(result) => result,
-                    Err(e) => {
-                        return show_spend_return_value::<Result<(AttoTokens, u32)>>(
-                            &spends,
-                            Err(eyre!("failed to create next GraphEnry: {e}")),
-                        )
-                        .await;
-                    }
-                };
-
-                println!("Pointer retrieved with counter {}", pointer.counter());
-                let pointer_secret_key = Self::history_pointer_secret_key(history_secret_key);
-
-                println!(
-                    "Updating pointer with new GraphEntry at: {}",
-                    next_address.to_hex()
-                );
-                let client = self.client.client.clone();
-                let pointer_target = PointerTarget::GraphEntryAddress(next_address);
-                match retry_until_ok(
-                    self.client.api_control.tries,
-                    &"pointer_update()",
-                    (client, pointer_secret_key, pointer_target),
-                    async move |(client, pointer_secret_key, pointer_target)| match client
-                        .pointer_update(&pointer_secret_key, pointer_target)
-                        .await
-                    {
-                        Ok(result) => {
-                            println!("Pointer updated");
-                            Ok(result)
-                        }
-                        Err(e) => {
-                            return Err(eyre!("Failed to add a trove to history: {e:?}"));
-                        }
-                    },
-                )
-                .await
-                {
-                    Ok(_) => {
-                        self.pointer_counter = pointer.counter();
-                        self.pointer_target = Some(next_address);
-
-                        return show_spend_return_value::<Result<(AttoTokens, u32)>>(
-                            &spends,
-                            Ok((graph_cost, self.pointer_counter)),
-                        )
-                        .await;
-                    }
-                    Err(e) => return Err(eyre!("Retries exceeded: {e:?}")),
-                }
-            }
-            Err(e) => return Err(eyre!("DEBUG failed to get history prior to update!\n{e}")),
-        }
     }
 
     /// Use pointer_update() to bump the pointer counter and set the target

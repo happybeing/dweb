@@ -26,7 +26,10 @@ Note: instructions below have been written for the public network, so be aware t
 ### Quickstart dweb Browsing
 If you have Rust installed you can view websites live on Autonomi in two steps:
 ```
-cargo install --locked dweb-cli
+cargo install dweb-cli
+dweb serve
+
+# And in a different terminal
 dweb open awesome
 ```
 The above opens your browser and loads a website from Autonomi containing links to other sites you can view. Just a taste of things to come. More demo sites are welcome, and will be included to help people get started on the dweb.
@@ -57,7 +60,7 @@ In time, downloads will be provided to avoid the need to install Rust, but until
 
 ### Install dweb-cli
 ```
-cargo install dweb-cli --locked
+cargo install dweb-cli
 ```
 Note: when installing dweb on Ubuntu, you may encounter missing openssl libraries. Do a `sudo apt update` and then `sudo apt install librust-openssl-dev`, and finally restart the dweb install.
 
@@ -299,7 +302,7 @@ You will need a wallet if you wish to upload data to Autonomi, or use a web appl
 
 You don't need a wallet just to browse websites or download files published by others. If you want to upload data, you can set-up your wallet as follows.
 
-1. Check if you have a wallet using the `ant-cli` (install with `cargo install ant-cli --locked` if you don't have that yet):
+1. Check if you have a wallet using the `ant-cli` (install with `cargo install ant-cli` if you don't have that yet):
    ```
    ant wallet balance
    ```
@@ -339,7 +342,7 @@ Another ambition is to provide backup applications via an **rclone** compatible 
 
 Others include adding support for services like ActicityPub and Solid Pods.
 
-For more about future possibilities, see  [Roadmap](https://github.com/happybeing/dweb/blob/main/dweb-cli/README.md#future-features-roadmap)
+For more about future possibilities, see  [Roadmap](https://codeberg.org/happybeing/dweb/src/branch/main/dweb-cli#future-features-roadmap)
 
 
 ### Current Features
@@ -434,9 +437,9 @@ The following instructions assume using the Svelte framework, but any web toolin
 
 ### Example dweb Apps
 Several examples are available to show how to build a dweb app:
-- **ScratchChat** - chat anonymously over Autonomi. A single file of hand-crafted HTML. [github](https://github.com/happybeing/dweb-app-scratchchat)
-- **Names** - list, create and delete memorable names for Autonomi websites. A Svelte app, see [github](https://github.com/happybeing/dweb-app-names)
-- **Fileman** - viewing versioned files on Autonomi by address or name. A Svelte app, see [github](https://github.com/happybeing/dweb-app-fileman)
+- **ScratchChat** - chat anonymously over Autonomi. A single file of hand-crafted HTML. [codeberg](https://codeberg.org/happybeing/dweb-app-scratchchat/dweb-app-scratchchat)
+- **Names** - list, create and delete memorable names for Autonomi websites. A Svelte app, see [codeberg](https://codeberg.org/happybeing/dweb-app-names)
+- **Fileman** - viewing versioned files on Autonomi by address or name. A Svelte app, see [codeberg](https://codeberg.org/happybeing/dweb-app-fileman)
 
 You can also use **static site generators** if they do what you need rather than building an app from scratch. So you can use Publii for example, to create a WordPress like blog and use dweb to upload it to Autonomi.
 
@@ -448,12 +451,12 @@ Install the following:
 - get Rust  for installing command line apps. See [Get Rust](https://www.rust-lang.org/tools/install)
 - get dweb:
 ```
-   cargo install --locked dweb-cli
+   cargo install dweb-cli
    dweb --version
 ```
 - get ant (the Autonomi command line interface):
 ```
-   cargo install --locked autonomi-cli
+   cargo install autonomi-cli
    ant --version
 ```
 
@@ -484,13 +487,13 @@ To do anything useful though, you need a network to talk to. See next.
 
 
 ### Develop your App
-For details of the **RESTful HTTP API** provided by dweb see [github](https://github.com/happybeing/dweb/blob/main/dweb-cli/README.md#web-api). These APIs are very early stage and suggestions or help with extending and improving them are welcome.
+Your app will use the [dweb REST API](#web-api) to store and access data on either the main Autonomi network or a local test network. These APIs are very early stage and suggestions or help with extending and improving them are welcome.
 
 Once you have a local test network and dweb server running, your app will be able to talk to the local Autonomi network using dweb APIs provided by the local dweb server. You can also try this using this example app.
 
 ### Test your App
 
-- start a local testnent (see the [Autonomi Developer Docs](https://docs.autonomi.com/developers))
+- start a local testnet (see the [Autonomi Developer Docs](https://docs.autonomi.com/developers))
 - start the dweb server with `dweb server --local`
 - open your app (or this one) with `npm run dev -- --open`
 
@@ -510,7 +513,7 @@ You can preview the production build with `npm run preview`.
 
 > Before deploying your dweb-app will need to install an adapter for static site generation. See [Svelte adapters](https://svelte.dev/docs/kit/adapters).
 
-After building this as a static app you can use `dweb` to publish it on your local testnet, and eventually on the public main net. See the dweb [github](https://github.com/happybeing/dweb/blob/main/dweb-cli/README.md#dweb-command-line-app) for more about this.
+After building this as a static app you can use `dweb` to publish it on your local testnet, and eventually on the public main net, using the `dweb publish-new` and `dweb publish-update` commands.
 
 ## Contributions
 Contributions under the AGPL3.0 license are welcome and any contributions or PRs submitted will be assumed to be offered under that license unless clearly and prominently specified otherwise. Any contributions are accepted on the condition they conform to that license and the following conditions:

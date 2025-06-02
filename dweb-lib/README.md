@@ -1,3 +1,9 @@
+# This repository has moved
+
+This repository has been migrated from Microsoft Github to the EU based non-profit Codeberg.org where members have a say and contributors to Open Source software are not farmed like cattle.
+
+You will find this and my other repositories at https://codeberg.org/happybeing
+
 # dweb
 **dweb** is a Rust library which supports publishing and viewing websites on the decentralised web of the [Autonomi](https://autonomi.com) peer-to-peer network. With it you build apps which publish and view of decentralised websites and use helpers which simplify some areas of the Autonomi API.
 

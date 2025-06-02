@@ -7,7 +7,7 @@ version = "0.8.0"
 authors = ["happybeing <git@happybeing.com>"]
 description = "Decentralised web and storage crates for Autonomi"
 license = "AGPL-3.0"
-repository = "https://github.com/happybeing/dweb"
+repository = "https://codeberg.org/happybeing/dweb"
 
 [workspace.lints.rust]
 arithmetic_overflow = "forbid"

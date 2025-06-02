@@ -1,3 +1,9 @@
+# This repository has moved
+
+This repository has been migrated from Microsoft Github to the EU based non-profit Codeberg.org where members have a say and contributors to Open Source software are not farmed like cattle.
+
+You will find this and my other repositories at https://codeberg.org/happybeing
+
 # dweb Command Line App
 **dweb** is for use with the Autonomi peer-to-peer network. Features are being added all the time, but already include:
 

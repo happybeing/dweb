@@ -39,12 +39,17 @@ use crate::history::HistoryAddress;
 // TODO: tune cache size values
 const WITH_PORT_CAPACITY: u32 = u16::MAX as u32; // When exceeded, port servers will be forgotten and new versions inaccessible
 
+
 /// A cache of DirectoryVersionWithPort
 ///
 /// Key:     ARCHIVE_ADDRESS
 ///
 /// Entry:   DirectoryVersionWithPort
 ///
+
+// Port configuration for the deterministic port algorithm
+const DETERMINISTIC_PORT_RANGE: u64 = 20_000;
+const DETERMINISTIC_PORT_BASE: u64 = 30_000;
 
 pub fn key_for_directory_versions_with_port(archive_address: ArchiveAddress) -> String {
     format!("{}", archive_address.to_hex()).to_ascii_lowercase()
@@ -69,6 +74,27 @@ pub static DIRECTORY_VERSIONS_WITH_PORT: LazyLock<Mutex<LruMap<String, Directory
             WITH_PORT_CAPACITY,
         )))
     });
+
+/// Generates a deterministic port number from an archive address.
+/// The algorithm:
+/// 1. Converts the archive address to its hex representation (always 64 hex characters)
+/// 2. Takes the last 16 hex characters and converts them to a number
+/// 3. Takes the number modulo DETERMINISTIC_PORT_RANGE
+/// 4. Adds DETERMINISTIC_PORT_BASE as a base to get a port in the range DETERMINISTIC_PORT_BASE + DETERMINISTIC_PORT_RANGE
+fn deterministic_port_from_archive_address(archive_address: ArchiveAddress) -> u16 {
+    let hex_string = archive_address.to_hex();
+    
+    // ArchiveAddress always has exactly 64 hex characters (DATA_ADDRESS_LEN = 64)
+    // Take the last 16 hex characters to fit into u64 for modulo operation
+    let hex_suffix = &hex_string[48..]; // 64 - 16 = 48
+    
+    // Convert hex string to number
+    let number = u64::from_str_radix(hex_suffix, 16).unwrap_or(0);
+    
+    // Take modulo DETERMINISTIC_PORT_RANGE and add DETERMINISTIC_PORT_BASE
+    ((number % DETERMINISTIC_PORT_RANGE) + DETERMINISTIC_PORT_BASE) as u16
+}
+
 #[derive(Clone)]
 pub struct DirectoryVersionWithPort {
     /// The port on which a listener has been started - used for redirection of a URL by another listener
@@ -200,31 +226,43 @@ pub async fn lookup_or_create_directory_version_with_port(
         }
     };
 
-    // Create a new one on a free port
-    if let Some(port) = port_check::free_local_port() {
-        let directory_version = DirectoryVersionWithPort::new(
-            port,
-            history_address,
-            version,
-            archive_address,
-            directory_tree,
-        );
-
-        // Add it to the cache
-        if let Ok(lock) = &mut DIRECTORY_VERSIONS_WITH_PORT.lock() {
-            let key = key_for_directory_versions_with_port(archive_address);
-            if lock.insert(key, directory_version.clone()) {
-                return Ok((directory_version, false));
-            } else {
-                let msg = format!("Failed to add new DirectoryVersionWithPort to the cache");
-                println!("DEBUG {msg}");
-                return Err(eyre!(msg));
+    // Create a new one with a deterministic port based on the name
+    let port = deterministic_port_from_archive_address(archive_address);
+    
+    // Check if the port is available, fallback to a random port if not
+    let port = if port_check::is_local_ipv4_port_free(port) {
+        port
+    } else {
+        // Fallback to a random free port if the deterministic port is not available
+        match port_check::free_local_port() {
+            Some(free_port) => {
+                println!("DEBUG Deterministic port {} is not available, using random port {} instead", port, free_port);
+                free_port
+            },
+            None => {
+                return Err(eyre!("Unable to spawn a dweb server - no free ports available"));
             }
         }
-        Ok((directory_version, false))
-    } else {
-        return Err(eyre!(
-            "Unable to spawn a dweb server - no free ports available"
-        ));
+    };
+    
+    let directory_version = DirectoryVersionWithPort::new(
+        port,
+        history_address,
+        version,
+        archive_address,
+        directory_tree,
+    );
+
+    // Add it to the cache
+    if let Ok(lock) = &mut DIRECTORY_VERSIONS_WITH_PORT.lock() {
+        let key = key_for_directory_versions_with_port(archive_address);
+        if lock.insert(key, directory_version.clone()) {
+            return Ok((directory_version, false));
+        } else {
+            let msg = format!("Failed to add new DirectoryVersionWithPort to the cache");
+            println!("DEBUG {msg}");
+            return Err(eyre!(msg));
+        }
     }
+    Ok((directory_version, false))
 }

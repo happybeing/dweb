@@ -94,6 +94,7 @@ pub fn register_builtin_names(is_local: bool) {
         let _ = register_name_from_string("awesome", builtins_local::AWESOME_SITE_HISTORY_LOCAL);
     } else {
         let _ = register_name_from_string("awesome", builtins_public::AWESOME_SITE_HISTORY_PUBLIC);
+        let _ = register_name_from_string("billboard", "b6da6740bc5394f9ac0e6a6fa5a42f7f587d3aeaa48fd23ae9a45bef95b571a32429b0353148aa9e04f17cd6da57d179");
         let _ = register_name_from_string("friends", "b1d0f2c3c1dbbd1772a40d29f664104783cc93333d3a922c5e2c17dbe07c329cee1fa4e3452329c8a5d3eeb93f9c7d80");
         // Mainnet History is at: a27b3fdb495870ace8f91005223998dc675c8e1bceb50bac66c993bb720a013c9f83d7a46e6d0daecbb3530d5249e587
         // v1 Archive: 40ea2e530a60645363ae561c8a50c165f79d8a034c4458f68f1b848c11386e45

@@ -101,7 +101,7 @@ pub async fn scratchpad_private_get(
         dweb_type: DwebType::PrivateScratchpad,
         scratchpad_address: scratchpad.address().to_hex(),
         data_encoding: scratchpad.data_encoding(),
-        encryped_data: scratchpad.encrypted_data().to_vec(),
+        encrypted_data: scratchpad.encrypted_data().to_vec(),
         counter: scratchpad.counter(),
         ..Default::default()
     };
@@ -219,7 +219,7 @@ pub async fn scratchpad_private_get_owned(
         dweb_type: DwebType::PrivateScratchpad,
         scratchpad_address: scratchpad.address().to_hex(),
         data_encoding: scratchpad.data_encoding(),
-        encryped_data: scratchpad.encrypted_data().to_vec(),
+        encrypted_data: scratchpad.encrypted_data().to_vec(),
         counter: scratchpad.counter(),
         ..Default::default()
     };
@@ -1114,7 +1114,7 @@ pub struct DwebScratchpad {
     dweb_type: DwebType,
     scratchpad_address: String,
     data_encoding: u64,
-    encryped_data: Vec<u8>,
+    encrypted_data: Vec<u8>,
     unencrypted_data: Vec<u8>,
     counter: u64,
 }
@@ -1126,7 +1126,7 @@ impl Default for DwebScratchpad {
             scratchpad_address: "".to_string(),
             counter: 0,
             data_encoding: 0,
-            encryped_data: Vec::<u8>::new(),
+            encrypted_data: Vec::<u8>::new(),
             unencrypted_data: Vec::<u8>::new(),
         }
     }

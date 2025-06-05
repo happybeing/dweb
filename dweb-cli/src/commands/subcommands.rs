@@ -263,22 +263,23 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                 name
             };
             let name = if let Some(name) = name {
-                match crate::commands::cmd_heal_history::handle_heal_history(
-                    client.clone(),
-                    app_secret_key.clone(),
-                    &name.clone(),
-                    false,
-                    false,
-                    true,
-                )
-                .await
-                {
-                    Ok(()) => {}
-                    Err(e) => {
-                        println!("{e:?}");
-                        return Err(e);
-                    }
-                }
+                // TODO re-instate once Autonomi have made Pointers reliable:
+                // match crate::commands::cmd_heal_history::handle_heal_history(
+                //     client.clone(),
+                //     app_secret_key.clone(),
+                //     &name.clone(),
+                //     false,
+                //     false,
+                //     true,
+                // )
+                // .await
+                // {
+                //     Ok(()) => {}
+                //     Err(e) => {
+                //         println!("{e:?}");
+                //         return Err(e);
+                //     }
+                // }
 
                 name
             } else {

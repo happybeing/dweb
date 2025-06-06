@@ -526,4 +526,4 @@ Thanks for understanding that I don't want to accept material of unknown provena
 
 Everything is licensed under AGPL3.0 unless otherwise stated.
 
-See also [./LICENSE](./LICENSE)
+See also [../LICENSE](../LICENSE)

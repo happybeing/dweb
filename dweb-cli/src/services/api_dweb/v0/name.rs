@@ -17,7 +17,7 @@
 
 use actix_web::{get, web, web::Data, HttpRequest, HttpResponse, Responder};
 
-use dweb::web::name::{register_name, register_name_from_string};
+use dweb::web::name::register_name_from_string;
 
 /// Create a short name for content on Autonomi
 ///
@@ -93,6 +93,7 @@ pub fn register_builtin_names(is_local: bool) {
     if is_local {
         let _ = register_name_from_string("awesome", builtins_local::AWESOME_SITE_HISTORY_LOCAL);
     } else {
+        let _ = register_name_from_string("atlas", "99e3b8df52814b379e216caf797426071000905a2cd93a9f5e90eef2b32517a9ec1ef0bfe27d79360014fd97639ac612");
         let _ = register_name_from_string("awesome", builtins_public::AWESOME_SITE_HISTORY_PUBLIC);
         let _ = register_name_from_string("billboard", "b6da6740bc5394f9ac0e6a6fa5a42f7f587d3aeaa48fd23ae9a45bef95b571a32429b0353148aa9e04f17cd6da57d179");
         let _ = register_name_from_string("friends", "a447871043968be2be1628584026cad30b824009a30eab43db3ee6dd8c0990051c27160cc8d1662da763d57c41c091f6");

@@ -3,7 +3,7 @@ resolver = "2"
 members = [ "dweb-cli" , "dweb-lib"]
 
 [workspace.package]
-version = "0.8.1"
+version = "0.8.2"
 authors = ["happybeing <git@happybeing.com>"]
 description = "Decentralised web and storage crates for Autonomi"
 license = "AGPL-3.0"

@@ -19,14 +19,15 @@ use color_eyre::{eyre::eyre, Report, Result};
 
 use autonomi::AttoTokens;
 
-use dweb::client::{ApiControl, DwebClient};
+use dweb::client::ApiControl;
 use dweb::history::HistoryAddress;
 use dweb::storage::{publish_or_update_files, report_content_published_or_updated};
 use dweb::token::{show_spend_return_value, Spends};
 use dweb::web::request::{main_server_request, make_main_server_url};
 use dweb::web::{LOCALHOST_STR, SERVER_HOSTS_MAIN_PORT, SERVER_PORTS_MAIN_PORT};
 
-use crate::cli_options::{Opt, Subcommands};
+use crate::cli_options::{Opt, ServerCommands, Subcommands};
+use crate::commands::server::connect_and_announce;
 
 // Returns true if command complete, false to start the browser
 pub async fn cli_commands(opt: Opt) -> Result<bool> {
@@ -45,31 +46,19 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             host,
             port,
         }) => {
-            let (client, is_local_network) =
-                connect_and_announce(opt.local, opt.alpha, api_control, true).await;
-
             if !experimental {
-                // Start the main server (for port based browsing), which will handle /dweb-open URLs  opened by 'dweb open'
-                let default_host = LOCALHOST_STR.to_string();
-                let host = host.unwrap_or(default_host);
-                let port = port.unwrap_or(SERVER_PORTS_MAIN_PORT);
-                match crate::services::serve_with_ports(
-                    &client,
-                    None,
+                super::server::start_in_foreground(
+                    opt.local,
+                    opt.alpha,
+                    api_control,
                     host,
-                    Some(port),
-                    false,
-                    is_local_network,
+                    port,
+                    None,
                 )
-                .await
-                {
-                    Ok(_) => return Ok(true),
-                    Err(e) => {
-                        println!("{e:?}");
-                        return Err(eyre!(e));
-                    }
-                }
+                .await;
             } else {
+                let (client, is_local_network) =
+                    connect_and_announce(opt.local, opt.alpha, api_control, true).await;
                 // Start the server (for name based browsing), which will handle /dweb-open URLs  opened by 'dweb open --experimental'
                 let default_host = dweb::web::DWEB_SERVICE_API.to_string();
                 let host = host.unwrap_or(default_host);
@@ -91,6 +80,42 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                 }
             }
         }
+
+        Some(Subcommands::Server { command }) => match command {
+            ServerCommands::Start {
+                host,
+                port,
+                foreground,
+                logdir,
+            } => {
+                if foreground {
+                    super::server::start_in_foreground(
+                        opt.local,
+                        opt.alpha,
+                        api_control,
+                        host,
+                        port,
+                        logdir,
+                    )
+                    .await;
+                } else {
+                    super::server::start_in_background(
+                        opt.local,
+                        opt.alpha,
+                        api_control,
+                        host,
+                        port,
+                        logdir,
+                    );
+                }
+            }
+
+            ServerCommands::Stop { port_or_all } => { // TODO
+            }
+
+            ServerCommands::Info { port_or_all } => { // TODO
+            }
+        },
 
         // TODO consider detecting if the relevant server is running and if not starting automatically
         Some(Subcommands::Open {
@@ -531,28 +556,4 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
         }
     }
     Ok(true)
-}
-
-async fn connect_and_announce(
-    local_network: bool,
-    alpha_network: bool,
-    api_control: ApiControl,
-    announce: bool,
-) -> (DwebClient, bool) {
-    let client =
-        dweb::client::DwebClient::initialise_and_connect(local_network, alpha_network, api_control)
-            .await
-            .expect("Failed to connect to Autonomi Network");
-
-    if announce {
-        if local_network {
-            println!("-> local network: {}", client.network);
-        } else if alpha_network {
-            println!("-> alpha network {}", client.network);
-        } else {
-            println!("-> public network {}", client.network);
-        };
-    };
-
-    (client, local_network)
 }

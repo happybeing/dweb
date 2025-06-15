@@ -155,7 +155,7 @@ impl DwebClient {
             network: client.evm_network().clone(),
             is_local: local_network,
             wallet,
-            api_control,
+            api_control: api_control.clone(),
             ant_rate,
             eth_rate,
         })

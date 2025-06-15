@@ -160,6 +160,13 @@ pub enum Subcommands {
         port: Option<u16>,
     },
 
+    #[clap(hide = true)]
+    Server {
+        /// Manual control of dweb servers - this is primarily a development feature not needed for normal operation.
+        #[command(subcommand)]
+        command: ServerCommands,
+    },
+
     /// Open a browser to view a website on Autonomi (requires 'dweb serve' running)
     ///
     /// You must have already started a server by typing 'dweb serve' in a different
@@ -508,6 +515,49 @@ pub enum Subcommands {
         /// This is only needed when not using defaults, so hidden to de-clutter the CLI help
         #[clap(hide = true, long, value_name = "PORT", value_parser = parse_port_number)]
         port: Option<u16>,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+#[clap(hide = true)]
+pub enum ServerCommands {
+    /// Start the main dweb server which is used by 'dweb' command to open websites and apps
+    ///
+    /// This server must be running for dweb to work properly but will be started automatically
+    /// when first needed, so this command is primarily for debugging and to assist developers.
+    Start {
+        /// The host address on which the server will be started. Defaults to "127.0.0.1"
+        /// This is only needed when not using the default
+        #[clap(long, value_name = "HOST", value_parser = parse_host)]
+        host: Option<String>,
+        /// The port that the server will listen on.
+        /// This is only needed when not using the default
+        #[clap(long, value_name = "PORT", value_parser = parse_port_number)]
+        port: Option<u16>,
+        /// Keep thethe server in the foreground. Defaults to starting the server in the background
+        #[clap(long, default_value = "false")]
+        foreground: bool,
+        /// Write server output to a file in the given directory which must exist. The logfile
+        /// name will be 'dweb-server-PORT.log' where PORT is the port the server is listening
+        /// on.
+        #[clap(long)]
+        logdir: Option<String>,
+    },
+
+    /// TODO
+    Stop {
+        /// Stop the server on the given PORT, or specify "all" to stop all dweb servers
+        /// Note: if you stop the main dweb server this will also stop all the servers which that
+        /// main server has started (e.g. when opening a new website)
+        #[clap(value_name = "PORT-OR-ALL")]
+        port_or_all: String,
+    },
+
+    /// TODO
+    Info {
+        /// Get information about the specified server (on PORT), or specify "all" to get information on all servers
+        #[clap(value_name = "PORT-OR-ALL")]
+        port_or_all: String,
     },
 }
 

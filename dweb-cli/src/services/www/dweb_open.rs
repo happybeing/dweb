@@ -34,7 +34,7 @@ use super::make_error_response_page;
 ///
 ///     [v{VERSION-NUMBER}/]{ADDRESS-OR-NAME}/{REMOTE-PATH}
 ///
-/// url: <code>http://127.0.0.1:8080/dweb-open/[v<VERSION-NUMBER>/]<ADDRESS-OR-NAME><REMOTE-PATH></code>
+/// url: <code>http://127.0.0.1:5537/dweb-open/[v<VERSION-NUMBER>/]<ADDRESS-OR-NAME><REMOTE-PATH></code>
 ///
 /// VERSION-NUMBER      Optional version when ADDRESS-OR-NAME refers to a <code>History<Tree></code>
 ///
@@ -86,7 +86,7 @@ pub async fn dweb_open(
 
 /// Open the content at a given address and register a name for it
 ///
-/// url: <code>http://127.0.0.1:8080/dweb-open-as/v<VERSION-NUMBER>/<DWEB-NAME>/<HISTORY-ADDRESS><REMOTE-PATH></code>
+/// url: <code>http://127.0.0.1:5537/dweb-open-as/v<VERSION-NUMBER>/<DWEB-NAME>/<HISTORY-ADDRESS><REMOTE-PATH></code>
 ///
 #[utoipa::path(
     responses(

@@ -134,7 +134,7 @@ pub async fn archive_get(
 ///
 /// ADDRESS-OR-NAME     A hexadecimal address or a short name referring to a History or an Autonomi archive
 ///
-/// url: <code>http://127.0.0.1:8080/archive-version/[v<VERSION-NUMBER>/]<ADDRESS-OR-NAME></code>
+/// url: <code>http://127.0.0.1:5537/archive-version/[v<VERSION-NUMBER>/]<ADDRESS-OR-NAME></code>
 #[utoipa::path(
     responses(
         (status = StatusCode::OK,

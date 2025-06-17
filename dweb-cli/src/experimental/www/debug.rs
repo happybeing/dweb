@@ -53,8 +53,8 @@ pub fn init_service() -> impl HttpServiceFactory {
 ///	versioned website: 		<HISTORY-ADDRESS>.v[<version>].www-dweb.au[<PATH>][?params]
 ///
 /// Example urls:
-///     http://something.www-dweb.au:8080/here/is/a/path.html
-///     http://v123.something.www-dweb.au:8080/here/is/a/history/path.html
+///     http://something.www-dweb.au:5537/here/is/a/path.html
+///     http://v123.something.www-dweb.au:5537/here/is/a/history/path.html
 
 /// WWW service - handler for Autonomi websites
 ///

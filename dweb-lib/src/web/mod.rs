@@ -20,7 +20,7 @@ pub mod name;
 pub mod request;
 
 // Default ports for HTTP / HTTPS
-pub const DEFAULT_HTTP_PORT: u16 = 8080;
+pub const DEFAULT_HTTP_PORT: u16 = 5537;
 pub const DEFAULT_HTTPS_PORT: u16 = 8443;
 pub const LOCALHOST_STR: &str = "127.0.0.1";
 
@@ -31,8 +31,8 @@ pub const LOCALHOST_STR: &str = "127.0.0.1";
 // A random port we expect to be free (see: https://stackoverflow.com/questions/10476987/best-tcp-port-number-range-for-internal-applications)
 // This default must be used by *both* dweb 'with ports' and 'with hosts' server modes
 // so if it is overridden on the command line, it must be overridden for both commands.
-pub const SERVER_PORTS_MAIN_PORT: u16 = 8080;
-pub const SERVER_PORTS_MAIN_PORT_STR: &str = "8080";
+pub const SERVER_PORTS_MAIN_PORT: u16 = 5537;
+pub const SERVER_PORTS_MAIN_PORT_STR: &str = "5537";
 
 // with hosts server settings (deprecated)
 //

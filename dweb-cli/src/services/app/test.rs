@@ -24,7 +24,7 @@ pub fn init_service(host: &str) -> impl HttpServiceFactory {
 }
 
 // Example app
-// Test with url: http://app-dweb.au:8080/test/
+// Test with url: http://app-dweb.au:5537/test/
 #[get("/")]
 pub async fn test_app() -> impl Responder {
     println!("test_app()...");

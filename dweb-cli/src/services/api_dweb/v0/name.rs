@@ -23,7 +23,7 @@ use dweb::web::name::register_name_from_string;
 ///
 /// Register a short name (or DWEB-NAME) for a History address. The name can be used from dweb CLI or in dweb APIs until the dweb server is restarted.
 ///
-/// Test url: http://127.0.0.1:8080/dweb-0/name-register/smart-ant/8650c4284430522a638a6fa37dd3e8d610c65b300f89f0199a95a1a9eab0455287f8c8d137fad390654bd9f19b868a5c
+/// Test url: http://127.0.0.1:5537/dweb-0/name-register/smart-ant/8650c4284430522a638a6fa37dd3e8d610c65b300f89f0199a95a1a9eab0455287f8c8d137fad390654bd9f19b868a5c
 #[utoipa::path(
     responses(
         (status = StatusCode::OK,
@@ -56,7 +56,7 @@ use dweb::web::name::{recognised_dwebnames, RecognisedName};
 ///
 /// List the names and corresponding History addresses known to this server
 ///
-/// Test url: http://127.0.0.1:8080/dweb-0/name-list
+/// Test url: http://127.0.0.1:5537/dweb-0/name-list
 #[utoipa::path(
     responses(
         (status = StatusCode::OK,

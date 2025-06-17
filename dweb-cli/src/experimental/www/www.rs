@@ -54,8 +54,8 @@ pub fn init_service() -> impl HttpServiceFactory {
 }
 
 /// Handle Autonomi www requests of the form:
-///     http://something.www-dweb.au:8080/here/is/a/path.html
-///     http://v123.something.www-dweb.au:8080/here/is/a/history/path.html
+///     http://something.www-dweb.au:5537/here/is/a/path.html
+///     http://v123.something.www-dweb.au:5537/here/is/a/history/path.html
 pub async fn www_handler(
     request: HttpRequest,
     path: web::Path<String>,

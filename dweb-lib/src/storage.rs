@@ -30,6 +30,7 @@ use autonomi::files::{Metadata as FileMetadata, PrivateArchive};
 use autonomi::AttoTokens;
 
 use crate::client::DwebClient;
+use crate::files::archive::ARCHIVE_PATH_SEPARATOR;
 use crate::files::directory::{osstr_to_string, Tree, DWEB_DIRECTORY_HISTORY_DATAMAPCHUNK};
 use crate::files::directory::{
     DWEB_DIRECTORY_HISTORY_CONTENT, DWEB_HISTORY_DIRECTORY, DWEB_SETTINGS_PATH,
@@ -144,7 +145,10 @@ pub async fn publish_or_update_files(
         files_history.history_address().to_hex()
     };
 
-    let history_file_path = PathBuf::from(DWEB_HISTORY_DIRECTORY).join(history_filename);
+    let history_file_path = DWEB_HISTORY_DIRECTORY.to_string()
+        + &ARCHIVE_PATH_SEPARATOR.to_string()
+        + &history_filename;
+    let history_file_path = PathBuf::from(history_file_path);
     let autonomi_metadata = FileMetadata {
         created: 0,
         modified: 0,

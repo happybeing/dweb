@@ -572,7 +572,7 @@ impl TreePathMap {
         let mut iter = archive.map().iter();
         while let Some((path_buf, (data_address, metadata))) = iter.next() {
             // Remove the containing directory to produce a path from the website root, and which starts with '/'
-            let mut path_string = String::from(path_buf.to_string_lossy());
+            let mut path_string = canonicalise_path(&String::from(path_buf.to_string_lossy()));
             let offset = path_string.find("/").unwrap_or(path_string.len());
             path_string.replace_range(..offset, "");
             match path_map.add_content_to_map(
@@ -595,7 +595,7 @@ impl TreePathMap {
         let mut iter = archive.map().iter();
         while let Some((path_buf, (datamap, metadata))) = iter.next() {
             // Remove the containing directory to produce a path from the website root, and which starts with '/'
-            let mut path_string = String::from(path_buf.to_string_lossy());
+            let mut path_string = canonicalise_path(&String::from(path_buf.to_string_lossy()));
             let offset = path_string.find("/").unwrap_or(path_string.len());
             path_string.replace_range(..offset, "");
             match path_map.add_content_to_map(
@@ -673,6 +673,12 @@ pub fn osstr_to_string(file_name: &std::ffi::OsStr) -> Option<String> {
         return Some(String::from(str));
     }
     None
+}
+
+/// Convert all occurrences of backslash to forward slash.
+/// Useful when reading paths from public or private Autonomi archives, which may have either as path separator.
+pub fn canonicalise_path(path_string: &String) -> String {
+    path_string.replace("\\", "/")
 }
 
 /// Get content from the network using a hex encoded datamap if provided, otherwise a hex encoded address

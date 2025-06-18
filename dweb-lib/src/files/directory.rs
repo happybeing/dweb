@@ -572,6 +572,7 @@ impl TreePathMap {
         let mut iter = archive.map().iter();
         while let Some((path_buf, (data_address, metadata))) = iter.next() {
             // Remove the containing directory to produce a path from the website root, and which starts with '/'
+            // println!("DEBUG from_public_archive()");
             let mut path_string = canonicalise_path(&String::from(path_buf.to_string_lossy()));
             let offset = path_string.find("/").unwrap_or(path_string.len());
             path_string.replace_range(..offset, "");
@@ -595,6 +596,7 @@ impl TreePathMap {
         let mut iter = archive.map().iter();
         while let Some((path_buf, (datamap, metadata))) = iter.next() {
             // Remove the containing directory to produce a path from the website root, and which starts with '/'
+            // println!("DEBUG from_private_archive()");
             let mut path_string = canonicalise_path(&String::from(path_buf.to_string_lossy()));
             let offset = path_string.find("/").unwrap_or(path_string.len());
             path_string.replace_range(..offset, "");
@@ -664,7 +666,7 @@ impl TreePathMap {
     // Replace OS path separators with '/'
     pub fn webify_string(path_string: &String) -> String {
         let path_string = path_string.clone();
-        return path_string.replace(std::path::MAIN_SEPARATOR_STR, "/");
+        return path_string.replace("\\", "/");
     }
 }
 
@@ -675,10 +677,15 @@ pub fn osstr_to_string(file_name: &std::ffi::OsStr) -> Option<String> {
     None
 }
 
-/// Convert all occurrences of backslash to forward slash.
+/// Convert all occurrences of backslash to forward slash and ensure the result begins with a '/'
 /// Useful when reading paths from public or private Autonomi archives, which may have either as path separator.
 pub fn canonicalise_path(path_string: &String) -> String {
-    path_string.replace("\\", "/")
+    let path_string = path_string.replace("\\", "/");
+    if path_string.len() > 0 && !path_string.starts_with("/") {
+        "/".to_string() + &path_string
+    } else {
+        path_string
+    }
 }
 
 /// Get content from the network using a hex encoded datamap if provided, otherwise a hex encoded address

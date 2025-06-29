@@ -93,7 +93,7 @@ pub async fn graph_entry_get(
 
     if check_exists {
         match client
-            .graph_entry_check_existance(graph_entry_address)
+            .graph_entry_check_existence(graph_entry_address)
             .await
         {
             Ok(exists) => {

@@ -52,7 +52,7 @@ use crate::token::{show_spend_return_value, Spends};
 
 use crate::types::{derive_named_object_secret, HISTORY_POINTER_DERIVATION_INDEX};
 
-const LARGEST_VERSION: u32 = u32::MAX;
+const LARGEST_VERSION: u64 = u64::MAX;
 
 /// The value of a history: a 32 bytes array (same as [`GraphContent`])
 pub type HistoryValue = GraphContent;
@@ -165,15 +165,15 @@ pub struct History<T: Trove<T> + Clone> {
 
     // We can't trust a pointer from the network to be up-to-date, so these are updated from the graph
     // Once set, head_graphentry will always be the real head and num_entries always correct
-    num_entries: u32,
+    num_entries: u64,
     head_graphentry: Option<GraphEntry>,
 
     // Track the pointer version for comparisson (e.g. using 'inspect-history')
-    pointer_counter: u32,
+    pointer_counter: u64,
     pointer_target: Option<GraphEntryAddress>,
 
     // For operations when no version is specified. Typically, None implies most recent
-    default_version: Option<u32>,
+    default_version: Option<u64>,
     // Cached data for the selected version
     pub cached_version: Option<TroveVersion<T>>,
 
@@ -285,7 +285,7 @@ impl<T: Trove<T> + Clone> History<T> {
         &mut self,
         owner_secret_key: SecretKey,
         trove_address: ArchiveAddress,
-    ) -> Result<(AttoTokens, u32)> {
+    ) -> Result<(AttoTokens, u64)> {
         println!("DEBUG History::update_online()");
         let history_secret_key =
             Self::history_main_secret_key(owner_secret_key).derive_child(self.name.as_bytes());
@@ -311,7 +311,7 @@ impl<T: Trove<T> + Clone> History<T> {
                 {
                     Ok(result) => result,
                     Err(e) => {
-                        return show_spend_return_value::<Result<(AttoTokens, u32)>>(
+                        return show_spend_return_value::<Result<(AttoTokens, u64)>>(
                             &spends,
                             Err(eyre!("failed to create next GraphEnry: {e}")),
                         )
@@ -351,7 +351,7 @@ impl<T: Trove<T> + Clone> History<T> {
                         self.pointer_counter = pointer.counter();
                         self.pointer_target = Some(next_address);
 
-                        return show_spend_return_value::<Result<(AttoTokens, u32)>>(
+                        return show_spend_return_value::<Result<(AttoTokens, u64)>>(
                             &spends,
                             Ok((graph_cost, self.pointer_counter)),
                         )
@@ -385,7 +385,7 @@ impl<T: Trove<T> + Clone> History<T> {
         owner_secret_key: SecretKey,
         name: String,
         ignore_pointer: bool,
-        minimum_entry_index: u32,
+        minimum_entry_index: u64,
     ) -> Result<Self> {
         println!("DEBUG History::from_name({name})");
         if name.is_empty() {
@@ -486,7 +486,7 @@ impl<T: Trove<T> + Clone> History<T> {
         client: DwebClient,
         history_address: HistoryAddress,
         ignore_pointer: bool,
-        minimum_entry_index: u32,
+        minimum_entry_index: u64,
     ) -> Result<History<T>> {
         println!(
             "DEBUG History::from_history_address({})",
@@ -612,7 +612,7 @@ impl<T: Trove<T> + Clone> History<T> {
     async fn update_from_graph_internal(
         &mut self,
         pointer_target: &GraphEntryAddress,
-        pointer_counter: u32,
+        pointer_counter: u64,
     ) -> Result<GraphEntry> {
         println!("DEBUG History::update_from_graph_internal()");
         if self.head_graphentry.is_some() {
@@ -694,7 +694,7 @@ impl<T: Trove<T> + Clone> History<T> {
     }
 
     fn create_pointer_for_update(
-        counter: u32,
+        counter: u64,
         graph_entry_address: &GraphEntryAddress,
         history_secret_key: &SecretKey,
     ) -> Pointer {
@@ -754,11 +754,11 @@ impl<T: Trove<T> + Clone> History<T> {
         }
     }
 
-    pub fn pointer_counter(&self) -> u32 {
+    pub fn pointer_counter(&self) -> u64 {
         self.pointer_counter
     }
 
-    fn update_default_version(&mut self) -> Option<u32> {
+    fn update_default_version(&mut self) -> Option<u64> {
         self.default_version = match self.num_versions() {
             Ok(version) => Some(version),
             Err(_) => None,
@@ -783,14 +783,14 @@ impl<T: Trove<T> + Clone> History<T> {
     /// because the first entry is reserved for use
     /// as a type (which may point to metadata about
     /// the Trove type). Tree is an example Trove type.
-    pub fn num_entries(&self) -> u32 {
+    pub fn num_entries(&self) -> u64 {
         self.num_entries
     }
 
     /// Return the number of available versions
     /// or an error if no versions are available.
     /// The first version is 1 last version is num_versions()
-    pub fn num_versions(&self) -> Result<u32> {
+    pub fn num_versions(&self) -> Result<u64> {
         let num_entries = self.num_entries;
 
         if num_entries == 0 {
@@ -861,7 +861,7 @@ impl<T: Trove<T> + Clone> History<T> {
     /// because pointers can take an unknown time to be updated.
     pub async fn get_version_entry_value(
         &mut self,
-        version: u32,
+        version: u64,
         ignore_pointer: bool,
     ) -> Result<ArchiveAddress> {
         println!("DEBUG History::get_version_entry_value(version: {version})");
@@ -892,7 +892,7 @@ impl<T: Trove<T> + Clone> History<T> {
 
     /// Get the value by absolute entry index.
     /// Note that the root entry (index 0) is not a valid version. Version 1 is at index 1.
-    pub async fn get_entry_value(&mut self, index: u32) -> Result<ArchiveAddress> {
+    pub async fn get_entry_value(&mut self, index: u64) -> Result<ArchiveAddress> {
         println!("DEBUG History::get_entry_value(index: {index})");
         match self.get_graph_entry(index).await {
             Ok(entry) => {
@@ -908,7 +908,7 @@ impl<T: Trove<T> + Clone> History<T> {
 
     /// Get the graph entry by absolute entry index.
     /// Note that the root entry (index 0) is not a valid version. Version 1 is at index 1.
-    pub async fn get_graph_entry(&mut self, index: u32) -> Result<GraphEntry> {
+    pub async fn get_graph_entry(&mut self, index: u64) -> Result<GraphEntry> {
         // println!("DEBUG History::get_graph_entry(index: {index})");
         // self.update_pointer().await?;
         let num_entries = self.num_entries();
@@ -1050,7 +1050,7 @@ impl<T: Trove<T> + Clone> History<T> {
     }
 
     // Returns the version of the cached entry if present
-    pub fn get_cached_version_number(&self) -> Option<u32> {
+    pub fn get_cached_version_number(&self) -> Option<u64> {
         if let Some(trove_version) = &self.cached_version {
             if trove_version.trove.is_some() {
                 return Some(trove_version.version);
@@ -1095,7 +1095,7 @@ impl<T: Trove<T> + Clone> History<T> {
         &mut self,
         owner_secret_key: SecretKey,
         target_graphentry: &GraphEntry,
-    ) -> Result<u32> {
+    ) -> Result<u64> {
         println!("DEBUG History::heal_pointer()");
         let history_secret_key =
             Self::history_main_secret_key(owner_secret_key).derive_child(self.name.as_bytes());
@@ -1207,7 +1207,7 @@ impl<T: Trove<T> + Clone> History<T> {
         &mut self,
         owner_secret_key: SecretKey,
         trove_address: &ArchiveAddress,
-    ) -> Result<(AttoTokens, u32)> {
+    ) -> Result<(AttoTokens, u64)> {
         let (update_cost, _) = self.update_online(owner_secret_key, *trove_address).await?;
         println!("trove_address added to history: {}", trove_address.to_hex());
         let version = self.num_versions()?;
@@ -1224,7 +1224,7 @@ impl<T: Trove<T> + Clone> History<T> {
     /// If it fails, the selected version will be unchanged and any cached data retained.
     // Version 0 is hidden (and set to Trove::trove_type()) but can be accessed by
     // specifying a version of LARGEST_VERSION
-    pub async fn fetch_version_trove(&mut self, version: Option<u32>) -> Option<T> {
+    pub async fn fetch_version_trove(&mut self, version: Option<u64>) -> Option<T> {
         println!(
             "DEBUG fetch_version_trove(version: {version:?}) self.cached_version.is_some(): {}",
             self.cached_version.is_some()
@@ -1287,7 +1287,7 @@ impl<T: Trove<T> + Clone> History<T> {
         }
     }
 
-    pub async fn get_trove_address_from_history(&mut self, version: u32) -> Result<ArchiveAddress> {
+    pub async fn get_trove_address_from_history(&mut self, version: u64) -> Result<ArchiveAddress> {
         println!("DEBUG get_trove_address_from_history(version: {version})");
         // Use cached trove_version if available
         if let Some(trove_version) = &self.cached_version {
@@ -1308,14 +1308,14 @@ impl<T: Trove<T> + Clone> History<T> {
 #[derive(Clone)]
 pub struct TroveVersion<ST: Trove<ST> + Clone> {
     // Version of Some(trove) with address trove_address
-    pub version: u32,
+    pub version: u64,
 
     pub trove_address: ArchiveAddress,
     pub trove: Option<ST>,
 }
 
 impl<ST: Trove<ST> + Clone> TroveVersion<ST> {
-    pub fn new(version: u32, trove_address: ArchiveAddress, trove: Option<ST>) -> TroveVersion<ST> {
+    pub fn new(version: u64, trove_address: ArchiveAddress, trove: Option<ST>) -> TroveVersion<ST> {
         TroveVersion {
             version,
             trove_address: trove_address,

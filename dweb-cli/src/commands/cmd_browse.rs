@@ -29,7 +29,7 @@ use dweb::web::{DWEB_SERVICE_API, LOCALHOST_STR};
 pub(crate) fn handle_browse_with_hosts(
     _dweb_name: Option<String>,
     address_name_or_link: &String,
-    version: Option<u32>,
+    version: Option<u64>,
     remote_path: Option<String>,
     host: Option<&String>,
     port: Option<u16>,
@@ -63,7 +63,7 @@ pub(crate) fn handle_browse_with_hosts(
 // TODO support --register-as or leave that only for --experimental?
 pub(crate) fn handle_browse_with_ports(
     address_name_or_link: &String,
-    version: Option<u32>,
+    version: Option<u64>,
     as_name: Option<String>,
     remote_path: Option<String>,
     host: Option<&String>,

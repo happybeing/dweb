@@ -134,7 +134,7 @@ pub async fn fetch(client: &DwebClient, url: Url, as_website: bool) -> HttpRespo
 pub async fn directory_version_get(
     client: &DwebClient,
     dweb_host: &DwebHost,
-) -> Result<(u32, DirectoryVersionWithName)> {
+) -> Result<(u64, DirectoryVersionWithName)> {
     println!(
         "DEBUG directory_version_get([ {}, {}, {:?} ])...",
         dweb_host.dweb_host_string, dweb_host.dweb_name, dweb_host.version
@@ -293,8 +293,8 @@ pub async fn get_directory_tree_for_address_string(
     // The hex representation of either a HistoryAddress or an ArchiveAddress
     address: &String,
     // Optional version when the address is a HistoryAddress
-    version: Option<u32>,
-) -> Result<(Option<HistoryAddress>, ArchiveAddress, Option<u32>, Tree)> {
+    version: Option<u64>,
+) -> Result<(Option<HistoryAddress>, ArchiveAddress, Option<u64>, Tree)> {
     println!("DEBUG get_directory_tree_for_address_string({address}, {version:?})...");
 
     let (history_address, archive_address) = address_tuple_from_address(address);
@@ -351,7 +351,7 @@ pub fn update_cached_directory_version_with_name(
     history_address: HistoryAddress,
     archive_address: ArchiveAddress,
     directory_tree: Option<Tree>,
-) -> Result<(u32, DirectoryVersionWithName)> {
+) -> Result<(u64, DirectoryVersionWithName)> {
     // TODO may need both version_retrieved and version_requested in DirectoryVersionWithName
     let new_directory_version =
         DirectoryVersionWithName::new(&dweb_host, history_address, archive_address, directory_tree);
@@ -384,9 +384,9 @@ pub fn update_cached_directory_version_with_port(
     port: u16,
     history_address: Option<HistoryAddress>,
     archive_address: ArchiveAddress,
-    version: Option<u32>,
+    version: Option<u64>,
     directory_tree: Tree,
-) -> Result<(u32, DirectoryVersionWithPort)> {
+) -> Result<(u64, DirectoryVersionWithPort)> {
     // TODO may need both version_retrieved and version_requested in DirectoryVersionWithName
     let new_directory_version = DirectoryVersionWithPort::new(
         port,

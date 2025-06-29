@@ -39,7 +39,6 @@ use crate::history::HistoryAddress;
 // TODO: tune cache size values
 const WITH_PORT_CAPACITY: u32 = u16::MAX as u32; // When exceeded, port servers will be forgotten and new versions inaccessible
 
-
 /// A cache of DirectoryVersionWithPort
 ///
 /// Key:     ARCHIVE_ADDRESS
@@ -55,7 +54,7 @@ pub fn key_for_directory_versions_with_port(archive_address: ArchiveAddress) -> 
     format!("{}", archive_address.to_hex()).to_ascii_lowercase()
 }
 
-// pub fn directory_versions_with_port_key(address: &str, version: Option<u32>) -> String {
+// pub fn directory_versions_with_port_key(address: &str, version: Option<u64>) -> String {
 //     let version_str = if version.is_some() {
 //         &format!("{}", version.unwrap())
 //     } else {
@@ -83,14 +82,14 @@ pub static DIRECTORY_VERSIONS_WITH_PORT: LazyLock<Mutex<LruMap<String, Directory
 /// 4. Adds DETERMINISTIC_PORT_BASE as a base to get a port in the range DETERMINISTIC_PORT_BASE + DETERMINISTIC_PORT_RANGE
 fn deterministic_port_from_archive_address(archive_address: ArchiveAddress) -> u16 {
     let hex_string = archive_address.to_hex();
-    
+
     // ArchiveAddress always has exactly 64 hex characters (DATA_ADDRESS_LEN = 64)
     // Take the last 16 hex characters to fit into u64 for modulo operation
     let hex_suffix = &hex_string[48..]; // 64 - 16 = 48
-    
+
     // Convert hex string to number
     let number = u64::from_str_radix(hex_suffix, 16).unwrap_or(0);
-    
+
     // Take modulo DETERMINISTIC_PORT_RANGE and add DETERMINISTIC_PORT_BASE
     ((number % DETERMINISTIC_PORT_RANGE) + DETERMINISTIC_PORT_BASE) as u16
 }
@@ -102,7 +101,7 @@ pub struct DirectoryVersionWithPort {
     /// Address of a History<trove::Tree> on Autonomi
     pub history_address: Option<HistoryAddress>,
     /// A version of 0 implies use most recent version (highest available)
-    pub version: Option<u32>,
+    pub version: Option<u64>,
     /// Directory / website metadata
     pub archive_address: ArchiveAddress,
     /// Directory / website metadata
@@ -127,7 +126,7 @@ impl DirectoryVersionWithPort {
     pub fn new(
         port: u16,
         history_address: Option<HistoryAddress>,
-        version: Option<u32>,
+        version: Option<u64>,
         archive_address: ArchiveAddress,
         directory_tree: Tree,
     ) -> DirectoryVersionWithPort {
@@ -150,7 +149,7 @@ impl DirectoryVersionWithPort {
 pub async fn lookup_or_create_directory_version_with_port(
     client: &DwebClient,
     address_or_name: &String,
-    version: Option<u32>,
+    version: Option<u64>,
 ) -> Result<(DirectoryVersionWithPort, bool)> {
     let (history_address, archive_address) = tuple_from_address_or_name(address_or_name);
 
@@ -228,7 +227,7 @@ pub async fn lookup_or_create_directory_version_with_port(
 
     // Create a new one with a deterministic port based on the name
     let port = deterministic_port_from_archive_address(archive_address);
-    
+
     // Check if the port is available, fallback to a random port if not
     let port = if port_check::is_local_ipv4_port_free(port) {
         port
@@ -236,15 +235,20 @@ pub async fn lookup_or_create_directory_version_with_port(
         // Fallback to a random free port if the deterministic port is not available
         match port_check::free_local_port() {
             Some(free_port) => {
-                println!("DEBUG Deterministic port {} is not available, using random port {} instead", port, free_port);
+                println!(
+                    "DEBUG Deterministic port {} is not available, using random port {} instead",
+                    port, free_port
+                );
                 free_port
-            },
+            }
             None => {
-                return Err(eyre!("Unable to spawn a dweb server - no free ports available"));
+                return Err(eyre!(
+                    "Unable to spawn a dweb server - no free ports available"
+                ));
             }
         }
     };
-    
+
     let directory_version = DirectoryVersionWithPort::new(
         port,
         history_address,

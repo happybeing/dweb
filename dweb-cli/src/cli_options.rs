@@ -29,6 +29,7 @@ use autonomi::GraphEntryAddress;
 use autonomi::PointerAddress;
 use autonomi::ScratchpadAddress;
 
+use dweb::autonomi::args::max_fee_per_gas::MaxFeePerGasParam;
 use dweb::helpers::convert::*;
 use dweb::history::HistoryAddress;
 use dweb::token::ShowCost;
@@ -105,7 +106,7 @@ pub struct Opt {
     pub show_dweb_costs: ShowCost,
     //
     #[command(flatten)]
-    transaction_opt: TransactionOpt,
+    pub transaction_opt: TransactionOpt,
     //
     // Control API call retries (0 for unlimited tries)
     #[clap(long, hide = true, default_value = "0")]
@@ -200,7 +201,7 @@ pub enum Subcommands {
         /// The version of a History to select (if providing For a DWEB-NAME or HISTORY-ADDRESS).
         /// If not present the most recent version is assumed.
         #[clap(long, short = 'v', name = "VERSION")]
-        version: Option<u32>,
+        version: Option<u64>,
         /// An optional remote path to open in the browser
         #[clap(name = "REMOTE-PATH")]
         remote_path: Option<String>,
@@ -598,8 +599,8 @@ pub(crate) struct TransactionOpt {
 use regex::Regex;
 #[derive(Clone, Debug)]
 pub struct EntriesRange {
-    pub start: Option<u32>,
-    pub end: Option<u32>,
+    pub start: Option<u64>,
+    pub end: Option<u64>,
 }
 
 fn str_to_entries_range(s: &str) -> Result<EntriesRange> {
@@ -611,7 +612,7 @@ fn str_to_entries_range(s: &str) -> Result<EntriesRange> {
     };
 
     let start = if !captures[1].is_empty() {
-        match captures[1].parse::<u32>() {
+        match captures[1].parse::<u64>() {
             Ok(n) => Some(n),
             Err(_) => return Err(eyre!("invalid start value")),
         }
@@ -623,7 +624,7 @@ fn str_to_entries_range(s: &str) -> Result<EntriesRange> {
         start
     } else {
         if !captures[3].is_empty() {
-            match captures[3].parse::<u32>() {
+            match captures[3].parse::<u64>() {
                 Ok(n) => Some(n),
                 Err(_) => return Err(eyre!("invalid end value")),
             }

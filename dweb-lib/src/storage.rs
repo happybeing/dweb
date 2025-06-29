@@ -69,7 +69,7 @@ pub async fn publish_or_update_files(
     name: Option<String>,
     dweb_settings: Option<PathBuf>,
     is_publish: bool,
-) -> Result<(AttoTokens, String, HistoryAddress, u32)> {
+) -> Result<(AttoTokens, String, HistoryAddress, u64)> {
     println!("DEBUG publish_or_update_files()...");
     check_path_for_upload(&files_root)?;
 
@@ -243,7 +243,7 @@ pub async fn publish_or_update_files(
 pub fn report_content_published_or_updated(
     history_address: &HistoryAddress,
     name: &String,
-    version: u32,
+    version: u64,
     _cost: AttoTokens,
     files_root: &PathBuf,
     is_website: bool,

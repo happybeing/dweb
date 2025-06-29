@@ -140,7 +140,7 @@ pub async fn handle_dweb_open(
     client: Data<dweb::client::DwebClient>,
     _our_directory_version: Data<Option<DirectoryVersionWithPort>>,
     is_local_network: Data<bool>,
-    decoded_params: &(Option<u32>, String, String, String),
+    decoded_params: &(Option<u64>, String, String, String),
 ) -> HttpResponse {
     let (version, as_name, address_or_name, remote_path) = decoded_params;
     let version = version.clone();

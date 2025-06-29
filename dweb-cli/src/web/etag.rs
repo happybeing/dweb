@@ -88,7 +88,7 @@ pub(crate) fn versioned_etag(
     etag_address: String,
     content_type: Option<header::ContentType>,
     // For versioned data...
-    actual_version: u32,
+    actual_version: u64,
 ) -> ETag {
     let type_string: String = if let Some(content_type) = content_type.clone() {
         format!("-{}", content_type.to_string())

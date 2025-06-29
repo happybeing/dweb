@@ -33,13 +33,13 @@ pub const AS_NAME_NONE: &str = "anonymous";
 ///     Option<u64> // version if present
 ///
 /// Note:
-///     version is an optional integer (u32)
+///     version is an optional integer (u64)
 ///     address_or_name is the site to visit
 ///     remote_path is the resource to load from the site
 ///
 pub fn parse_versioned_path_params(
     params: &String,
-) -> Result<(Option<u32>, String, String, String)> {
+) -> Result<(Option<u64>, String, String, String)> {
     // Parse params manually so we can support with and without version
     println!("DEBUG parse_versioned_path_params_with_as_name() {params}");
 
@@ -73,14 +73,14 @@ pub fn parse_versioned_path_params(
 /// url: http://127.0.0.1:<PORT>/[v{version}/]/{as_name}/{address_or_name}{remote_path}
 ///
 /// Note:
-///     version is an optional integer (u32)
+///     version is an optional integer (u64)
 ///     as_name must either be a DWEB-NAME to register, or 'anomymous'
 ///     address_or_name is the site to visit
 ///     remote_path is the resource to load from the site
 ///
 pub fn parse_versioned_path_params_with_as_name(
     params: &String,
-) -> Result<(Option<u32>, String, String, String)> {
+) -> Result<(Option<u64>, String, String, String)> {
     // Parse params manually so we can support with and without version
     println!("DEBUG parse_versioned_path_params() {params}");
 
@@ -125,17 +125,17 @@ pub fn parse_versioned_path_params_with_as_name(
     ))
 }
 
-/// Parse a string and if valid return an Option<u32>
+/// Parse a string and if valid return an Option<u64>
 ///
 /// Valid version strings consist of a 'v' (or 'V') followed by an optional integer.
-/// In orther words: v[<VERSION>], where VERSION is a u32.
-pub fn parse_version_string(version_str: &str) -> Result<Option<u32>> {
+/// In orther words: v[<VERSION>], where VERSION is a u64.
+pub fn parse_version_string(version_str: &str) -> Result<Option<u64>> {
     if version_str.starts_with("v") || version_str.starts_with("V") {
         let version = version_str[1..].to_string();
         if version.is_empty() {
             Ok(None)
         } else {
-            if let Ok(version) = version.parse::<u32>() {
+            if let Ok(version) = version.parse::<u64>() {
                 Ok(Some(version))
             } else {
                 // println!("DEBUG parse_version_string({version_str}) failed");

@@ -509,7 +509,7 @@ pub async fn pointer_put(
 #[derive(Clone, Serialize, Deserialize, ToSchema)]
 pub struct DwebPointer {
     pointer_address: String,
-    counter: u32,
+    counter: u64,
     /// Only one target is permitted per pointer, each for a different type. Unused targets should be empty strings
     chunk_target_address: String,
     graphentry_target_address: String,

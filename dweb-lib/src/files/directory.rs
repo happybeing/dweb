@@ -417,7 +417,7 @@ impl Tree {
         history: &mut History<Tree>,
         resource_path: &String,
         as_website: bool,
-        version: Option<u32>,
+        version: Option<u64>,
     ) -> Result<(String, String, Option<String>), StatusCode> {
         if !history.fetch_version_trove(version).await.is_none() {
             if history.cached_version.is_some()
@@ -775,7 +775,7 @@ pub async fn get_content(
 //     client: &DwebClient,
 //     resource_path: &String,
 //     history_address: HistoryAddress,
-//     version: Option<u32>,
+//     version: Option<u64>,
 // ) -> Result<(DataAddress, Option<String>), StatusCode> {
 //     println!("DEBUG lookup_resource_for_website_version() version {version:?}");
 //     println!("DEBUG history_address: {}", history_address.to_hex());

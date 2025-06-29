@@ -662,9 +662,9 @@ pub struct DwebHistoryReference {
     /// The address in hexadecimal of the History from which the PublicArchive was retrieved
     history_address: String,
     /// The version entry of the retrieved PublicArchive. A version of 0 indicates the most recent version was obtained
-    version: u32,
+    version: u64,
     /// The total number of versions when the History was accessed
-    history_size: u32,
+    history_size: u64,
 }
 
 /// A representation of the Autonomi PublicArchive for web clients

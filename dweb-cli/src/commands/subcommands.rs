@@ -35,7 +35,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
         tries: opt.retry_api,
         upload_file_by_file: opt.upload_file_by_file,
         ignore_pointers: opt.ignore_pointers,
-        max_fee_per_gas: opt.max_fee_per_gas,
+        max_fee_per_gas: opt.transaction_opt.max_fee_per_gas,
         use_public_archive: opt.use_old_archive,
         ..Default::default()
     };
@@ -247,7 +247,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             .await
             {
                 Ok(result) => {
-                    show_spend_return_value::<(AttoTokens, String, HistoryAddress, u32)>(
+                    show_spend_return_value::<(AttoTokens, String, HistoryAddress, u64)>(
                         &spends, result,
                     )
                     .await
@@ -324,7 +324,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             .await
             {
                 Ok(result) => {
-                    show_spend_return_value::<(AttoTokens, String, HistoryAddress, u32)>(
+                    show_spend_return_value::<(AttoTokens, String, HistoryAddress, u64)>(
                         &spends, result,
                     )
                     .await

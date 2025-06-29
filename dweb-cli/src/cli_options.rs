@@ -103,10 +103,10 @@ pub struct Opt {
     /// Show the cost of dweb API calls after each call in tokens, gas, both or none
     #[clap(long, hide = true, default_value = "both")]
     pub show_dweb_costs: ShowCost,
-    /// Optionally override the maximum fee in Gwei (units of 0.000000001 ETH), to pay for a transaction on the Arbitrum network.
-    /// Useful if transaction fees are too high for the internal limit used in the Autonomi API.
-    #[clap(long, hide = true, short = 'x')]
-    pub max_fee_per_gas: Option<u128>,
+    //
+    #[command(flatten)]
+    transaction_opt: TransactionOpt,
+    //
     // Control API call retries (0 for unlimited tries)
     #[clap(long, hide = true, default_value = "0")]
     pub retry_api: u32,
@@ -579,6 +579,20 @@ impl Default for FilesArgs {
             print_all_details: false,
         }
     }
+}
+
+#[derive(Args, Debug)]
+pub(crate) struct TransactionOpt {
+    /// Max fee per gas / gas price bid.
+    /// Options:
+    /// - `low`: Use the average max gas price bid.
+    /// - `market`: Use the current max gas price bid, with a max of 4 * the average gas price bid. (default)
+    /// - `auto`: Use the current max gas price bid. WARNING: Can result in high gas fees! (default: when using custom EVM network)
+    /// - `limited-auto:<WEI AMOUNT>`: Use the current max gas price bid, with a specified upper limit.
+    /// - `unlimited`: Do not use a limit for the gas price bid. WARNING: Can result in high gas fees!
+    /// - `<WEI AMOUNT>`: Set a custom max gas price bid.
+    #[clap(long, verbatim_doc_comment)]
+    pub max_fee_per_gas: Option<MaxFeePerGasParam>,
 }
 
 use regex::Regex;

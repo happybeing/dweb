@@ -23,11 +23,14 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 //!
 use color_eyre::Result;
 
+use crate::token::{Rate, ShowCost};
 use autonomi::client::{payment::PaymentOption, Client};
 use autonomi::TransactionConfig;
 use autonomi::{Network, Wallet};
 
-use crate::token::{Rate, ShowCost};
+use crate::autonomi::args::max_fee_per_gas::{
+    get_max_fee_per_gas_from_opt_param, MaxFeePerGasParam,
+};
 
 /// Control how dweb uses and reports on selected Autonomi APIs
 ///
@@ -57,8 +60,8 @@ pub struct ApiControl {
     pub ignore_pointers: bool,
     /// Show the cost of dweb API calls after each call in tokens, gas, both or none
     pub show_dweb_costs: ShowCost,
-    /// Optional maximum fee in Gwei (units of 0.000000001 ETH), to pay for a transaction on the Arbitrum network.
-    pub max_fee_per_gas: Option<u128>,
+    /// Optional control maximum fee paid for a transaction on the Arbitrum network.
+    pub max_fee_per_gas: Option<MaxFeePerGasParam>,
 }
 
 impl Default for ApiControl {
@@ -128,9 +131,12 @@ impl DwebClient {
                 Wallet::new_with_random_wallet(client.evm_network().clone())
             }
         };
-        if let Some(max_fee_per_gas) = api_control.max_fee_per_gas {
-            wallet.set_transaction_config(TransactionConfig::new(max_fee_per_gas))
-        }
+
+        let max_fee_per_gas =
+            get_max_fee_per_gas_from_opt_param(api_control.max_fee_per_gas, client.evm_network())?;
+        wallet.set_transaction_config(TransactionConfig {
+            max_fee_per_gas: max_fee_per_gas.clone(),
+        });
 
         // println!
         println!("DEBUG loaded wallet: {}", wallet.address());
@@ -142,11 +148,8 @@ impl DwebClient {
             "DEBUG     gas   : {}",
             wallet.balance_of_gas_tokens().await.unwrap()
         );
+        println!("Max fee per gas set to: {:?}", max_fee_per_gas);
 
-        if let Some(max_fee_per_gas) = api_control.max_fee_per_gas {
-            wallet.set_transaction_config(TransactionConfig::new(max_fee_per_gas));
-            println!("Max fee per gas set to: {}", max_fee_per_gas);
-        }
         let client = client.clone();
         let ant_rate = Rate::from_environment("ANT".to_string());
         let eth_rate = Rate::from_environment("ETH".to_string());

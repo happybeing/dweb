@@ -48,7 +48,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             port,
         }) => {
             if !experimental {
-                super::server::start_in_foreground(
+                let _ = super::server::start_in_foreground(
                     opt.local,
                     opt.alpha,
                     api_control,
@@ -89,7 +89,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                 logdir,
             } => {
                 if foreground {
-                    super::server::start_in_foreground(
+                    let _ = super::server::start_in_foreground(
                         opt.local,
                         opt.alpha,
                         api_control,
@@ -99,7 +99,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                     )
                     .await;
                 } else {
-                    super::server::start_in_background(
+                    let _ = super::server::start_in_background(
                         opt.local,
                         opt.alpha,
                         api_control,

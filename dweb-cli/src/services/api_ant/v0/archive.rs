@@ -491,7 +491,7 @@ pub async fn archive_post_private(
     let rest_operation = "/archive-private POST";
     let rest_handler = "archive_post_private()";
 
-    let tries = query_params.tries.unwrap_or(client.api_control.tries);
+    let tries = query_params.tries.unwrap_or(client.api_control.api_tries);
 
     let private_archive = match dweb_archive.into_inner().to_private_archive() {
         Ok(archive) => archive,
@@ -537,7 +537,7 @@ pub async fn archive_post_public(
     client: Data<dweb::client::DwebClient>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
-    let tries = query_params.tries.unwrap_or(client.api_control.tries);
+    let tries = query_params.tries.unwrap_or(client.api_control.api_tries);
     let rest_operation = "/archive-public POST";
     let rest_handler = "archive_post_public()";
 

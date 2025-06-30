@@ -32,7 +32,8 @@ use crate::commands::server::connect_and_announce;
 // Returns true if command complete, false to start the browser
 pub async fn cli_commands(opt: Opt) -> Result<bool> {
     let api_control = ApiControl {
-        tries: opt.retry_api,
+        api_tries: opt.retry_api,
+        chunk_retries: opt.retry_failed,
         upload_file_by_file: opt.upload_file_by_file,
         ignore_pointers: opt.ignore_pointers,
         max_fee_per_gas: opt.transaction_opt.max_fee_per_gas,

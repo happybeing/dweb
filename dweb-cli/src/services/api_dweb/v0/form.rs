@@ -99,7 +99,7 @@ pub async fn data_put(
     client: Data<dweb::client::DwebClient>,
 ) -> HttpResponse {
     let make_public = path_params.into_inner();
-    let tries = query_params.tries.unwrap_or(client.api_control.tries);
+    let tries = query_params.tries.unwrap_or(client.api_control.api_tries);
 
     println!("DEBUG {}", request.path());
     let mutate_result = if make_public {
@@ -167,7 +167,7 @@ pub async fn data_put_list(
     let rest_handler = "data_put_list()";
 
     let make_public = path_params.into_inner();
-    let tries = query_params.tries.unwrap_or(client.api_control.tries);
+    let tries = query_params.tries.unwrap_or(client.api_control.api_tries);
 
     let mut put_list = MutateResultList {
         mutate_results: Vec::<MutateResult>::new(),

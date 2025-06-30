@@ -186,7 +186,7 @@ pub async fn publish_or_update_files(
 
     println!("DEBUG storing {archive_type}...");
     let (archive_cost, archive_address) = match retry_until_ok(
-        client.api_control.tries,
+        client.api_control.api_tries,
         &"Storing archive as bytes with data_put_public()",
         (client, archive_bytes),
         async move |(client, archive_bytes)| match client
@@ -311,7 +311,7 @@ pub async fn publish_directory(
 
     println!("DEBUG storing {archive_type}...");
     let (archive_cost, archive_address) = match retry_until_ok(
-        client.api_control.tries,
+        client.api_control.api_tries,
         &"Storing archive as bytes with data_put_public()",
         (client, archive_bytes),
         async move |(client, archive_bytes)| match client
@@ -377,7 +377,7 @@ pub async fn publish_files_private(
         println!("Uploading {dweb_settings_file}");
 
         match retry_until_ok(
-            client.api_control.tries,
+            client.api_control.api_tries,
             &"file_content_upload_public()",
             (client, dweb_path.clone(), client.payment_option()),
             async move |(client, dweb_path, payment_option)| match client
@@ -456,7 +456,7 @@ pub async fn publish_files_public(
         println!("Uploading {dweb_settings_file}");
 
         match retry_until_ok(
-            client.api_control.tries,
+            client.api_control.api_tries,
             &"file_content_upload_public()",
             (client, dweb_path.clone(), client.payment_option()),
             async move |(client, dweb_path, payment_option)| match client
@@ -518,7 +518,7 @@ pub async fn directory_upload_private(
     println!("Uploading files from directory{method}: {files_root:?}");
     if !file_by_file {
         return retry_until_ok(
-            client.api_control.tries,
+            client.api_control.api_tries,
             &"dir_content_upload_public()",
             (client, files_root.clone(), client.payment_option()),
             async move |(client, files_root, payment_option)| match client
@@ -573,7 +573,7 @@ pub async fn directory_upload_private(
         };
 
         let cost = match retry_until_ok(
-            client.api_control.tries,
+            client.api_control.api_tries,
             &"file_content_upload_public()",
             (client, file_path.clone(), client.payment_option()),
             async move |(client, file_path, payment_option)| match client
@@ -624,7 +624,7 @@ pub async fn directory_upload_public(
     println!("Uploading files from directory{method}: {files_root:?}");
     if !file_by_file {
         return retry_until_ok(
-            client.api_control.tries,
+            client.api_control.api_tries,
             &"dir_content_upload_public()",
             (client, files_root.clone(), client.payment_option()),
             async move |(client, files_root, payment_option)| match client
@@ -679,7 +679,7 @@ pub async fn directory_upload_public(
         };
 
         let cost = match retry_until_ok(
-            client.api_control.tries,
+            client.api_control.api_tries,
             &"file_content_upload_public()",
             (client, file_path.clone(), client.payment_option()),
             async move |(client, file_path, payment_option)| match client

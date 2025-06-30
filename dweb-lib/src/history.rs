@@ -329,7 +329,7 @@ impl<T: Trove<T> + Clone> History<T> {
                 let client = self.client.client.clone();
                 let pointer_target = PointerTarget::GraphEntryAddress(next_address);
                 match retry_until_ok(
-                    self.client.api_control.tries,
+                    self.client.api_control.api_tries,
                     &"pointer_update()",
                     (client, pointer_secret_key, pointer_target),
                     async move |(client, pointer_secret_key, pointer_target)| match client
@@ -656,7 +656,7 @@ impl<T: Trove<T> + Clone> History<T> {
         pointer_address: &PointerAddress,
     ) -> Result<Pointer> {
         retry_until_ok(
-            client.api_control.tries,
+            client.api_control.api_tries,
             &"pointer_get()",
             (client, pointer_address),
             async move |(client, pointer_address)| match client
@@ -818,7 +818,7 @@ impl<T: Trove<T> + Clone> History<T> {
         );
 
         retry_until_ok(
-            client.api_control.tries,
+            client.api_control.api_tries,
             &"autonomi_get_file_public()",
             (client, data_address),
             async move |(client, data_address)| match autonomi_get_file_public(
@@ -1114,7 +1114,7 @@ impl<T: Trove<T> + Clone> History<T> {
                 println!("Updating pointer target to: {}", pointer_target.to_hex());
                 let client = self.client.client.clone();
                 match retry_until_ok(
-                    1, //self.client.api_control.tries,
+                    1, //self.client.api_control.api_tries,
                     &"pointer_update()",
                     (client, pointer_secret_key, pointer_target),
                     async move |(client, pointer_secret_key, pointer_target)| match client

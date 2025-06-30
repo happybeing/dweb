@@ -104,11 +104,17 @@ pub struct Opt {
     /// Show the cost of dweb API calls after each call in tokens, gas, both or none
     #[clap(long, hide = true, default_value = "both")]
     pub show_dweb_costs: ShowCost,
+    /// Retry failed chunk uploads automatically after 1 minute pause.
+    /// This will persistently retry any failed chunks until all data is successfully uploaded.
+    /// 0 for no retries (same as with ant-cli, so different from --retry-api)
+    #[arg(long)]
+    #[clap(default_value = "0")]
+    pub retry_failed: u64,
     //
     #[command(flatten)]
     pub transaction_opt: TransactionOpt,
     //
-    // Control API call retries (0 for unlimited tries)
+    /// Control API call retries (0 for unlimited tries - note the difference from --retry-failed)
     #[clap(long, hide = true, default_value = "0")]
     pub retry_api: u32,
     /// Do upload of directories one file at a time. Without this uploading a directory will start from scratch on each retry.

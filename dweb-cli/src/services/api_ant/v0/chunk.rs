@@ -131,7 +131,7 @@ pub async fn chunk_post(
     let rest_handler = "chunk_post()";
     let dweb_type = DwebType::Chunk;
 
-    let tries = query_params.tries.unwrap_or(client.api_control.tries);
+    let tries = query_params.tries.unwrap_or(client.api_control.api_tries);
     let chunk = Chunk::new(body);
 
     if chunk.is_too_big() {

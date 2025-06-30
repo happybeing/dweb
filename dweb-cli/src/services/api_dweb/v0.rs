@@ -126,7 +126,7 @@ impl ParsedRequestParams {
                 };
             };
         }
-        let tries = tries.unwrap_or(client.api_control.tries);
+        let tries = tries.unwrap_or(client.api_control.api_tries);
 
         // TODO return error if appropriate - I'm not sure it is worth reporting header_valud.to_str() errors
         let mut object_name = query_params.object_name.clone();

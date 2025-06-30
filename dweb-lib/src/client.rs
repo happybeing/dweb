@@ -39,8 +39,10 @@ use crate::autonomi::args::max_fee_per_gas::{
 /// and so on.
 #[derive(Clone)]
 pub struct ApiControl {
+    /// Number of retries on failed chunk upload (0 for none)
+    pub chunk_retries: u64,
     /// Control number of tries on selected Autonomi calls (0 for unlimited)
-    pub tries: u32,
+    pub api_tries: u32,
     /// Use PublicArchive instead of PrivateArchive when storing directories
     pub use_public_archive: bool,
     /// Do upload of directories one file at a time. Without this a retry will start from scratch.
@@ -68,7 +70,8 @@ impl Default for ApiControl {
     /// Note: some defaults are likely overriden by command line defaults passed when creating an DwebClient.
     fn default() -> Self {
         ApiControl {
-            tries: 1,
+            chunk_retries: 0,
+            api_tries: 1,
             use_public_archive: false,
             upload_file_by_file: false,
             ignore_pointers: false,
@@ -115,13 +118,19 @@ impl DwebClient {
     ) -> Result<DwebClient> {
         println!("Dweb Autonomi client initialising...");
 
-        let client = if local_network {
+        let mut client = if local_network {
             Client::init_local().await?
         } else if alpha_network {
             Client::init_alpha().await?
         } else {
             Client::init().await?
         };
+
+        // Configure client for retry of failed chunk uploads
+        if api_control.chunk_retries != 0 {
+            client = client.with_retry_failed(api_control.chunk_retries);
+            println!("🔄 Client configured to retry failed chunk uploads until successful or exceeds {} retries", api_control.chunk_retries);
+        }
 
         let mut wallet = match crate::autonomi::wallet::load_wallet(&client.evm_network()) {
             Ok(wallet) => wallet,

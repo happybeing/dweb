@@ -655,9 +655,10 @@ impl<T: Trove<T> + Clone> History<T> {
         client: &DwebClient,
         pointer_address: &PointerAddress,
     ) -> Result<Pointer> {
+        let operation_label = format!("pointer_get({pointer_address})");
         retry_until_ok(
             client.api_control.api_tries,
-            &"pointer_get()",
+            &operation_label,
             (client, pointer_address),
             async move |(client, pointer_address)| match client
                 .client
@@ -684,7 +685,8 @@ impl<T: Trove<T> + Clone> History<T> {
                     Ok(pointer)
                 }
                 Err(e) => {
-                    let message = format!("failed to get pointer from the network - {e}");
+                    let message =
+                        format!("failed to get pointer network address {pointer_address} - {e}",);
                     println!("{message}");
                     return Err(eyre!(message));
                 }

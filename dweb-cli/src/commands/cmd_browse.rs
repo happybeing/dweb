@@ -66,7 +66,7 @@ pub(crate) fn handle_browse_with_ports(
     version: Option<u64>,
     as_name: Option<String>,
     remote_path: Option<String>,
-    host: Option<&String>,
+    host: Option<String>,
     port: Option<u16>,
 ) {
     if !is_main_server_with_ports_running() {
@@ -77,8 +77,7 @@ pub(crate) fn handle_browse_with_ports(
 
     // If the main server is running it will handle the URL and spawn a new server one is not already running
 
-    let default_host = LOCALHOST_STR.to_string();
-    let host = host.unwrap_or(&default_host);
+    let host = host.unwrap_or(LOCALHOST_STR.to_string());
     let port = port.unwrap_or(dweb::web::SERVER_PORTS_MAIN_PORT);
     let version = if version.is_some() {
         &format!("{}", version.unwrap())

@@ -16,8 +16,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
 use std::future::Future;
-use std::io;
-use std::io::Write;
 
 use color_eyre::eyre::{eyre, Report, Result};
 
@@ -41,14 +39,11 @@ where
 
     let mut try_number = 1;
     let mut last_error = eyre!("retry_until_ok() - hit a bug!");
-    println!(">>TRYING {label} {tries_string} times");
-    print!(">>");
+    println!(">>TRYING {label} {tries_string} times: ");
     while tries == 0 || try_number <= tries {
-        print!(".");
-        io::stdout().flush().unwrap();
         match f(params.clone()).await {
             Ok(result) => {
-                println!("SUCCESS!");
+                println!(">>SUCCESS!");
                 return Ok(result);
             }
             Err(e) => last_error = eyre!(format!(">>{tries_string} complete with error - {e}")),

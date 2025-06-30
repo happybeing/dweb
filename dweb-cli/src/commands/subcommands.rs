@@ -58,21 +58,20 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                 )
                 .await;
             } else {
-                let (client, is_local_network) =
-                    connect_and_announce(opt.local, opt.alpha, api_control, true).await;
-                // Start the server (for name based browsing), which will handle /dweb-open URLs  opened by 'dweb open --experimental'
                 let default_host = dweb::web::DWEB_SERVICE_API.to_string();
                 let host = host.unwrap_or(default_host);
                 let port = port.unwrap_or(SERVER_HOSTS_MAIN_PORT);
-                match crate::experimental::serve_with_hosts(
-                    client,
-                    None,
-                    host,
-                    port,
-                    is_local_network,
+                let (client, is_local_network) = connect_and_announce(
+                    opt.local,
+                    opt.alpha,
+                    Some(host),
+                    Some(port),
+                    api_control,
+                    true,
                 )
-                .await
-                {
+                .await;
+                // Start the server (for name based browsing), which will handle /dweb-open URLs  opened by 'dweb open --experimental'
+                match crate::experimental::serve_with_hosts(client, None, is_local_network).await {
                     Ok(_) => return Ok(true),
                     Err(e) => {
                         println!("{e:?}");
@@ -129,16 +128,13 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             experimental,
         }) => {
             if !experimental {
-                let default_host = LOCALHOST_STR.to_string();
-                let host = host.unwrap_or(default_host);
-                let port = port.unwrap_or(SERVER_PORTS_MAIN_PORT);
                 crate::commands::cmd_browse::handle_browse_with_ports(
                     &address_name_or_link,
                     version,
                     as_name,
                     remote_path,
-                    Some(&host),
-                    Some(port),
+                    host,
+                    port,
                 );
             } else {
                 let default_host = dweb::web::DWEB_SERVICE_API.to_string();
@@ -149,7 +145,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                     version,
                     as_name,
                     remote_path,
-                    Some(&host),
+                    Some(host),
                     Some(port),
                 );
             }
@@ -221,7 +217,8 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
         }
 
         Some(Subcommands::Estimate { files_root }) => {
-            let (client, _) = connect_and_announce(opt.local, opt.alpha, api_control, true).await;
+            let (client, _) =
+                connect_and_announce(opt.local, opt.alpha, None, None, api_control, true).await;
             match client.client.file_cost(&files_root).await {
                 Ok(tokens) => println!("Cost estimate: {tokens}"),
                 Err(e) => println!("Unable to estimate cost: {e}"),
@@ -235,7 +232,8 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             is_new_network: _,
         }) => {
             let app_secret_key = dweb::helpers::get_app_secret_key()?;
-            let (client, _) = connect_and_announce(opt.local, opt.alpha, api_control, true).await;
+            let (client, _) =
+                connect_and_announce(opt.local, opt.alpha, None, None, api_control, true).await;
             let spends = Spends::new(&client, Some(&"Publish new cost: ")).await?;
             let (cost, name, history_address, version) = match publish_or_update_files(
                 &client,
@@ -276,7 +274,8 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             dweb_settings,
         }) => {
             let app_secret_key = dweb::helpers::get_app_secret_key()?;
-            let (client, _) = connect_and_announce(opt.local, opt.alpha, api_control, true).await;
+            let (client, _) =
+                connect_and_announce(opt.local, opt.alpha, None, None, api_control, true).await;
             let spends = Spends::new(&client, Some(&"Publish update cost: ")).await?;
 
             let name = if name.is_none() {
@@ -349,8 +348,15 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
         }
 
         Some(Subcommands::Wallet_info {}) => {
-            let (client, _) =
-                connect_and_announce(opt.local, opt.alpha, ApiControl::default(), true).await;
+            let (client, _) = connect_and_announce(
+                opt.local,
+                opt.alpha,
+                None,
+                None,
+                ApiControl::default(),
+                true,
+            )
+            .await;
             let tokens = client.wallet.balance_of_tokens().await?;
             let gas = client.wallet.balance_of_gas_tokens().await?;
             let network = client.network.identifier();
@@ -374,7 +380,8 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                 ignore_pointers: true,
                 ..Default::default()
             };
-            let (client, _) = connect_and_announce(opt.local, opt.alpha, api_control, true).await;
+            let (client, _) =
+                connect_and_announce(opt.local, opt.alpha, None, None, api_control, true).await;
             match crate::commands::cmd_inspect::handle_inspect_history(
                 client,
                 &address_or_name,
@@ -406,7 +413,8 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                 ..Default::default()
             };
             let app_secret_key = dweb::helpers::get_app_secret_key()?;
-            let (client, _) = connect_and_announce(opt.local, opt.alpha, api_control, true).await;
+            let (client, _) =
+                connect_and_announce(opt.local, opt.alpha, None, None, api_control, true).await;
             match crate::commands::cmd_heal_history::handle_heal_history(
                 client,
                 app_secret_key,
@@ -433,7 +441,8 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             let api_control = ApiControl {
                 ..Default::default()
             };
-            let (client, _) = connect_and_announce(opt.local, opt.alpha, api_control, true).await;
+            let (client, _) =
+                connect_and_announce(opt.local, opt.alpha, None, None, api_control, true).await;
             match crate::commands::cmd_inspect::handle_inspect_graphentry(
                 client,
                 graph_entry_address,
@@ -451,8 +460,15 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
         }
 
         Some(Subcommands::Inspect_pointer { pointer_address }) => {
-            let (client, _) =
-                connect_and_announce(opt.local, opt.alpha, ApiControl::default(), true).await;
+            let (client, _) = connect_and_announce(
+                opt.local,
+                opt.alpha,
+                None,
+                None,
+                ApiControl::default(),
+                true,
+            )
+            .await;
             match crate::commands::cmd_inspect::handle_inspect_pointer(client, pointer_address)
                 .await
             {
@@ -468,8 +484,15 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             scratchpad_address,
             data_as_text,
         }) => {
-            let (client, _) =
-                connect_and_announce(opt.local, opt.alpha, ApiControl::default(), true).await;
+            let (client, _) = connect_and_announce(
+                opt.local,
+                opt.alpha,
+                None,
+                None,
+                ApiControl::default(),
+                true,
+            )
+            .await;
             match crate::commands::cmd_inspect::handle_inspect_scratchpad(
                 client,
                 scratchpad_address,
@@ -489,8 +512,15 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             archive_address,
             files_args,
         }) => {
-            let (client, _) =
-                connect_and_announce(opt.local, opt.alpha, ApiControl::default(), true).await;
+            let (client, _) = connect_and_announce(
+                opt.local,
+                opt.alpha,
+                None,
+                None,
+                ApiControl::default(),
+                true,
+            )
+            .await;
             match crate::commands::cmd_inspect::handle_inspect_files(
                 client,
                 archive_address,

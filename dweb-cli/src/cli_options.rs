@@ -158,12 +158,10 @@ pub enum Subcommands {
         #[clap(hide = true, long = "experimental", default_value = "false")]
         experimental: bool,
         /// Optional host that will serve the request. Defaults to "127.0.0.1"
-        /// This is only needed when not using defaults, so hidden to de-clutter the CLI help
-        #[clap(hide = true, long, value_name = "HOST", value_parser = parse_host)]
+        #[clap(long, value_name = "HOST", value_parser = parse_host)]
         host: Option<String>,
-        /// The port that will serve the request (on localhost by default)
-        /// This is only needed when not using defaults, so hidden to de-clutter the CLI help
-        #[clap(hide = true, long, value_name = "PORT", value_parser = parse_port_number)]
+        /// Optional port that will serve the request. Defaults to 5537
+        #[clap(long, value_name = "PORT", value_parser = parse_port_number)]
         port: Option<u16>,
     },
 

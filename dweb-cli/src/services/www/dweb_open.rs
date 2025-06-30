@@ -172,8 +172,6 @@ pub async fn handle_dweb_open(
                 match serve_with_ports(
                     &client,
                     Some(directory_version.clone()),
-                    dweb::web::LOCALHOST_STR.to_string(),
-                    None,
                     true,
                     *is_local_network.into_inner().as_ref(),
                 )
@@ -221,7 +219,7 @@ pub async fn handle_dweb_open(
     // Redirect
     response_redirect(
         &request,
-        LOCALHOST_STR,
+        client.host.as_str(),
         Some(directory_version.port),
         remote_path,
     )

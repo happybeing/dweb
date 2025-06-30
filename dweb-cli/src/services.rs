@@ -64,10 +64,6 @@ const DWEB_SERVICE_DEBUG: &str = "debug-dweb.au";
 pub async fn serve_with_ports(
     client: &DwebClient,
     directory_version_with_port: Option<DirectoryVersionWithPort>,
-    // Host if set from the CLI.
-    host: String,
-    // Port when spawning the main server (ie spawn_server false). Can be set from the CLI.
-    port: Option<u16>,
     // Either spawn a thread for the server and return, or do server.await
     spawn_server: bool,
     is_local_network: bool,
@@ -91,6 +87,8 @@ pub async fn serve_with_ports(
     // env_logger::init_from_env(Env::default().default_filter_or("info"));
 
     let is_main_server = !spawn_server;
+    let host = client.host.clone();
+    let port = client.port;
     let client = client.clone();
     let server = HttpServer::new(move || {
         App::new()
@@ -214,13 +212,6 @@ pub async fn serve_with_ports(
 
         Ok(())
     } else {
-        let port = match port {
-            None => {
-                println!("DEBUG cannot bind serve_with_ports when provided directory_version_with_port is None");
-                return Ok(());
-            }
-            Some(port) => port,
-        };
         println!("dweb main server listening on {host}:{port}");
         server.bind((host, port))?.run().await
     }

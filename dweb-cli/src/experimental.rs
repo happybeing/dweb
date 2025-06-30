@@ -43,14 +43,14 @@ const DWEB_SERVICE_DEBUG: &str = "debug-dweb.au";
 pub async fn serve_with_hosts(
     client: DwebClient,
     directory_version_with_port: Option<DirectoryVersionWithPort>,
-    host: String,
-    port: u16,
     is_local_network: bool,
 ) -> io::Result<()> {
     register_builtin_names(is_local_network);
     // TODO control using CLI? (this enables Autonomi and HttpRequest logging to terminal)
     // env_logger::init_from_env(Env::default().default_filter_or("info"));
 
+    let host = client.host.clone();
+    let port = client.port;
     println!(
         "Starting an exprimental 'with hosts' dweb server (which requires a local DNS), listening on {host}:{port}"
     );

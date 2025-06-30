@@ -24,6 +24,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 use color_eyre::Result;
 
 use crate::token::{Rate, ShowCost};
+use crate::web::{LOCALHOST_STR, SERVER_PORTS_MAIN_PORT};
 use autonomi::client::{payment::PaymentOption, Client};
 use autonomi::TransactionConfig;
 use autonomi::{Network, Wallet};
@@ -88,6 +89,8 @@ pub struct DwebClient {
     pub client: Client,
     pub network: Network,
     pub is_local: bool,
+    pub host: String,
+    pub port: u16,
     pub wallet: Wallet, // Must be loaded and funded for writing to the network
 
     pub api_control: ApiControl,
@@ -114,6 +117,8 @@ impl DwebClient {
     pub async fn initialise_and_connect(
         local_network: bool,
         alpha_network: bool,
+        host: Option<String>,
+        port: Option<u16>,
         api_control: ApiControl,
     ) -> Result<DwebClient> {
         println!("Dweb Autonomi client initialising...");
@@ -162,10 +167,15 @@ impl DwebClient {
         let client = client.clone();
         let ant_rate = Rate::from_environment("ANT".to_string());
         let eth_rate = Rate::from_environment("ETH".to_string());
+
+        let host = host.unwrap_or(LOCALHOST_STR.to_string());
+        let port = port.unwrap_or(SERVER_PORTS_MAIN_PORT);
         Ok(DwebClient {
             client: client.clone(),
             network: client.evm_network().clone(),
             is_local: local_network,
+            host,
+            port,
             wallet,
             api_control: api_control.clone(),
             ant_rate,

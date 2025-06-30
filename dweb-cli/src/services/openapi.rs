@@ -41,7 +41,8 @@ More on github: [https://github.com/happybeing/dweb/dweb-cli](https://github.com
 ),
 tags(
     [name = "Manual", description = "for typing into the browser address bar"],
-    [name = "Autonomi", description = "Automoni APIs"],
+    [name = "Autonomi", description = "Automoni APIs - these will be /ant-0 routes for raw Autonomi APIs in due course"],
+    [name = "Dweb Autonomi", description = "dweb enhanced Autonomi APIs NOTE: /ant-0 routes below are DEPRECATED in favour of the /dweb-0 routes here"],
     [name = "Dweb", description = "dweb APIs"],
     [name = "Linking", description = "for embeding links in a website"],
     [name = "Server", description = "dweb server APIs"],

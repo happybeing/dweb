@@ -52,7 +52,7 @@ fn avoid_comment_error1() {}
         (status = StatusCode::BAD_REQUEST, description = "The chunk_address is not valid"),
         (status = StatusCode::NOT_FOUND, description = "The data was not found or a network error occured"),
         ),
-    tags = ["Autonomi"],
+    tags = ["Dweb Autonomi"],
     params(
         ("chunk_address", description = "the hex encoded address of a chunk (aka 'record' in libp2p)"),
     )
@@ -117,7 +117,7 @@ pub async fn chunk_get(
         &nbsp;&nbsp;&nbsp;413 CONTENT_TOO_LARGE: The POST request body content was too large<br/>", body = MutateResult,
             example = json!("{\"file_name\": \"\", \"status\": \"201\", \"cost_in_attos\": \"12\", \"data_address\": \"a9cd8dd0c9f2b9dc71ad548d1f37fcba6597d5eb1be0b8c63793802cc6c7de27\", \"data_map\": \"\", \"message\": \"\" }")),
     ),
-    tags = ["Autonomi"],
+    tags = ["Dweb Autonomi"],
 )]
 #[post("/chunk")]
 pub async fn chunk_post(

@@ -56,7 +56,7 @@ const REST_TYPE: &str = "Pointer";
         (status = StatusCode::BAD_REQUEST, description = "The pointer address is not valid"),
         (status = StatusCode::NOT_FOUND, description = "The pointer was not found or a network error occured"),
         ),
-    tags = ["Autonomi"],
+    tags = ["Dweb Autonomi"],
 )]
 #[get("/pointer/{pointer_address}")]
 pub async fn pointer_get(
@@ -140,7 +140,7 @@ pub async fn pointer_get(
         (status = StatusCode::BAD_REQUEST, description = "The pointer address is not valid"),
         (status = StatusCode::NOT_FOUND, description = "The pointer was not found or a network error occured"),
         ),
-    tags = ["Autonomi"],
+    tags = ["Dweb Autonomi"],
 )]
 #[get("/pointer")]
 pub async fn pointer_get_owned(
@@ -248,7 +248,7 @@ pub async fn pointer_get_owned(
         &nbsp;&nbsp;&nbsp;500 INTERNAL_SERVER_ERROR: Error reading posted data or storing in memory<br/>\
         &nbsp;&nbsp;&nbsp;502 BAD_GATEWAY: Autonomi network error<br/>", body = MutateResult,)
     ),
-    tags = ["Autonomi"],
+    tags = ["Dweb Autonomi"],
 )]
 #[post("/pointer")]
 pub async fn pointer_post(
@@ -394,7 +394,7 @@ pub async fn pointer_post(
         &nbsp;&nbsp;&nbsp;500 INTERNAL_SERVER_ERROR: Error reading posted data or storing in memory<br/>\
         &nbsp;&nbsp;&nbsp;502 BAD_GATEWAY: Autonomi network error<br/>", body = MutateResult,)
     ),
-    tags = ["Autonomi"],
+    tags = ["Dweb Autonomi"],
 )]
 #[put("/pointer")]
 pub async fn pointer_put(

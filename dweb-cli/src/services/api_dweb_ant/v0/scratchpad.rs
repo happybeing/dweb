@@ -54,7 +54,7 @@ use crate::services::helpers::*;
         (status = StatusCode::BAD_REQUEST, description = "The scratchpad address is not valid"),
         (status = StatusCode::NOT_FOUND, description = "The scratchpad was not found or a network error occured"),
         ),
-    tags = ["Autonomi"],
+    tags = ["Dweb Autonomi"],
 )]
 #[get("/scratchpad-private/{scratchpad_address}")]
 pub async fn scratchpad_private_get(
@@ -156,7 +156,7 @@ pub async fn scratchpad_private_get(
         (status = StatusCode::BAD_REQUEST, description = "The scratchpad address is not valid"),
         (status = StatusCode::NOT_FOUND, description = "The scratchpad was not found or a network error occured"),
         ),
-    tags = ["Autonomi"],
+    tags = ["Dweb Autonomi"],
 )]
 #[get("/scratchpad-private")]
 pub async fn scratchpad_private_get_owned(
@@ -282,7 +282,7 @@ pub async fn scratchpad_private_get_owned(
         &nbsp;&nbsp;&nbsp;500 INTERNAL_SERVER_ERROR: Error reading posted data or storing in memory<br/>\
         &nbsp;&nbsp;&nbsp;502 BAD_GATEWAY: Autonomi network error<br/>", body = MutateResult,)
     ),
-    tags = ["Autonomi"],
+    tags = ["Dweb Autonomi"],
 )]
 #[post("/scratchpad-private")]
 pub async fn scratchpad_private_post(
@@ -457,7 +457,7 @@ pub async fn scratchpad_private_post(
         &nbsp;&nbsp;&nbsp;500 INTERNAL_SERVER_ERROR: Error reading posted data or storing in memory<br/>\
         &nbsp;&nbsp;&nbsp;502 BAD_GATEWAY: Autonomi network error<br/>", body = MutateResult,)
     ),
-    tags = ["Autonomi"],
+    tags = ["Dweb Autonomi"],
 )]
 #[put("/scratchpad-private")]
 pub async fn scratchpad_private_put(
@@ -579,7 +579,7 @@ pub async fn scratchpad_private_put(
         (status = StatusCode::BAD_REQUEST, description = "The scratchpad address is not valid"),
         (status = StatusCode::NOT_FOUND, description = "The scratchpad was not found or a network error occured"),
         ),
-    tags = ["Autonomi"],
+    tags = ["Dweb Autonomi"],
 )]
 #[get("/scratchpad-public/{scratchpad_address}")]
 pub async fn scratchpad_public_get(
@@ -668,7 +668,7 @@ pub async fn scratchpad_public_get(
         (status = StatusCode::BAD_REQUEST, description = "The scratchpad address is not valid"),
         (status = StatusCode::NOT_FOUND, description = "The scratchpad was not found or a network error occured"),
         ),
-    tags = ["Autonomi"],
+    tags = ["Dweb Autonomi"],
 )]
 #[get("/scratchpad-public")]
 pub async fn scratchpad_public_get_owned(
@@ -792,7 +792,7 @@ pub async fn scratchpad_public_get_owned(
         &nbsp;&nbsp;&nbsp;500 INTERNAL_SERVER_ERROR: Error reading posted data or storing in memory<br/>\
         &nbsp;&nbsp;&nbsp;502 BAD_GATEWAY: Autonomi network error<br/>", body = MutateResult,)
     ),
-    tags = ["Autonomi"],
+    tags = ["Dweb Autonomi"],
 )]
 #[post("/scratchpad-public")]
 pub async fn scratchpad_public_post(
@@ -946,7 +946,7 @@ pub async fn scratchpad_public_post(
         &nbsp;&nbsp;&nbsp;500 INTERNAL_SERVER_ERROR: Error reading posted data or storing in memory<br/>\
         &nbsp;&nbsp;&nbsp;502 BAD_GATEWAY: Autonomi network error<br/>", body = MutateResult,)
     ),
-    tags = ["Autonomi"],
+    tags = ["Dweb Autonomi"],
 )]
 #[put("/scratchpad-public")]
 pub async fn scratchpad_public_put(

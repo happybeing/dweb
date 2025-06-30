@@ -57,7 +57,7 @@ use crate::web::etag;
         (status = StatusCode::OK,
             description = "The JSON representation (DwebArchive schema) of an Autonomi PublicArchive or PrivateArchive.", body = [DwebArchive])
         ),
-    tags = ["Autonomi"],
+    tags = ["Dweb Autonomi"],
     params(
         ("datamap_or_address", description = "the hex encoded datamap chunk or data address of an Autonomi archive"),
     )
@@ -140,7 +140,7 @@ pub async fn archive_get(
         (status = StatusCode::OK,
             description = "The JSON representation (DwebArchive schema) of an Autonomi PublicArchive or PrivateArchive.", body = [DwebArchive])
         ),
-    tags = ["Autonomi"],
+    tags = ["Dweb Autonomi"],
     // params(
     //     ("params" = String, Path, description = "Optional version (integer > 0) of an archive History"),
     //     ("ADDRESS-OR-NAME", description = "A hexadecimal address or a short name referring to an archive History"),
@@ -478,7 +478,7 @@ struct QueryParams {
         &nbsp;&nbsp;&nbsp;BAD_GATEWAY: Autonomi network error", body = MutateResult,
             example = json!("{\"file_name\": \"\", \"status\": \"201\", \"cost_in_attos\": \"12\", \"data_address\": \"a9cd8dd0c9f2b9dc71ad548d1f37fcba6597d5eb1be0b8c63793802cc6c7de27\", \"data_map\": \"\", \"message\": \"\" }")),
     ),
-    tags = ["Autonomi"],
+    tags = ["Dweb Autonomi"],
 )]
 #[post("/archive-private")]
 pub async fn archive_post_private(
@@ -527,7 +527,7 @@ pub async fn archive_post_private(
         &nbsp;&nbsp;&nbsp;BAD_GATEWAY: Autonomi network error", body = MutateResult,
             example = json!("{\"file_name\": \"\", \"status\": \"201\", \"cost_in_attos\": \"12\", \"data_address\": \"a9cd8dd0c9f2b9dc71ad548d1f37fcba6597d5eb1be0b8c63793802cc6c7de27\", \"data_map\": \"\", \"message\": \"\" }")),
     ),
-    tags = ["Autonomi"],
+    tags = ["Dweb Autonomi"],
 )]
 #[post("/archive-public")]
 pub async fn archive_post_public(

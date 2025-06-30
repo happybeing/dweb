@@ -34,7 +34,7 @@ use crate::web::etag;
         (status = StatusCode::BAD_REQUEST, description = "The datamap_or_address is not a valid address"),
         (status = StatusCode::NOT_FOUND, description = "The data was not found or a network error occured"),
         ),
-    tags = ["Autonomi"],
+    tags = ["Dweb Autonomi"],
     params(
         ("datamap_or_address", description = "the hex encoded datamap or data address of public or private data"),
     )

@@ -36,9 +36,12 @@ use crate::web::request::main_server_request;
 // TODO break this out into modules here and in the with ports server
 
 pub const DWEB_API_ROUTE_V0: &str = "/dweb-0"; // Route for dweb API v0
-pub const ANT_API_ROUTE_V0: &str = "/ant-0"; // Route route for autonomi API (dweb v0)
+pub const DWEB_ANT_API_ROUTE_V0: &str = "/dweb-0"; // Route for dweb enhanced Autonommi API v0
+
+pub const ANT_API_ROUTE_V0: &str = "/ant-0"; // Route route for raw Autonomi API (dweb v0)
 
 pub const DWEB_API_ROUTE: &str = DWEB_API_ROUTE_V0;
+pub const DWEB_ANT_API_ROUTE: &str = DWEB_ANT_API_ROUTE_V0;
 pub const ANT_API_ROUTE: &str = ANT_API_ROUTE_V0;
 
 /// Register a name with the main server

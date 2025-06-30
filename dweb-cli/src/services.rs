@@ -16,8 +16,8 @@
 */
 mod app;
 
-pub(crate) mod api_ant;
 pub(crate) mod api_dweb;
+pub(crate) mod api_dweb_ant;
 pub(crate) mod helpers;
 pub(crate) mod openapi;
 pub(crate) mod www;
@@ -145,25 +145,48 @@ pub async fn serve_with_ports(
             // Autonomi APIs
             .service(
                 scope(dweb::api::ANT_API_ROUTE)
-                    .service(api_ant::v0::archive::archive_post_public)
-                    .service(api_ant::v0::archive::archive_post_private)
-                    .service(api_ant::v0::archive::archive_get)
-                    .service(api_ant::v0::archive::archive_get_version)
-                    .service(api_ant::v0::chunk::chunk_post)
-                    .service(api_ant::v0::chunk::chunk_get)
-                    .service(api_ant::v0::pointer::pointer_post)
-                    .service(api_ant::v0::pointer::pointer_put)
-                    .service(api_ant::v0::pointer::pointer_get)
-                    .service(api_ant::v0::pointer::pointer_get_owned)
-                    .service(api_ant::v0::scratchpad::scratchpad_public_post)
-                    .service(api_ant::v0::scratchpad::scratchpad_public_put)
-                    .service(api_ant::v0::scratchpad::scratchpad_public_get)
-                    .service(api_ant::v0::scratchpad::scratchpad_public_get_owned)
-                    .service(api_ant::v0::scratchpad::scratchpad_private_post)
-                    .service(api_ant::v0::scratchpad::scratchpad_private_put)
-                    .service(api_ant::v0::scratchpad::scratchpad_private_get)
-                    .service(api_ant::v0::scratchpad::scratchpad_private_get_owned)
-                    .service(api_ant::v0::data::data_get),
+                    .service(api_dweb_ant::v0::archive::archive_post_public)
+                    .service(api_dweb_ant::v0::archive::archive_post_private)
+                    .service(api_dweb_ant::v0::archive::archive_get)
+                    .service(api_dweb_ant::v0::archive::archive_get_version)
+                    .service(api_dweb_ant::v0::chunk::chunk_post)
+                    .service(api_dweb_ant::v0::chunk::chunk_get)
+                    .service(api_dweb_ant::v0::pointer::pointer_post)
+                    .service(api_dweb_ant::v0::pointer::pointer_put)
+                    .service(api_dweb_ant::v0::pointer::pointer_get)
+                    .service(api_dweb_ant::v0::pointer::pointer_get_owned)
+                    .service(api_dweb_ant::v0::scratchpad::scratchpad_public_post)
+                    .service(api_dweb_ant::v0::scratchpad::scratchpad_public_put)
+                    .service(api_dweb_ant::v0::scratchpad::scratchpad_public_get)
+                    .service(api_dweb_ant::v0::scratchpad::scratchpad_public_get_owned)
+                    .service(api_dweb_ant::v0::scratchpad::scratchpad_private_post)
+                    .service(api_dweb_ant::v0::scratchpad::scratchpad_private_put)
+                    .service(api_dweb_ant::v0::scratchpad::scratchpad_private_get)
+                    .service(api_dweb_ant::v0::scratchpad::scratchpad_private_get_owned)
+                    .service(api_dweb_ant::v0::data::data_get),
+            )
+            // dweb Enhances Automonomi APIs
+            .service(
+                scope(dweb::api::DWEB_ANT_API_ROUTE)
+                    .service(api_dweb_ant::v0::archive::archive_post_public)
+                    .service(api_dweb_ant::v0::archive::archive_post_private)
+                    .service(api_dweb_ant::v0::archive::archive_get)
+                    .service(api_dweb_ant::v0::archive::archive_get_version)
+                    .service(api_dweb_ant::v0::chunk::chunk_post)
+                    .service(api_dweb_ant::v0::chunk::chunk_get)
+                    .service(api_dweb_ant::v0::pointer::pointer_post)
+                    .service(api_dweb_ant::v0::pointer::pointer_put)
+                    .service(api_dweb_ant::v0::pointer::pointer_get)
+                    .service(api_dweb_ant::v0::pointer::pointer_get_owned)
+                    .service(api_dweb_ant::v0::scratchpad::scratchpad_public_post)
+                    .service(api_dweb_ant::v0::scratchpad::scratchpad_public_put)
+                    .service(api_dweb_ant::v0::scratchpad::scratchpad_public_get)
+                    .service(api_dweb_ant::v0::scratchpad::scratchpad_public_get_owned)
+                    .service(api_dweb_ant::v0::scratchpad::scratchpad_private_post)
+                    .service(api_dweb_ant::v0::scratchpad::scratchpad_private_put)
+                    .service(api_dweb_ant::v0::scratchpad::scratchpad_private_get)
+                    .service(api_dweb_ant::v0::scratchpad::scratchpad_private_get_owned)
+                    .service(api_dweb_ant::v0::data::data_get),
             )
             // dweb APIs
             .service(

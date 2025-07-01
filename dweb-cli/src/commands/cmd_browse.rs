@@ -91,9 +91,9 @@ pub(crate) fn handle_browse_with_ports(
 
     // open a browser on a localhost URL at that port
     let route = if let Some(as_name) = as_name {
-        format!("/dweb-open-as/v{version}/{as_name}/{address_name_or_link}/{remote_path}")
+        format!("/dweb-open-as/v{version}/{as_name}/{address_name_or_link}{remote_path}")
     } else {
-        format!("/dweb-open/v{version}/{address_name_or_link}/{remote_path}")
+        format!("/dweb-open/v{version}/{address_name_or_link}{remote_path}")
     };
     let url = format!("http://{host}:{port}{route}");
     println!("DEBUG url: {url}");

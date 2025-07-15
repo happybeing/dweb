@@ -39,10 +39,7 @@ use crate::services::api_dweb::v0::name::register_builtin_names;
 pub const CONNECTION_TIMEOUT: u64 = 75;
 
 #[cfg(feature = "development")]
-const DWEB_SERVICE_DEBUG: &str = "debug-dweb.au";
-
-#[cfg(feature = "development")]
-const DWEB_SERVICE_DEBUG: &str = "debug-dweb.au";
+pub const DWEB_SERVICE_DEBUG: &str = "debug-dweb.au";
 
 /// serve_with_ports may be called as follows:
 ///

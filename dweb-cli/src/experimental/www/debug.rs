@@ -16,7 +16,15 @@
 */
 
 // use actix_web::{body, get, post, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
-use actix_web::{dev::HttpServiceFactory, guard, web, HttpRequest, HttpResponse};
+use actix_web::{
+    dev::HttpServiceFactory,
+    guard,
+    http::header::{self},
+    web, HttpRequest, HttpResponse,
+};
+
+use super::super::request_as_html;
+use dweb::helpers::convert::str_to_history_address;
 
 #[cfg(feature = "development")]
 pub fn init_service() -> impl HttpServiceFactory {
@@ -99,7 +107,7 @@ pub async fn debug_handler(request: HttpRequest, path: web::Path<String>) -> Htt
                     None
                 };
 
-                let history_address = awe_str_to_history_address(history);
+                let history_address = str_to_history_address(history);
                 println!(
                     "4 -> history www-dweb.au address with VERSION '{version:?}' and HISTORY '{history}'"
                 );

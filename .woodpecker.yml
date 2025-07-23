@@ -64,6 +64,8 @@ steps:
       # Rust extras
       - rustup component add rustfmt
       #- apt -y install librust-openssl-dev
+      - apt search openssl
+      - apt search openssl-dev
       - apt -y install openssl-dev
 
       # Builds...

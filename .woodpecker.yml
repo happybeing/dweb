@@ -116,7 +116,7 @@ steps:
     settings:
       folder: dist
       ssh_key:
-        from_secret: ssh_keyx
+        from_secret: ssh_key
 
   build-x86_64-apple-darwin:
     environment:

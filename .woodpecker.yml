@@ -61,15 +61,18 @@ steps:
       - echo "<h1>Release:" ${CI_COMMIT_TAG} "</h1>" >> dist/index.html
       - echo "<p>Commit:" ${CI_COMMIT_SHA} "</p>" >> dist/index.html
 
-      # Rust extras
+      # Prepare to customise image
+      - apt update
+
+      # Rust
+#      - apt -y install curl
+#      - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
       - rustup component add rustfmt
-      #- apt -y install librust-openssl-dev
-      - apt search openssl
-      - apt search openssl-dev
-      - apt -y install openssl-dev
+
+      # Misc packages
+      - apt -y install librust-openssl-dev
 
       # Builds...
-      - apt update
       - apt -y install clang-format clang-tidy clang-tools clang clangd libc++-dev libc++1 libc++abi-dev libc++abi1 libclang-dev libclang1 liblldb-dev libllvm-ocaml-dev libomp-dev libomp5 lld lldb llvm-dev llvm-runtime llvm python3-clang
       - /usr/bin/ld.lld -v
       - llvm-lib -v

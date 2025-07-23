@@ -137,5 +137,5 @@ steps:
     settings:
       folder: dist
       ssh_key:
-        from_secret: ssh_keymacos
+        from_secret: ssh_key_macos
 

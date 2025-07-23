@@ -117,3 +117,25 @@ steps:
       folder: dist
       ssh_key:
         from_secret: ssh_keyx
+
+  build-x86_64-apple-darwin:
+    environment:
+      BUILD_TARGET: $BUILD_TARGET
+      EXECUTABLE_FILE: hello
+      EXECUTABLE_PATH: ${CI_COMMIT_TAG}/hello
+    image: dockurr/macos
+    commands:
+      - rustup target add $BUILD_TARGET
+      - cargo build --release --target $BUILD_TARGET
+      - rustup target add aarch64-apple-darwin
+      - cargo build --release --target aarch64-apple-darwin
+    username: ${CI_REPO_OWNER}
+    password:
+      from_secret: cbci_tokenl
+  deploy:
+    image: codeberg.org/xfix/plugin-codeberg-pages-deploy:1
+    settings:
+      folder: dist
+      ssh_key:
+        from_secret: ssh_keymacos
+

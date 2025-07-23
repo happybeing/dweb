@@ -63,6 +63,7 @@ steps:
 
       # Rust extras
       - rustup component add rustfmt
+      - apt -y install librust-openssl-dev
 
       # Builds...
       - apt update

@@ -65,7 +65,6 @@ actix-multipart = "0.7.2"
 utoipa = { version = "5.3.1", features = ["actix_extras", "non_strict_integers"] }
 utoipa-actix-web = "0.1.2"
 utoipa-swagger-ui = { version = "9.0.1", features = ["reqwest", "actix-web"] }
-openssl = { version = "0.10.73", features = ["vendored"] }
 
 # patched
 #utoipa = { path = "../../utoipa-patch/utoipa", features = ["actix_extras", "non_strict_integers"] } # "5.3.1"

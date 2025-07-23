@@ -66,7 +66,7 @@ steps:
 
       # Misc packages
       # FAILS while setting up - apt -y install librust-openssl-dev
-      - apt -y install libssl-dev musl-dev pkg-config apt-file
+      - apt -y install cmake libssl-dev musl-dev pkg-config apt-file
 
       # Try to set up OPENSSL env
       - export OPENSSL_LIB_DIR=/usr/lib/x86_64-linux-gnu/

@@ -1,6 +1,6 @@
 when:
 #  - event: pull_request
-#  - event: push
+  - event: push
   - event: tag
     branch:
       - main
@@ -137,7 +137,7 @@ steps:
     settings:
       folder: dist
       ssh_key:
-        from_secret: ssh_key
+        from_secret: ssh_keyx
 
   publish-test-buildx:
     image: woodpeckerci/plugin-docker-buildx

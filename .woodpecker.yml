@@ -111,12 +111,21 @@ steps:
     username: ${CI_REPO_OWNER}
     password:
       from_secret: cbci_token
+    when:
+      - event:
+          - push
+          - tag
+
   deploy:
     image: codeberg.org/xfix/plugin-codeberg-pages-deploy:1
     settings:
       folder: dist
       ssh_key:
         from_secret: ssh_key
+    when:
+      - event:
+          - push
+          - tag
 
   build-x86_64-apple-darwin:
     environment:
@@ -139,3 +148,7 @@ steps:
       ssh_key:
         from_secret: ssh_key_macos
 
+    when:
+      - event:
+          - push
+          - tag

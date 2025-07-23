@@ -64,9 +64,12 @@ steps:
       # Prepare to customise image
       - apt update
 
-      # Rust
+      # Get Rust
       - apt -y install curl
       - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+      - . "$HOME/.cargo/env"            # For sh/bash/zsh/ash/dash/pdksh
+
+      # Rust extras
       - rustup component add rustfmt
 
       # Misc packages

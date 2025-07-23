@@ -1,0 +1,156 @@
+when:
+#  - event: pull_request
+#  - event: push
+  - event: tag
+    branch:
+      - main
+
+steps:
+  # Windows, Linux and ARM targets using rust:latest debian image
+  build:
+    environment:
+      EXECUTABLE_FILE: dweb
+      EXECUTABLE_FILE_WINDOWS: dweb.exe
+      DESCRIPTION: Testing CI of Rust cross platform builds
+      PAGE_TITLE: ${CI_COMMIT_TAG} release notes for ${CI_REPO_URL}
+
+      BUILD_TARGET1: x86_64-pc-windows-gnu
+      EXECUTABLE_FILE_ARCH1: dweb-x86_64-pc-windows-gnu
+      EXECUTABLE_PATH1: ${CI_COMMIT_TAG}/dweb-x86_64-pc-windows-gnu.exe
+
+      BUILD_TARGET2: x86_64-unknown-linux-musl
+      EXECUTABLE_FILE_ARCH2: dweb-x86_64-linux-musl
+      EXECUTABLE_PATH2: ${CI_COMMIT_TAG}/dweb-x86_64-linux-musl
+
+      BUILD_TARGET3: aarch64-unknown-linux-musl
+      EXECUTABLE_FILE_ARCH3: dweb-aarch64-linux-musl
+      EXECUTABLE_PATH3: ${CI_COMMIT_TAG}/dweb-aarch64-linux-musl
+
+      BUILD_TARGET4: arm-unknown-linux-musleabi
+      EXECUTABLE_FILE_ARCH4: dweb-arm-linux-musleabi
+      EXECUTABLE_PATH4: ${CI_COMMIT_TAG}/dweb-arm-linux-musleabi
+
+      BUILD_TARGET5: armv7-unknown-linux-musleabihf
+      EXECUTABLE_FILE_ARCH5: dweb-armv7-linux-musleabihf
+      EXECUTABLE_PATH5: ${CI_COMMIT_TAG}/dweb-armv7-linux-musleabihf
+
+    image: rust
+    commands:
+      # Release Page Metadata and Start
+      - mkdir -p dist/${CI_COMMIT_TAG}
+      - cp codeberg-64px.png dist
+
+      - echo "<head><title>" $PAGE_TITLE "</title>" > dist/index.html
+      - echo '<meta name="descirption" content="'$DESCRIPTION'">' >> dist/index.html
+
+      - echo '<meta property="og:url" content="'${CI_REPO_URL}'">' >> dist/index.html
+      - echo '<meta property="og:type" content="website">' >> dist/index.html
+      - echo '<meta property="og:title" content="'$PAGE_TITLE'">' >> dist/index.html
+      - echo '<meta property="og:description" content="'$DESCRIPTION'">' >> dist/index.html
+      - echo '<meta property="og:image" content="https://happybeing.codeberg.page/'${CI_REPO_NAME}'/codeberg-64px.png">' >> dist/index.html
+
+      - echo '<meta name="twitter:card" content="summary_large_image">' >> dist/index.html
+      - echo '<meta property="twitter:domain" content="happybeing.codeberg.page">' >> dist/index.html
+      - echo '<meta property="twitter:url" content="'${CI_REPO_URL}'">' >> dist/index.html
+      - echo '<meta name="twitter:title" content="'$PAGE_TITLE'">' >> dist/index.html
+      - echo '<meta name="twitter:description" content="'$DESCRIPTION'">' >> dist/index.html
+      - echo '<meta name="twitter:image" content="https://happybeing.codeberg.page/'${CI_REPO_NAME}'/codeberg-64px.png">' >> dist/index.html
+
+      - echo '</head>' >> dist/index.html
+
+      - echo "<h1>Release:" ${CI_COMMIT_TAG} "</h1>" >> dist/index.html
+      - echo "<p>Commit:" ${CI_COMMIT_SHA} "</p>" >> dist/index.html
+
+      # Builds...
+      - apt update
+      - apt -y install clang-format clang-tidy clang-tools clang clangd libc++-dev libc++1 libc++abi-dev libc++abi1 libclang-dev libclang1 liblldb-dev libllvm-ocaml-dev libomp-dev libomp5 lld lldb llvm-dev llvm-runtime llvm python3-clang
+      - /usr/bin/ld.lld -v
+      - llvm-lib -v
+      - lld-link --version
+      - pwd; ls
+
+      - apt install gcc-mingw-w64 -y
+      - rustup target add $BUILD_TARGET1
+      - pwd; ls
+      - echo BUILD Windows ${CI_TAG}/$BUILD_TARGET1
+      - cargo build -p dweb-cli --release --target $BUILD_TARGET1
+      - mkdir -p dist/${CI_COMMIT_TAG}
+      - mv target/$BUILD_TARGET1/release/$EXECUTABLE_FILE_WINDOWS dist/$EXECUTABLE_PATH1
+      - echo "$BUILD_TARGET1 <a href='"$EXECUTABLE_PATH1"'>"$EXECUTABLE_FILE_ARCH1.exe"</a><br/>" >> dist/index.html
+
+      - echo BUILD Linux ${CI_TAG}/$BUILD_TARGET2
+      - rustup target add $BUILD_TARGET2
+      - CC=clang cargo build -p dweb-cli --release --target=$BUILD_TARGET2 --config target.$BUILD_TARGET2.linker=\"/usr/bin/ld.lld\"
+      - mv target/$BUILD_TARGET2/release/$EXECUTABLE_FILE dist/$EXECUTABLE_PATH2
+      - echo "$BUILD_TARGET2 <a href='"$EXECUTABLE_PATH2"'>"$EXECUTABLE_FILE_ARCH2"</a><br/>" >> dist/index.html
+
+      - echo BUILD Linux ${CI_TAG}/$BUILD_TARGET3
+      - rustup target add $BUILD_TARGET3
+      - CC=clang cargo build -p dweb-cli --release --target=$BUILD_TARGET3 --config target.$BUILD_TARGET3.linker=\"/usr/bin/ld.lld\"
+      - mv target/$BUILD_TARGET3/release/$EXECUTABLE_FILE dist/$EXECUTABLE_PATH3
+      - echo "$BUILD_TARGET3 <a href='"$EXECUTABLE_PATH3"'>"$EXECUTABLE_FILE_ARCH3"</a><br/>" >> dist/index.html
+
+      - echo BUILD Linux ${CI_TAG}/$BUILD_TARGET4
+      - rustup target add $BUILD_TARGET4
+      - CC=clang cargo build --release --target=$BUILD_TARGET4 --config target.$BUILD_TARGET4.linker=\"/usr/bin/ld.lld\"
+      - mv target/$BUILD_TARGET4/release/$EXECUTABLE_FILE dist/$EXECUTABLE_PATH4
+      - echo "$BUILD_TARGET4 <a href='"$EXECUTABLE_PATH4"'>"$EXECUTABLE_FILE_ARCH4"</a><br/>" >> dist/index.html
+
+      - echo BUILD Linux ${CI_TAG}/$BUILD_TARGET5
+      - rustup target add $BUILD_TARGET5
+      - CC=clang cargo build -p dweb-cli --release --target=$BUILD_TARGET5 --config target.$BUILD_TARGET5.linker=\"/usr/bin/ld.lld\"
+      - mv target/$BUILD_TARGET5/release/$EXECUTABLE_FILE dist/$EXECUTABLE_PATH5
+      - echo "$BUILD_TARGET5 <a href='"$EXECUTABLE_PATH5"'>"$EXECUTABLE_FILE_ARCH5"</a><br/>" >> dist/index.html
+
+      # Add Release Notes
+      - export VERSION=$(git tag --sort=-committerdate | head -1)
+      - export PREVIOUS_VERSION=$(git tag --sort=-committerdate | head -2 | awk '{split($0, tags, "\n")} END {print tags[1]}')
+      - export CHANGES=$(git log --pretty="- %s" $VERSION...$PREVIOUS_VERSION | sed ':a;N;$!ba;s+\n+<br/>+g')
+      - export COMMITS=$(git log --pretty="- %s" $VERSION...$PREVIOUS_VERSION | wc -l)
+      - printf "<br/><h2>🎁 Release notes ($VERSION)</h2><h3>Changes</h3>$CHANGES<br/><br/>Metadata<br/><code>This version -------- $VERSION\n<br/>Previous version ---- $PREVIOUS_VERSION\n<br/>Total commits ------- $(echo "$COMMITS")\n<br/></code>" >> dist/index.html
+    username: ${CI_REPO_OWNER}
+    password:
+      from_secret: cbci_token
+  deploy:
+    image: codeberg.org/xfix/plugin-codeberg-pages-deploy:1
+    settings:
+      folder: dist
+      ssh_key:
+        from_secret: ssh_key
+
+  build-x86_64-apple-darwin:
+    environment:
+      BUILD_TARGET: $BUILD_TARGET
+      EXECUTABLE_FILE: dweb
+      EXECUTABLE_PATH: ${CI_COMMIT_TAG}/dweb
+    image: dockurr/macos
+    commands:
+      - rustup target add $BUILD_TARGET
+      - cargo build -p dweb-cli --release --target $BUILD_TARGET
+      - rustup target add aarch64-apple-darwin
+      - cargo build -p dweb-cli --release --target aarch64-apple-darwin
+    username: ${CI_REPO_OWNER}
+    password:
+      from_secret: cbci_tokenl
+  deploy:
+    image: codeberg.org/xfix/plugin-codeberg-pages-deploy:1
+    settings:
+      folder: dist
+      ssh_key:
+        from_secret: ssh_key
+
+  publish-test-buildx:
+    image: woodpeckerci/plugin-docker-buildx
+    settings:
+      repo:
+        - codeberg.org/happybeing/dweb
+      auto_tag: true
+      logins:
+        - registry: https://codeberg.org
+          username: ${CI_REPO_OWNER}
+          password:
+            from_secret: cbci_token
+    when:
+      - event:
+          - push
+          - tag

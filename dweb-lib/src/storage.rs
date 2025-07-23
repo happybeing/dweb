@@ -581,11 +581,12 @@ pub async fn directory_upload_private(
         .await
         {
             Ok((cost, datamap_chunk)) => {
-                let relative_path = match file_path.strip_prefix("/") {
+                let relative_path = match file_path.strip_prefix(&files_root) {
                     Ok(p) => p.to_path_buf(),
                     Err(_) => PathBuf::from(file_path_str.clone()),
                 };
                 let relative_path: String = relative_path.to_string_lossy().into_owned();
+
                 let autonomi_metadata = crate::helpers::file::metadata_for_file(&file_path_str);
                 archive.add_file(relative_path.into(), datamap_chunk, autonomi_metadata);
                 cost
@@ -677,11 +678,12 @@ pub async fn directory_upload_public(
         .await
         {
             Ok((cost, upload_address)) => {
-                let relative_path = match file_path.strip_prefix("/") {
+                let relative_path = match file_path.strip_prefix(&files_root) {
                     Ok(p) => p.to_path_buf(),
                     Err(_) => PathBuf::from(file_path_str.clone()),
                 };
                 let relative_path: String = relative_path.to_string_lossy().into_owned();
+
                 let autonomi_metadata = crate::helpers::file::metadata_for_file(&file_path_str);
                 archive.add_file(relative_path.into(), upload_address, autonomi_metadata);
                 cost

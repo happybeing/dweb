@@ -562,16 +562,6 @@ pub async fn directory_upload_private(
             }
         };
 
-        let files_root_str;
-        match files_root.clone().into_os_string().into_string() {
-            Ok(path_str) => files_root_str = path_str.clone(),
-            Err(os_str) => {
-                let msg = format!("Error converting file os_str to str - {os_str:?}");
-                println!("{msg}");
-                return Err(eyre!(msg));
-            }
-        };
-
         let cost = match retry_until_ok(
             client.api_control.api_tries,
             &"file_content_upload_public()",
@@ -591,11 +581,11 @@ pub async fn directory_upload_private(
         .await
         {
             Ok((cost, datamap_chunk)) => {
-                let relative_path = if files_root_str.ends_with("/") {
-                    &file_path_str.as_str()[(files_root_str.len() - 1)..]
-                } else {
-                    &file_path_str.as_str()[files_root_str.len()..]
+                let relative_path = match file_path.strip_prefix("/") {
+                    Ok(p) => p.to_path_buf(),
+                    Err(_) => PathBuf::from(file_path_str.clone()),
                 };
+                let relative_path: String = relative_path.to_string_lossy().into_owned();
                 let autonomi_metadata = crate::helpers::file::metadata_for_file(&file_path_str);
                 archive.add_file(relative_path.into(), datamap_chunk, autonomi_metadata);
                 cost
@@ -668,16 +658,6 @@ pub async fn directory_upload_public(
             }
         };
 
-        let files_root_str;
-        match files_root.clone().into_os_string().into_string() {
-            Ok(path_str) => files_root_str = path_str.clone(),
-            Err(os_str) => {
-                let msg = format!("Error converting file os_str to str - {os_str:?}");
-                println!("{msg}");
-                return Err(eyre!(msg));
-            }
-        };
-
         let cost = match retry_until_ok(
             client.api_control.api_tries,
             &"file_content_upload_public()",
@@ -697,11 +677,11 @@ pub async fn directory_upload_public(
         .await
         {
             Ok((cost, upload_address)) => {
-                let relative_path = if files_root_str.ends_with("/") {
-                    &file_path_str.as_str()[(files_root_str.len() - 1)..]
-                } else {
-                    &file_path_str.as_str()[files_root_str.len()..]
+                let relative_path = match file_path.strip_prefix("/") {
+                    Ok(p) => p.to_path_buf(),
+                    Err(_) => PathBuf::from(file_path_str.clone()),
                 };
+                let relative_path: String = relative_path.to_string_lossy().into_owned();
                 let autonomi_metadata = crate::helpers::file::metadata_for_file(&file_path_str);
                 archive.add_file(relative_path.into(), upload_address, autonomi_metadata);
                 cost

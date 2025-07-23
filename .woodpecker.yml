@@ -34,7 +34,7 @@ steps:
       EXECUTABLE_FILE_ARCH5: dweb-armv7-linux-musleabihf
       EXECUTABLE_PATH5: ${CI_COMMIT_TAG}/dweb-armv7-linux-musleabihf
 
-    image: rust
+    image: ubuntu
     commands:
       # Release Page Metadata and Start
       - mkdir -p dist/${CI_COMMIT_TAG}
@@ -65,8 +65,8 @@ steps:
       - apt update
 
       # Rust
-#      - apt -y install curl
-#      - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+      - apt -y install curl
+      - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
       - rustup component add rustfmt
 
       # Misc packages

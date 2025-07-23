@@ -38,7 +38,7 @@ steps:
     commands:
       # Release Page Metadata and Start
       - mkdir -p dist/${CI_COMMIT_TAG}
-      - cp codeberg-64px.png dist
+      - cp ci/codeberg-icon.png dist
 
       - echo "<head><title>" $PAGE_TITLE "</title>" > dist/index.html
       - echo '<meta name="descirption" content="'$DESCRIPTION'">' >> dist/index.html
@@ -47,14 +47,14 @@ steps:
       - echo '<meta property="og:type" content="website">' >> dist/index.html
       - echo '<meta property="og:title" content="'$PAGE_TITLE'">' >> dist/index.html
       - echo '<meta property="og:description" content="'$DESCRIPTION'">' >> dist/index.html
-      - echo '<meta property="og:image" content="https://happybeing.codeberg.page/'${CI_REPO_NAME}'/codeberg-64px.png">' >> dist/index.html
+      - echo '<meta property="og:image" content="https://happybeing.codeberg.page/'${CI_REPO_NAME}'/codeberg-icon.png">' >> dist/index.html
 
       - echo '<meta name="twitter:card" content="summary_large_image">' >> dist/index.html
       - echo '<meta property="twitter:domain" content="happybeing.codeberg.page">' >> dist/index.html
       - echo '<meta property="twitter:url" content="'${CI_REPO_URL}'">' >> dist/index.html
       - echo '<meta name="twitter:title" content="'$PAGE_TITLE'">' >> dist/index.html
       - echo '<meta name="twitter:description" content="'$DESCRIPTION'">' >> dist/index.html
-      - echo '<meta name="twitter:image" content="https://happybeing.codeberg.page/'${CI_REPO_NAME}'/codeberg-64px.png">' >> dist/index.html
+      - echo '<meta name="twitter:image" content="https://happybeing.codeberg.page/'${CI_REPO_NAME}'/codeberg-icon.png">' >> dist/index.html
 
       - echo '</head>' >> dist/index.html
 

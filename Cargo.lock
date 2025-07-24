@@ -1478,9 +1478,9 @@ checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 
 [[package]]
 name = "autonomi"
-version = "0.5.1"
+version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ea7fe69d8af95f0feeb7cb2f46d1ec65d8d2b96240bab2106e130c10f49696f"
+checksum = "d8c2f7a0abb3a2bf5e1d2ac0b4c27a5f9252c8ab419090fa8c8e1a7be30dad62"
 dependencies = [
  "ant-bootstrap",
  "ant-evm",

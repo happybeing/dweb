@@ -21,22 +21,19 @@ skip-network-compatibility-check = []   # Avoid need to upload avp type and incl
 fixed-dweb-hosts = []
 
 [dependencies]
-# awe only crates: ant-networking ant-bootstrap
 #
-# Generated using: dw-dependencies --branch stable-2025.7.1.1
-autonomi = { version = "0.5.1" }
+# Generated using: dw-dependencies --branch stable-2025.7.1.3
+autonomi = { version = "0.5.2" }
 ant-build-info = { version = "0.1.29" }
 ant-logging = { version = "0.2.51" }
 evmlib = { version = "0.4.2" }
 # awe only crates: ant-networking ant-bootstrap
 #
-# Generated using: awe-dependencies --branch stable-2025.6.1.3
-#autonomi = { version = "0.5.0" }
-#ant-bootstrap = { version = "0.2.4" }
-#ant-build-info = { version = "0.1.28" }
-#ant-logging = { version = "0.2.50" }
-#ant-networking = { version = "0.3.13" }
-#evmlib = { version = "0.4.1" }
+# Generated using: dw-dependencies --branch stable-2025.7.1.1
+#autonomi = { version = "0.5.1" }
+#ant-build-info = { version = "0.1.29" }
+#ant-logging = { version = "0.2.51" }
+#evmlib = { version = "0.4.2" }
 
 dweb = { path = "../dweb-lib", version = "0.10.4", features = ["development"]}
 

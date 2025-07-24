@@ -3,7 +3,7 @@ when:
   - event: push
   - event: tag
     branch:
-      - main
+      - ci-test
 
 steps:
   # Windows, Linux and ARM targets using rust:latest debian image

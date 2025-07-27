@@ -162,9 +162,9 @@ pub async fn serve_with_ports(
                     .service(api_dweb_ant::v0::scratchpad::scratchpad_private_get_owned)
                     .service(api_dweb_ant::v0::data::data_get),
             )
-            // dweb Enhances Automonomi APIs
             .service(
-                scope(dweb::api::DWEB_ANT_API_ROUTE)
+                scope(dweb::api::DWEB_API_ROUTE)
+                    // dweb Enhanced Automonomi APIs
                     .service(api_dweb_ant::v0::archive::archive_post_public)
                     .service(api_dweb_ant::v0::archive::archive_post_private)
                     .service(api_dweb_ant::v0::archive::archive_get)
@@ -183,11 +183,8 @@ pub async fn serve_with_ports(
                     .service(api_dweb_ant::v0::scratchpad::scratchpad_private_post)
                     .service(api_dweb_ant::v0::scratchpad::scratchpad_private_put)
                     .service(api_dweb_ant::v0::scratchpad::scratchpad_private_get)
-                    .service(api_dweb_ant::v0::scratchpad::scratchpad_private_get_owned),
-            )
-            // dweb APIs
-            .service(
-                scope(dweb::api::DWEB_API_ROUTE)
+                    .service(api_dweb_ant::v0::scratchpad::scratchpad_private_get_owned)
+                    // dweb APIs
                     .service(api_dweb::v0::name::api_register_name)
                     .service(api_dweb::v0::name::api_dwebname_list)
                     .service(api_dweb::v0::app_settings::app_settings)

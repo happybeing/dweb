@@ -171,6 +171,7 @@ pub async fn serve_with_ports(
                     .service(api_dweb_ant::v0::archive::archive_get_version)
                     .service(api_dweb_ant::v0::chunk::chunk_post)
                     .service(api_dweb_ant::v0::chunk::chunk_get)
+                    .service(api_dweb_ant::v0::data::data_get)
                     .service(api_dweb_ant::v0::pointer::pointer_post)
                     .service(api_dweb_ant::v0::pointer::pointer_put)
                     .service(api_dweb_ant::v0::pointer::pointer_get)
@@ -182,18 +183,18 @@ pub async fn serve_with_ports(
                     .service(api_dweb_ant::v0::scratchpad::scratchpad_private_post)
                     .service(api_dweb_ant::v0::scratchpad::scratchpad_private_put)
                     .service(api_dweb_ant::v0::scratchpad::scratchpad_private_get)
-                    .service(api_dweb_ant::v0::scratchpad::scratchpad_private_get_owned)
-                    .service(api_dweb_ant::v0::data::data_get),
+                    .service(api_dweb_ant::v0::scratchpad::scratchpad_private_get_owned),
             )
             // dweb APIs
             .service(
                 scope(dweb::api::DWEB_API_ROUTE)
                     .service(api_dweb::v0::name::api_register_name)
                     .service(api_dweb::v0::name::api_dwebname_list)
+                    .service(api_dweb::v0::app_settings::app_settings)
                     .service(api_dweb::v0::file::file_get)
                     .service(api_dweb::v0::form::data_put)
                     .service(api_dweb::v0::form::data_put_list)
-                    .service(api_dweb::v0::app_settings::app_settings),
+                    .service(api_dweb::v0::wallet::wallet_balance_get),
             )
             .default_service(web::get().to(www::www_handler))
             .openapi_service(|api| {

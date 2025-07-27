@@ -19,7 +19,7 @@ pub mod app_settings;
 pub mod file;
 pub mod form;
 pub mod name;
-// pub mod publish;
+pub mod wallet;
 
 use actix_web::{
     get,

@@ -1037,9 +1037,9 @@ dependencies = [
 
 [[package]]
 name = "ant-bootstrap"
-version = "0.2.5"
+version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd1f5ed73fee411204ba0e5e39535ac4b89ead50c9d2d400d635e9abccbd7a5a"
+checksum = "f4ed5140085019946037c3e8bbf3fcd51e6437178b2fb699bf3c8f8242e41f7d"
 dependencies = [
  "ant-logging",
  "ant-protocol",
@@ -1049,6 +1049,7 @@ dependencies = [
  "dirs-next",
  "futures",
  "libp2p",
+ "rand 0.8.5",
  "reqwest",
  "serde",
  "serde_json",
@@ -1478,9 +1479,9 @@ checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 
 [[package]]
 name = "autonomi"
-version = "0.5.2"
+version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8c2f7a0abb3a2bf5e1d2ac0b4c27a5f9252c8ab419090fa8c8e1a7be30dad62"
+checksum = "783fc03784402efbad210c02dfc9c886010e3b7a9e3bacc451451c72c276b990"
 dependencies = [
  "ant-bootstrap",
  "ant-evm",
@@ -1492,6 +1493,7 @@ dependencies = [
  "bytes",
  "const-hex",
  "custom_debug",
+ "dirs-next",
  "evmlib",
  "exponential-backoff",
  "eyre",
@@ -2542,7 +2544,7 @@ checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
 
 [[package]]
 name = "dweb"
-version = "0.10.6"
+version = "0.10.7"
 dependencies = [
  "actix-web",
  "ant-build-info",
@@ -2594,7 +2596,7 @@ dependencies = [
 
 [[package]]
 name = "dweb-cli"
-version = "0.10.6"
+version = "0.10.7"
 dependencies = [
  "actix-cors",
  "actix-multipart",

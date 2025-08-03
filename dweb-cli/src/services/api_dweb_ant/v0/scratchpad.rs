@@ -28,7 +28,7 @@ use color_eyre::eyre::eyre;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use autonomi::{Bytes, Scratchpad, ScratchpadAddress, SecretKey};
+use autonomi::{scratchpad::ScratchpadError, Bytes, Scratchpad, ScratchpadAddress, SecretKey};
 
 use dweb::helpers::retry::retry_until_ok;
 use dweb::storage::DwebType;
@@ -77,14 +77,17 @@ pub async fn scratchpad_private_get(
             );
             match client.client.scratchpad_get(&scratchpad_address).await {
                 Ok(scratchpad) => scratchpad,
-                Err(e) => {
-                    return make_error_response_page(
-                        None,
-                        &mut HttpResponse::NotFound(),
-                        rest_operation.to_string(),
-                        &format!("{rest_handler} failed to get {REST_TYPE} from network - {e}"),
-                    );
-                }
+                Err(e) => match e {
+                    ScratchpadError::Fork(scratchpads) => scratchpads[0].clone(),
+                    e => {
+                        return make_error_response_page(
+                            None,
+                            &mut HttpResponse::NotFound(),
+                            rest_operation.to_string(),
+                            &format!("{rest_handler} failed to get {REST_TYPE} from network - {e}"),
+                        );
+                    }
+                },
             }
         }
         Err(e) => {
@@ -139,6 +142,71 @@ pub async fn scratchpad_private_get(
         .insert_header(ContentType(mime::APPLICATION_JSON))
         .body(json)
 }
+
+// TODO consider selecting Scratchpad based on modifying the following to:
+// 1. filter by highest counter
+// 2. choose the first scratchpad ordered by hash of content
+//
+// The above is simple and always chooses the same fork from a given set.
+// TODO provide an API which returns an array, which is either the
+// only Scratchpad returned, or all the forks returned. The client can
+// then select manually.
+
+/// @zettawatt's code from: https://github.com/zettawatt/colonylib/blob/b0d0ef8767cb0061d8965a4e9c0621b2986e0bf4/src/pod.rs#L1084
+/// Selects the newest scratchpad from a vector of scratchpads based on timestamp comments.
+///
+/// This function reads the encrypted data from each scratchpad, looks for a timestamp comment
+/// in the first line (format: #<RFC3339_timestamp>), and returns the scratchpad with the
+/// latest timestamp. If only one scratchpad has a timestamp, it's assumed to be the newest.
+/// If none have timestamps, the first scratchpad in the vector is returned.
+///
+/// # Parameters
+///
+/// * `scratchpads` - Vector of scratchpads to compare
+///
+/// # Returns
+///
+/// Returns the scratchpad with the latest timestamp, or the first one if no timestamps are found.
+// fn select_newest_scratchpad(scratchpads: Vec<Scratchpad>) -> Scratchpad {
+//     if scratchpads.is_empty() {
+//         panic!("Cannot select from empty scratchpads vector");
+//     }
+
+//     if scratchpads.len() == 1 {
+//         return scratchpads[0].clone();
+//     }
+
+//     let mut newest_scratchpad = &scratchpads[0];
+//     let mut newest_timestamp: Option<chrono::DateTime<chrono::Utc>> = None;
+
+//     for scratchpad in &scratchpads {
+//         // Extract the encrypted data and convert to string
+//         let data = scratchpad.encrypted_data();
+//         if let Ok(data_string) = String::from_utf8(data.to_vec()) {
+//             // Check if the first line is a timestamp comment
+//             if let Some(first_line) = data_string.lines().next() {
+//                 if first_line.starts_with('#') && first_line.len() > 1 {
+//                     let timestamp_str = &first_line[1..]; // Remove the '#' prefix
+
+//                     // Try to parse the timestamp
+//                     if let Ok(timestamp) = chrono::DateTime::parse_from_rfc3339(timestamp_str) {
+//                         let utc_timestamp = timestamp.with_timezone(&chrono::Utc);
+
+//                         // Check if this is the newest timestamp so far
+//                         if newest_timestamp.is_none() || utc_timestamp > newest_timestamp.unwrap() {
+//                             newest_timestamp = Some(utc_timestamp);
+//                             newest_scratchpad = scratchpad;
+//                         }
+//                     }
+//                 }
+//             }
+//         }
+//     }
+
+//     // If we found at least one timestamp, return the newest one
+//     // If no timestamps were found, return the first scratchpad
+//     newest_scratchpad.clone()
+// }
 
 /// Get a private Scratchpad you own, with optional name
 /// TODO example JSON
@@ -205,14 +273,17 @@ pub async fn scratchpad_private_get_owned(
 
     let scratchpad = match client.client.scratchpad_get(&scratchpad_address).await {
         Ok(scratchpad) => scratchpad,
-        Err(e) => {
-            return make_error_response_page(
-                None,
-                &mut HttpResponse::NotFound(),
-                rest_operation.to_string(),
-                &format!("{rest_handler} failed to get {REST_TYPE} from network - {e}"),
-            );
-        }
+        Err(e) => match e {
+            ScratchpadError::Fork(scratchpads) => scratchpads[0].clone(),
+            e => {
+                return make_error_response_page(
+                    None,
+                    &mut HttpResponse::NotFound(),
+                    rest_operation.to_string(),
+                    &format!("{rest_handler} failed to get {REST_TYPE} from network - {e}"),
+                );
+            }
+        },
     };
 
     let mut dweb_scratchpad = DwebScratchpad {
@@ -602,14 +673,17 @@ pub async fn scratchpad_public_get(
             );
             match client.client.scratchpad_get(&scratchpad_address).await {
                 Ok(scratchpad) => scratchpad,
-                Err(e) => {
-                    return make_error_response_page(
-                        None,
-                        &mut HttpResponse::NotFound(),
-                        rest_operation.to_string(),
-                        &format!("{rest_handler} failed to get {REST_TYPE} from network - {e}"),
-                    );
-                }
+                Err(e) => match e {
+                    ScratchpadError::Fork(scratchpads) => scratchpads[0].clone(),
+                    e => {
+                        return make_error_response_page(
+                            None,
+                            &mut HttpResponse::NotFound(),
+                            rest_operation.to_string(),
+                            &format!("{rest_handler} failed to get {REST_TYPE} from network - {e}"),
+                        );
+                    }
+                },
             }
         }
         Err(e) => {
@@ -717,14 +791,17 @@ pub async fn scratchpad_public_get_owned(
 
     let scratchpad = match client.client.scratchpad_get(&scratchpad_address).await {
         Ok(scratchpad) => scratchpad,
-        Err(e) => {
-            return make_error_response_page(
-                None,
-                &mut HttpResponse::NotFound(),
-                rest_operation.to_string(),
-                &format!("{rest_handler} failed to get {REST_TYPE} from network - {e}"),
-            );
-        }
+        Err(e) => match e {
+            ScratchpadError::Fork(scratchpads) => scratchpads[0].clone(),
+            e => {
+                return make_error_response_page(
+                    None,
+                    &mut HttpResponse::NotFound(),
+                    rest_operation.to_string(),
+                    &format!("{rest_handler} failed to get {REST_TYPE} from network - {e}"),
+                );
+            }
+        },
     };
 
     let mut dweb_scratchpad = DwebScratchpad {

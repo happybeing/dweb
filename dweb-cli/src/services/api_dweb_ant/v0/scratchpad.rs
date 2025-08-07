@@ -594,17 +594,31 @@ pub async fn scratchpad_private_put(
         }
     };
 
+    let payment_option = client.payment_option().clone();
+
     let result = retry_until_ok(
         request_params.tries,
         &rest_handler,
-        (scratchpad_secret, content_type, new_data),
-        async move |(scratchpad_secret, content_type, new_data)| match client
-            .client
-            .scratchpad_update(&scratchpad_secret, content_type, &new_data)
-            .await
-        {
-            Ok(result) => Ok(result),
-            Err(e) => Err(eyre!(e)),
+        (scratchpad_secret.clone(), content_type, new_data.clone(), payment_option.clone(), client.client.clone()),
+        async move |(scratchpad_secret, content_type, new_data, payment_option, client)| {
+            match client
+                .scratchpad_update(&scratchpad_secret, content_type, &new_data)
+                .await
+            {
+                Ok(result) => Ok(result),
+                Err(e) => match e {
+                    ScratchpadError::Fork(scratchpads) => {
+                        let counter = scratchpads[0].counter() + 1;
+                        let new_scratchpad = Scratchpad::new(&scratchpad_secret, content_type, &new_data, counter);
+                        client
+                            .scratchpad_put(new_scratchpad, payment_option)
+                            .await
+                            .map_err(|e| eyre!(e))?;
+                        Ok(())
+                    }
+                    _ => Err(eyre!(e)),
+                }
+            }
         },
     )
     .await;

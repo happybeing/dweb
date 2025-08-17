@@ -140,28 +140,10 @@ pub async fn serve_with_ports(
             .service(www::dweb_version::dweb_version)
             .service(api_dweb::v0::ant_proxy_id)
             // Autonomi APIs
-            .service(
-                scope(dweb::api::ANT_API_ROUTE)
-                    .service(api_dweb_ant::v0::archive::archive_post_public)
-                    .service(api_dweb_ant::v0::archive::archive_post_private)
-                    .service(api_dweb_ant::v0::archive::archive_get)
-                    .service(api_dweb_ant::v0::archive::archive_get_version)
-                    .service(api_dweb_ant::v0::chunk::chunk_post)
-                    .service(api_dweb_ant::v0::chunk::chunk_get)
-                    .service(api_dweb_ant::v0::pointer::pointer_post)
-                    .service(api_dweb_ant::v0::pointer::pointer_put)
-                    .service(api_dweb_ant::v0::pointer::pointer_get)
-                    .service(api_dweb_ant::v0::pointer::pointer_get_owned)
-                    .service(api_dweb_ant::v0::scratchpad::scratchpad_public_post)
-                    .service(api_dweb_ant::v0::scratchpad::scratchpad_public_put)
-                    .service(api_dweb_ant::v0::scratchpad::scratchpad_public_get)
-                    .service(api_dweb_ant::v0::scratchpad::scratchpad_public_get_owned)
-                    .service(api_dweb_ant::v0::scratchpad::scratchpad_private_post)
-                    .service(api_dweb_ant::v0::scratchpad::scratchpad_private_put)
-                    .service(api_dweb_ant::v0::scratchpad::scratchpad_private_get)
-                    .service(api_dweb_ant::v0::scratchpad::scratchpad_private_get_owned)
-                    .service(api_dweb_ant::v0::data::data_get),
-            )
+            // .service(
+            //     scope(dweb::api::ANT_API_ROUTE)
+            //     // TODO - replicate /ant-0 support using a library (to be provided by @Traktion from AntTP)
+            // )
             .service(
                 scope(dweb::api::DWEB_API_ROUTE)
                     // dweb Enhanced Automonomi APIs

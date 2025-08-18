@@ -33,6 +33,8 @@ pub(crate) async fn connect_and_announce(
         alpha_network,
         host,
         port,
+        None,
+        None,
         api_control,
     )
     .await

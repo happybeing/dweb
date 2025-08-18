@@ -86,12 +86,13 @@ impl Default for ApiControl {
 /// TODO support separate data creation/owner and wallet keys
 #[derive(Clone)]
 pub struct DwebClient {
-    pub client: Client,
+    pub client: autonomi::Client,
     pub network: Network,
     pub is_local: bool,
     pub host: String,
     pub port: u16,
     pub wallet: Wallet, // Must be loaded and funded for writing to the network
+    pub is_wallet_temporary: bool, // Do not send funds to a temporary wallet as access will be lost when the app closes
 
     pub api_control: ApiControl,
 
@@ -103,11 +104,14 @@ impl DwebClient {
     /// Create and initialse a client ready to access Autonomi
     ///
     /// Sets the default Ethereum Virtual Machine (EVM), obtains peers,
-    /// attempts to connect to the network and creates a wallet for use
-    /// by the client.
+    /// attempts to connect to the network and ensures a wallet is
+    /// available for use by the client.
     ///
-    /// If a wallet is present and funded on your system it will be used
-    /// by the client to pay for storing data. You can override the wallet
+    /// WARNING: when DwebClient.is_wallet_temporary is true, access will be
+    /// lost when the application closes, along with any funds in the wallet.
+    ///
+    /// If you do not supply a Wallet but one is present on your device it will be
+    /// used by the client to pay for storing data. You can override the wallet
     /// to be used by setting the SECRET_KEY environment variable to the
     /// private key of the wallet you wish to use which is handy for testing.
     ///
@@ -119,16 +123,22 @@ impl DwebClient {
         alpha_network: bool,
         host: Option<String>,
         port: Option<u16>,
+        client: Option<autonomi::Client>,
+        wallet: Option<Wallet>,
         api_control: ApiControl,
     ) -> Result<DwebClient> {
         println!("Dweb Autonomi client initialising...");
 
-        let mut client = if local_network {
-            Client::init_local().await?
-        } else if alpha_network {
-            Client::init_alpha().await?
+        let mut client = if client.is_some() {
+            client.unwrap()
         } else {
-            Client::init().await?
+            if local_network {
+                Client::init_local().await?
+            } else if alpha_network {
+                Client::init_alpha().await?
+            } else {
+                Client::init().await?
+            }
         };
 
         // Configure client for retry of failed chunk uploads
@@ -137,12 +147,19 @@ impl DwebClient {
             println!("🔄 Client configured to retry failed chunk uploads until successful or exceeds {} retries", api_control.chunk_retries);
         }
 
-        let mut wallet = match crate::autonomi::wallet::load_wallet(&client.evm_network()) {
-            Ok(wallet) => wallet,
-            Err(_e) => {
-                let client = client.clone();
-                println!("Failed to load wallet for payments - client will only have read accesss to Autonomi");
-                Wallet::new_with_random_wallet(client.evm_network().clone())
+        let (mut wallet, is_wallet_temporary) = if wallet.is_some() {
+            (wallet.unwrap(), false)
+        } else {
+            match crate::autonomi::wallet::load_wallet(&client.evm_network()) {
+                Ok(wallet) => (wallet, false),
+                Err(_e) => {
+                    let client = client.clone();
+                    println!("Failed to load wallet for payments - client will only have read accesss to Autonomi");
+                    (
+                        Wallet::new_with_random_wallet(client.evm_network().clone()),
+                        true,
+                    )
+                }
             }
         };
 
@@ -177,6 +194,7 @@ impl DwebClient {
             host,
             port,
             wallet,
+            is_wallet_temporary,
             api_control: api_control.clone(),
             ant_rate,
             eth_rate,

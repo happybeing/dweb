@@ -1,18 +1,16 @@
-# dweb
-**dweb** is a Rust library which supports publishing and viewing websites on the decentralised web of the [Autonomi](https://autonomi.com) peer-to-peer network. With it you build apps which publish and view of decentralised websites and use helpers which simplify some areas of the Autonomi API.
+# dweb-server
+The **dweb-server** library allows Rust apps to incorporate a REST server into their binary, providing REST based access to the [Autonomi](https://autonomi.com) peer-to-peer network. The built in server can be customised for this and or other REST based apps running on the local device.
 
 - Capabilities and roadmap: see the features section of the **dweb-cli** [README.md](https://codeberg.org/happybeing/dweb/src/branch/main/dweb-cli#current-features-and-future-plans).
-
-- dweb API: see [docs.rs](https://docs.rs/dweb/latest/dweb/).
 
 - Add dweb to your Rust project:
 
   ```
-    cargo add dweb
+    cargo add dweb-server
   ```
 
-### Status
-The dweb library is a work in progress so expect breaking changes expecially in newly added features. The web publishing format and command line interface are more stable but breaking changes are still possible.
+### Status: proof of concept
+This library contains only a minimal REST API to demonstrate the capability in combination with Tauri app which uses it:
 
 ## Contributions
 Contributions under the AGPL3.0 license are welcome and any contributions or PRs submitted will be assumed to be offered under that license unless clearly and prominently specified otherwise. Any contributions are accepted on the condition they conform to that license and the following conditions:

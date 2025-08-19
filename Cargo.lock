@@ -2631,6 +2631,60 @@ dependencies = [
 ]
 
 [[package]]
+name = "dweb-server"
+version = "0.10.9"
+dependencies = [
+ "actix-cors",
+ "actix-web",
+ "ant-build-info",
+ "ant-logging",
+ "anyhow",
+ "async-stream",
+ "autonomi",
+ "blsttc",
+ "bytes",
+ "chrono",
+ "clap 4.5.40",
+ "color-eyre",
+ "const-hex",
+ "crdts",
+ "dirs-next",
+ "dweb",
+ "evmlib",
+ "futures",
+ "hex",
+ "http 1.3.1",
+ "indicatif",
+ "log",
+ "mime",
+ "mime_guess",
+ "multiaddr",
+ "open",
+ "port_check",
+ "prettytable",
+ "rand 0.8.5",
+ "regex",
+ "reqwest",
+ "ring",
+ "rmp-serde",
+ "rpassword",
+ "schnellru",
+ "self_encryption 0.29.2",
+ "serde",
+ "serde_json",
+ "structopt",
+ "tempfile",
+ "thiserror 2.0.12",
+ "url",
+ "utoipa",
+ "utoipa-actix-web",
+ "utoipa-swagger-ui",
+ "utoipa-swagger-ui-vendored",
+ "walkdir",
+ "xor_name",
+]
+
+[[package]]
 name = "dyn-clone"
 version = "1.0.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"

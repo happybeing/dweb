@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = [ "dweb-cli" , "dweb-lib"]
+members = [ "dweb-cli" , "dweb-lib", "dweb-server"]
 
 [workspace.package]
 version = "0.10.9"

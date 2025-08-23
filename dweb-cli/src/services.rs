@@ -25,6 +25,7 @@ pub(crate) mod www;
 use std::io;
 use std::time::Duration;
 
+use actix_web::dev::HttpServiceFactory;
 use actix_web::{dev::Service, middleware::Logger, web, web::Data, App, HttpServer};
 use utoipa::OpenApi;
 use utoipa_actix_web::scope::scope;
@@ -33,8 +34,6 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use dweb::cache::directory_with_port::DirectoryVersionWithPort;
 use dweb::client::DwebClient;
-
-use crate::services::api_dweb::v0::name::register_builtin_names;
 
 pub const CONNECTION_TIMEOUT: u64 = 75;
 
@@ -63,9 +62,7 @@ pub async fn serve_with_ports(
     directory_version_with_port: Option<DirectoryVersionWithPort>,
     // Either spawn a thread for the server and return, or do server.await
     spawn_server: bool,
-    is_local_network: bool,
 ) -> io::Result<()> {
-    register_builtin_names(is_local_network);
     let directory_version_with_port_copy1 = directory_version_with_port.clone();
     let directory_version_with_port_copy2 = directory_version_with_port.clone();
     let directory_version_with_port = directory_version_with_port;

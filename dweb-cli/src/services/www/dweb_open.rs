@@ -169,14 +169,7 @@ pub async fn handle_dweb_open(
         Ok((directory_version, from_cache)) => {
             if !from_cache {
                 // Not in the cache so spawn a server to handle it
-                match serve_with_ports(
-                    &client,
-                    Some(directory_version.clone()),
-                    true,
-                    *is_local_network.into_inner().as_ref(),
-                )
-                .await
-                {
+                match serve_with_ports(&client, Some(directory_version.clone()), true).await {
                     Ok(_) => (),
                     Err(e) => {
                         return make_error_response_page(

@@ -24,7 +24,7 @@ use dweb::files::directory::get_content_using_hex;
 use dweb::web::fetch::response_with_body;
 
 use super::helpers::*;
-use crate::web::etag;
+use crate::web_extras::etag;
 
 /// Handle Autonomi www requests of the form:
 ///     http://localhost:<PORT>/here/is/a/path.html

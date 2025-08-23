@@ -25,7 +25,7 @@ use actix_web::{
 use dweb::helpers::convert::*;
 
 use crate::services::helpers::*;
-use crate::web::etag;
+use crate::web_extras::etag;
 
 /// Get data from the network using a hex encoded datamap or data address
 #[utoipa::path(

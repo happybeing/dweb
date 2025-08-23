@@ -35,6 +35,7 @@ evmlib = { version = "0.4.2" }
 #evmlib = { version = "0.4.2" }
 
 dweb = { path = "../dweb-lib", version = "0.10.9", features = ["development"]}
+dweb-server = { path = "../dweb-server", version = "0.10.9", features = ["development"]}
 
 clap = "4.5.21"
 color-eyre = "0.6.3"

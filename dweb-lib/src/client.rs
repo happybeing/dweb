@@ -82,11 +82,38 @@ impl Default for ApiControl {
     }
 }
 
+#[derive(Clone)]
+pub struct DwebClientConfig {
+    pub local_network: bool,
+    pub alpha_network: bool,
+    pub host: Option<String>,
+    pub port: Option<u16>,
+    pub client: Option<autonomi::Client>,
+    pub wallet: Option<Wallet>,
+    pub api_control: ApiControl,
+}
+
+impl Default for DwebClientConfig {
+    /// Note: some defaults are likely overriden by command line defaults passed when creating an DwebClient.
+    fn default() -> Self {
+        DwebClientConfig {
+            local_network: false,
+            alpha_network: false,
+            host: None,
+            port: None,
+            client: None,
+            wallet: None,
+            api_control: ApiControl::default(),
+        }
+    }
+}
+
 /// A wrapper for autonomi::Client which simplifies use of dweb APIs
 /// TODO support separate data creation/owner and wallet keys
 #[derive(Clone)]
 pub struct DwebClient {
     pub client: autonomi::Client,
+    pub client_config: DwebClientConfig, // A copy of the config used to connect
     pub network: Network,
     pub is_local: bool,
     pub host: String,
@@ -118,23 +145,15 @@ impl DwebClient {
     /// The EMV network can be overridden by setting the EVM_NETWORK environment
     /// variable. For example, setting this to 'arbitrum-sepolia' selects the
     /// Artbitrum test network.
-    pub async fn initialise_and_connect(
-        local_network: bool,
-        alpha_network: bool,
-        host: Option<String>,
-        port: Option<u16>,
-        client: Option<autonomi::Client>,
-        wallet: Option<Wallet>,
-        api_control: ApiControl,
-    ) -> Result<DwebClient> {
+    pub async fn initialise_and_connect(client_config: &DwebClientConfig) -> Result<DwebClient> {
         println!("Dweb Autonomi client initialising...");
 
-        let mut client = if client.is_some() {
-            client.unwrap()
+        let mut client = if client_config.client.is_some() {
+            client_config.clone().client.unwrap()
         } else {
-            if local_network {
+            if client_config.local_network {
                 Client::init_local().await?
-            } else if alpha_network {
+            } else if client_config.alpha_network {
                 Client::init_alpha().await?
             } else {
                 Client::init().await?
@@ -142,13 +161,13 @@ impl DwebClient {
         };
 
         // Configure client for retry of failed chunk uploads
-        if api_control.chunk_retries != 0 {
-            client = client.with_retry_failed(api_control.chunk_retries);
-            println!("🔄 Client configured to retry failed chunk uploads until successful or exceeds {} retries", api_control.chunk_retries);
+        if client_config.api_control.chunk_retries != 0 {
+            client = client.with_retry_failed(client_config.api_control.chunk_retries);
+            println!("🔄 Client configured to retry failed chunk uploads until successful or exceeds {} retries", client_config.api_control.chunk_retries);
         }
 
-        let (mut wallet, is_wallet_temporary) = if wallet.is_some() {
-            (wallet.unwrap(), false)
+        let (mut wallet, is_wallet_temporary) = if client_config.wallet.is_some() {
+            (client_config.clone().wallet.unwrap(), false)
         } else {
             match crate::autonomi::wallet::load_wallet(&client.evm_network()) {
                 Ok(wallet) => (wallet, false),
@@ -163,8 +182,10 @@ impl DwebClient {
             }
         };
 
-        let max_fee_per_gas =
-            get_max_fee_per_gas_from_opt_param(api_control.max_fee_per_gas, client.evm_network())?;
+        let max_fee_per_gas = get_max_fee_per_gas_from_opt_param(
+            client_config.api_control.max_fee_per_gas,
+            client.evm_network(),
+        )?;
         wallet.set_transaction_config(TransactionConfig {
             max_fee_per_gas: max_fee_per_gas.clone(),
         });
@@ -185,17 +206,21 @@ impl DwebClient {
         let ant_rate = Rate::from_environment("ANT".to_string());
         let eth_rate = Rate::from_environment("ETH".to_string());
 
-        let host = host.unwrap_or(LOCALHOST_STR.to_string());
-        let port = port.unwrap_or(SERVER_PORTS_MAIN_PORT);
+        let host = client_config
+            .clone()
+            .host
+            .unwrap_or(LOCALHOST_STR.to_string());
+        let port = client_config.port.unwrap_or(SERVER_PORTS_MAIN_PORT);
         Ok(DwebClient {
             client: client.clone(),
+            client_config: client_config.clone(),
             network: client.evm_network().clone(),
-            is_local: local_network,
+            is_local: client_config.local_network,
             host,
             port,
             wallet,
             is_wallet_temporary,
-            api_control: api_control.clone(),
+            api_control: client_config.api_control.clone(),
             ant_rate,
             eth_rate,
         })

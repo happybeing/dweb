@@ -18,7 +18,8 @@
 
 use color_eyre::{eyre::eyre, Result};
 
-use dweb::client::{ApiControl, DwebClient};
+use crate::services::api_dweb::v0::name::register_builtin_names;
+use dweb::client::{ApiControl, DwebClient, DwebClientConfig};
 
 pub(crate) async fn connect_and_announce(
     local_network: bool,
@@ -28,15 +29,15 @@ pub(crate) async fn connect_and_announce(
     api_control: ApiControl,
     announce: bool,
 ) -> (DwebClient, bool) {
-    let client = dweb::client::DwebClient::initialise_and_connect(
+    let client = dweb::client::DwebClient::initialise_and_connect(&DwebClientConfig {
         local_network,
         alpha_network,
         host,
         port,
-        None,
-        None,
+        client: None,
+        wallet: None,
         api_control,
-    )
+    })
     .await
     .expect("Failed to connect to Autonomi Network");
 
@@ -67,7 +68,8 @@ pub(crate) async fn start_in_foreground(
     // Start the main server (for port based browsing), which will handle /dweb-open URLs  opened by 'dweb open'
     let host = client.host.clone();
     let port = client.port;
-    match crate::services::serve_with_ports(&client, None, false, is_local_network).await {
+    register_builtin_names(is_local_network);
+    match crate::services::serve_with_ports(&client, None, false).await {
         Ok(_) => return Ok(true),
         Err(e) => {
             println!("{e:?}");

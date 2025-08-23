@@ -30,22 +30,28 @@ use utoipa_actix_web::scope::scope;
 use utoipa_actix_web::AppExt;
 use utoipa_swagger_ui::SwaggerUi;
 
-use dweb::client::DwebClient;
+use crate::StopHandle;
+use dweb::client::DwebClientConfig;
 
 pub const CONNECTION_TIMEOUT: u64 = 75;
-
-#[cfg(feature = "development")]
-pub const DWEB_SERVICE_DEBUG: &str = "debug-dweb.au";
 
 /// init_dweb_server - cut down vertions of serve_with_ports for dweb-server PoC
 ///
 /// TODO dweb-server: move serve_with_ports here in full and rename file as server.rs
-pub async fn init_dweb_server(client: &DwebClient) -> io::Result<()> {
+#[actix_web::main]
+pub async fn init_dweb_server(
+    port: u16,
+    client_config: &DwebClientConfig,
+    stop_handle: Option<Data<StopHandle>>,
+) -> Result<(), std::io::Error> {
     let spawn_server = false;
     let is_main_server = !spawn_server;
+    let client = dweb::client::DwebClient::initialise_and_connect(client_config)
+        .await
+        .expect("Failed to connect to Autonomi Network");
+
     let host = client.host.clone();
     let port = client.port;
-    let client = client.clone();
     let server = HttpServer::new(move || {
         App::new()
             .wrap(
@@ -97,6 +103,7 @@ pub async fn init_dweb_server(client: &DwebClient) -> io::Result<()> {
                     // dweb Enhanced Automonomi APIs
                     .service(api_dweb_ant::v0::data::data_get),
             )
+            .service(handle_spawn)
             .default_service(web::get().to(www::www_handler))
             .openapi_service(|api| {
                 SwaggerUi::new("/swagger-ui/{_:.*}").url("/api/openapi.json", api)
@@ -109,4 +116,32 @@ pub async fn init_dweb_server(client: &DwebClient) -> io::Result<()> {
 
     println!("dweb main server listening on {host}:{port}");
     server.bind((host, port))?.run().await
+}
+
+// Test ability to spawn a server within a handler
+use actix_web::{get, http::StatusCode, HttpRequest, HttpResponse, HttpResponseBuilder, Result};
+
+//  TODO remove from demo (this is just testing the approach works)
+/// Test handler can spawn a server
+#[utoipa::path(
+    tags = ["Test"],
+    params(
+        ("port", description = "the port number you want the spawned server to listen on"),
+    )
+)]
+#[get("/spawn/{port}")]
+async fn handle_spawn(
+    _req: HttpRequest,
+    port: actix_web::web::Path<String>,
+    client: Data<dweb::client::DwebClient>,
+) -> Result<HttpResponse, actix_web::Error> {
+    let port = port.into_inner().parse().unwrap_or(9999);
+    // std::thread::spawn(move || init_demo_server(port, None));
+
+    let mut client_config = client.client_config.clone();
+    client_config.port = Some(port);
+    std::thread::spawn(move || init_dweb_server(port, &client_config, None));
+
+    let message = format!("Spawed server on port: {port}");
+    Ok(HttpResponseBuilder::new(StatusCode::OK).body(message))
 }

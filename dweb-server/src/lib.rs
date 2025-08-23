@@ -21,13 +21,7 @@ mod web_extras;
 
 use std::thread::JoinHandle;
 
-use actix_web::{
-    dev::ServerHandle,
-    get,
-    http::StatusCode,
-    web::{self, Data},
-    App, HttpRequest, HttpResponse, HttpResponseBuilder, HttpServer, Result,
-};
+use actix_web::{dev::ServerHandle, web, Result};
 
 use crate::services::init_dweb_server;
 use dweb::client::{DwebClient, DwebClientConfig};
@@ -39,7 +33,6 @@ pub enum DwebServiceError {
 // TODO move to dweb-server::DwebService
 pub struct DwebService {
     client_config: DwebClientConfig,
-    dweb_client: Option<DwebClient>,
     is_started: bool,
     port: Option<u16>,
     stop: Option<web::Data<StopHandle>>,
@@ -50,7 +43,6 @@ impl DwebService {
     pub fn new(client_config: DwebClientConfig) -> Self {
         DwebService {
             client_config,
-            dweb_client: None,
             is_started: false,
             stop: None,
             server: None,
@@ -93,55 +85,11 @@ impl DwebService {
         let cloned_stop_handle = stop_handle.clone();
         let client_config = self.client_config.clone();
         self.server = Some(std::thread::spawn(move || {
-            init_dweb_server(port, &client_config, Some(cloned_stop_handle))
+            init_dweb_server(port, &client_config, None, Some(cloned_stop_handle))
         }));
         self.is_started = true;
         self.stop = Some(stop_handle);
     }
-}
-
-#[actix_web::main]
-async fn init_demo_server(
-    port: u16,
-    stop_handle: Option<actix_web::web::Data<StopHandle>>,
-) -> Result<(), std::io::Error> {
-    let http_server = HttpServer::new(move || App::new().service(handle_get).service(handle_spawn))
-        .bind(("127.0.0.1", port));
-
-    match http_server {
-        Ok(server) => {
-            println!("*** Started DwebService listener at 127.0.0.1:{port} ***");
-            let running_server = server.run();
-            if let Some(stop_handle) = stop_handle {
-                stop_handle.register(running_server.handle());
-            }
-            running_server.await
-        }
-        Err(err) => {
-            eprintln!("Unable to start server at http://127.0.0.1:{port}, {err}");
-            Err(err)
-        }
-    }
-}
-
-#[get("/")]
-async fn handle_get(_req: HttpRequest) -> Result<HttpResponse, actix_web::Error> {
-    Ok(HttpResponseBuilder::new(StatusCode::OK).body("Bingo!"))
-}
-
-#[get("/spawn/{port}")]
-async fn handle_spawn(
-    _req: HttpRequest,
-    port: actix_web::web::Path<String>,
-) -> Result<HttpResponse, actix_web::Error> {
-    let port = port.into_inner().parse().unwrap_or(9999);
-    // std::thread::spawn(move || init_demo_server(port, None));
-
-    // TODO inherit client config from main server using Actix data
-    std::thread::spawn(move || init_dweb_server(port, &DwebClientConfig::default(), None));
-
-    let message = format!("Spawed server on port: {port}");
-    Ok(HttpResponseBuilder::new(StatusCode::OK).body(message))
 }
 
 #[derive(Default)]

@@ -21,17 +21,17 @@ pub(crate) mod helpers;
 pub(crate) mod openapi;
 pub(crate) mod www;
 
-use std::io;
 use std::time::Duration;
 
 use actix_web::{dev::Service, middleware::Logger, web, web::Data, App, HttpServer};
+use color_eyre::eyre::eyre;
 use utoipa::OpenApi;
 use utoipa_actix_web::scope::scope;
 use utoipa_actix_web::AppExt;
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::StopHandle;
-use dweb::client::DwebClientConfig;
+use dweb::client::{DwebClient, DwebClientConfig};
 
 pub const CONNECTION_TIMEOUT: u64 = 75;
 
@@ -42,16 +42,28 @@ pub const CONNECTION_TIMEOUT: u64 = 75;
 pub async fn init_dweb_server(
     port: u16,
     client_config: &DwebClientConfig,
+    client: Option<DwebClient>,
     stop_handle: Option<Data<StopHandle>>,
 ) -> Result<(), std::io::Error> {
     let spawn_server = false;
     let is_main_server = !spawn_server;
-    let client = dweb::client::DwebClient::initialise_and_connect(client_config)
-        .await
-        .expect("Failed to connect to Autonomi Network");
+    let client = if client.is_some() {
+        client.unwrap()
+    } else {
+        let mut client_config = client_config.clone();
+        client_config.port = Some(port);
+        match dweb::client::DwebClient::initialise_and_connect(&client_config).await {
+            Ok(client) => client,
+            Err(e) => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "Failed to connect to Autonomi Network",
+                ))
+            }
+        }
+    };
 
     let host = client.host.clone();
-    let port = client.port;
     let server = HttpServer::new(move || {
         App::new()
             .wrap(
@@ -136,11 +148,17 @@ async fn handle_spawn(
     client: Data<dweb::client::DwebClient>,
 ) -> Result<HttpResponse, actix_web::Error> {
     let port = port.into_inner().parse().unwrap_or(9999);
-    // std::thread::spawn(move || init_demo_server(port, None));
 
     let mut client_config = client.client_config.clone();
     client_config.port = Some(port);
-    std::thread::spawn(move || init_dweb_server(port, &client_config, None));
+    std::thread::spawn(move || {
+        init_dweb_server(
+            port,
+            &client_config,
+            Some(client.into_inner().as_ref().clone()),
+            None,
+        )
+    });
 
     let message = format!("Spawed server on port: {port}");
     Ok(HttpResponseBuilder::new(StatusCode::OK).body(message))

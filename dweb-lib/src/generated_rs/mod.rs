@@ -15,5 +15,5 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-pub(crate) mod builtins_local;
-pub(crate) mod builtins_public;
+pub mod builtins_local;
+pub mod builtins_public;

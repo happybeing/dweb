@@ -1,5 +1,5 @@
 /*
-*   Copyright (c) 2025 Mark Hughes
+*   Copyright (c) 2024-2025 Mark Hughes
 
 *   This program is free software: you can redistribute it and/or modify
 *   it under the terms of the GNU Affero General Public License as published by
@@ -14,6 +14,30 @@
 *   You should have received a copy of the GNU Affero General Public License
 *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
+pub mod api;
+pub mod autonomi;
+pub mod cache;
+pub mod client;
+pub mod data;
+pub mod files;
+pub mod helpers;
+pub mod storage;
+pub mod token;
+pub mod trove;
+pub mod types;
+pub mod web;
 
-mod helpers;
-mod services;
+pub fn add(left: u64, right: u64) -> u64 {
+    left + right
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_works() {
+        let result = add(2, 2);
+        assert_eq!(result, 4);
+    }
+}

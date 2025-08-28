@@ -20,10 +20,11 @@ pub mod cache;
 pub mod client;
 pub mod data;
 pub mod files;
+pub mod generated_rs;
 pub mod helpers;
+pub mod history;
 pub mod storage;
 pub mod token;
-pub mod history;
 pub mod types;
 pub mod web;
 

@@ -85,21 +85,3 @@ pub async fn api_dwebname_list() -> impl Responder {
 
     HttpResponse::Ok().body(body)
 }
-
-// Register builtin history addresses so they can be used immediately in browser (and CLI if supported in cli_options.rs)
-pub fn register_builtin_names(is_local: bool) {
-    use dweb::generated_rs::{builtins_local, builtins_public};
-
-    if is_local {
-        let _ = register_name_from_string("awesome", builtins_local::AWESOME_SITE_HISTORY_LOCAL);
-    } else {
-        let _ = register_name_from_string("atlas", "99e3b8df52814b379e216caf797426071000905a2cd93a9f5e90eef2b32517a9ec1ef0bfe27d79360014fd97639ac612");
-        let _ = register_name_from_string("awesome", builtins_public::AWESOME_SITE_HISTORY_PUBLIC);
-        let _ = register_name_from_string("billboard", "b6da6740bc5394f9ac0e6a6fa5a42f7f587d3aeaa48fd23ae9a45bef95b571a32429b0353148aa9e04f17cd6da57d179");
-        let _ = register_name_from_string("friends", "a447871043968be2be1628584026cad30b824009a30eab43db3ee6dd8c0990051c27160cc8d1662da763d57c41c091f6");
-        // Mainnet History is at: a27b3fdb495870ace8f91005223998dc675c8e1bceb50bac66c993bb720a013c9f83d7a46e6d0daecbb3530d5249e587
-        // v1 Archive: 40ea2e530a60645363ae561c8a50c165f79d8a034c4458f68f1b848c11386e45
-        let _ = register_name_from_string("scratchchat", "a27b3fdb495870ace8f91005223998dc675c8e1bceb50bac66c993bb720a013c9f83d7a46e6d0daecbb3530d5249e587");
-        let _ = register_name_from_string("toast", "95be239165b7016b7f6dada20134438e038d0456bff04ec37943e95742726854225aa03faeed4e7bbd96f5383a8f9448");
-    }
-}

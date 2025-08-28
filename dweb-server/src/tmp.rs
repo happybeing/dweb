@@ -15,20 +15,19 @@
 *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-pub mod demo_service; // For Tauri demo app (migrating to here)
-pub mod local_server2; // For Tauri demo app (migrating to here)
-
-mod helpers;
-pub mod services;
-mod web_extras; // TODO remove
-
 use std::thread::JoinHandle;
 
 use actix_web::{dev::ServerHandle, web, Result};
 
 use crate::services::{init_dweb_server, init_dweb_server_blocking};
-use dweb::client::{DwebClient, DwebClientConfig};
+use crate::StopHandle;
+use dweb::client::DwebClientConfig;
 
+#[derive(Debug)]
+pub enum DwebServiceError {
+    NOT_STARTED,
+}
+// TODO move to dweb-server::DwebService
 pub struct DwebService {
     client_config: DwebClientConfig,
     is_started: bool,
@@ -48,13 +47,17 @@ impl DwebService {
         }
     }
 
-    /// Start the main dweb server on the specified port (non-blocking)
-    ///
-    /// This spawns a thread for the server and returns immediately.
-    /// Use this from apps where you need a non-blocking server.
-    ///
-    /// For an example Tauri app using this, see https://codeberg.org:happybeing/dweb-server-tauri-app
-    pub fn start(&mut self, port: u16, dweb_client: Option<DwebClient>) {
+    /// Activate main dweb listener on the specified port
+    pub fn start(&mut self, port: u16) {
+        let dweb_client =
+            match dweb::client::DwebClient::initialise_and_connect(&self.client_config).await {
+                Ok(client) => client,
+                Err(e) => {
+                    println!("Failed to connect to Autonomi Network");
+                    return;
+                }
+            };
+
         if let Some(active_port) = self.port {
             // If already listening at the correct port, we're good
             if active_port == port {
@@ -88,26 +91,14 @@ impl DwebService {
         let cloned_stop_handle = stop_handle.clone();
         let mut client_config = self.client_config.clone();
         client_config.port = Some(port);
-        self.server = Some(std::thread::spawn(move || {
-            init_dweb_server(
-                &client_config,
-                dweb_client,
-                Some(cloned_stop_handle),
-                None,
-                false,
-                false,
-            )
+        self.server = Some(std::thread::spawn(async move || {
+            crate::services::old_serve_with_ports(&DwebClientConfig::default(), None, false, false);
+            Ok(())
         }));
         self.is_started = true;
         self.stop = Some(stop_handle);
     }
 
-    /// Start the main dweb server on the specified port (blocking)
-    ///
-    /// This starts the server and waits for it to exit.
-    /// Use this to run a server where you don't have other threads, such as a CLI
-    ///
-    /// For an example CLI app using this, see https://codeberg.org:happybeing/dweb/dweb-cli
     pub async fn start_blocking(&mut self, port: u16) {
         if let Some(active_port) = self.port {
             // If already listening at the correct port, we're good
@@ -142,8 +133,6 @@ impl DwebService {
         let cloned_stop_handle = stop_handle.clone();
         let mut client_config = self.client_config.clone();
         client_config.port = Some(port);
-        self.is_started = true;
-        self.stop = Some(stop_handle);
         let _ = init_dweb_server_blocking(
             &client_config,
             None,
@@ -153,25 +142,27 @@ impl DwebService {
             true,
         )
         .await;
+        self.is_started = true;
+        self.stop = Some(stop_handle);
     }
 }
 
-#[derive(Default)]
-pub struct StopHandle {
-    inner: parking_lot::Mutex<Option<ServerHandle>>,
-}
+// #[derive(Default)]
+// pub(crate) struct StopHandle {
+//     inner: parking_lot::Mutex<Option<ServerHandle>>,
+// }
 
-impl StopHandle {
-    /// Sets the server handle to stop.
-    pub(crate) fn register(&self, handle: ServerHandle) {
-        *self.inner.lock() = Some(handle);
-    }
+// impl StopHandle {
+//     /// Sets the server handle to stop.
+//     pub(crate) fn register(&self, handle: ServerHandle) {
+//         *self.inner.lock() = Some(handle);
+//     }
 
-    /// Sends stop signal through contained server handle.
-    pub(crate) fn stop(&self, graceful: bool) {
-        if let Some(h) = self.inner.lock().as_ref() {
-            #[allow(clippy::let_underscore_future)]
-            let _ = h.stop(graceful);
-        }
-    }
-}
+//     /// Sends stop signal through contained server handle.
+//     pub(crate) fn stop(&self, graceful: bool) {
+//         if let Some(h) = self.inner.lock().as_ref() {
+//             #[allow(clippy::let_underscore_future)]
+//             let _ = h.stop(graceful);
+//         }
+//     }
+// }

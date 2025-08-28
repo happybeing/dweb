@@ -50,7 +50,6 @@ url = "2.5.4"
 env_logger = "0.11.6"
 futures-util = "0.3.31"
 mime = "0.3.17"
-qstring = "0.7.2"
 open = "5.3.2"
 hex = "0.4.3"
 blsttc = "8.0.2"
@@ -58,10 +57,11 @@ serde = "1.0.219"
 serde_json = "1.0.139"
 actix-web = "4.9.0"
 actix-cors = "0.7.1"
-actix-multipart = "0.7.2"
 utoipa = { version = "5.3.1", features = ["actix_extras", "non_strict_integers"] }
 utoipa-actix-web = "0.1.2"
 utoipa-swagger-ui = { version = "9.0.1", features = ["reqwest", "actix-web"] }
+qstring = "0.7.2"
+actix-multipart = "0.7.2"
 
 # patched
 #utoipa = { path = "../../utoipa-patch/utoipa", features = ["actix_extras", "non_strict_integers"] } # "5.3.1"

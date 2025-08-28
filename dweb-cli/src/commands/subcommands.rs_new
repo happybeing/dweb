@@ -19,7 +19,7 @@ use color_eyre::{eyre::eyre, Report, Result};
 
 use autonomi::AttoTokens;
 
-use dweb::client::{ApiControl, DwebClientConfig};
+use dweb::client::ApiControl;
 use dweb::history::HistoryAddress;
 use dweb::storage::{publish_or_update_files, report_content_published_or_updated};
 use dweb::token::{show_spend_return_value, Spends};
@@ -43,28 +43,17 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
 
     match opt.cmd {
         Some(Subcommands::Serve { host, port }) => {
-            let client_config = DwebClientConfig {
+            let _ = super::server::start_in_foreground(
+                opt.local,
+                opt.alpha,
+                api_control,
                 host,
                 port,
-                api_control,
-                ..DwebClientConfig::default()
-            };
-            let port = client_config.port.unwrap_or(SERVER_PORTS_MAIN_PORT);
-            let mut service = dweb_server::DwebService::new(client_config);
-            service.start_blocking(port).await;
-            // let _ = super::server::start_in_foreground(
-            //     opt.local,
-            //     opt.alpha,
-            //     api_control,
-            //     host,
-            //     port,
-            //     None,
-            // )
-            // .await;
+                None,
+            )
+            .await;
         }
 
-        /// DDDDDD TODO remove this in favour of dweb open openinig a URL and if needed starting a server without returning
-        /// DDDDDD TODO note for imp of service proper https://github.com/jamesgober/proc-daemon
         Some(Subcommands::Server { command }) => match command {
             ServerCommands::Start {
                 host,
@@ -547,7 +536,8 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             };
 
             if print {
-                match main_server_request(host_ref, port, crate::services::openapi::JSON_PATH).await
+                match main_server_request(host_ref, port, dweb_server::services::openapi::JSON_PATH)
+                    .await
                 {
                     Ok(json) => {
                         println!("{json}");
@@ -557,8 +547,11 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                     }
                 }
             } else {
-                let url =
-                    make_main_server_url(host_ref, port, crate::services::openapi::SWAGGER_UI);
+                let url = make_main_server_url(
+                    host_ref,
+                    port,
+                    dweb_server::services::openapi::SWAGGER_UI,
+                );
                 let _ = open::that(url);
             }
             return Ok(true);

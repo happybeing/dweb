@@ -2636,6 +2636,7 @@ name = "dweb-server"
 version = "0.10.9"
 dependencies = [
  "actix-cors",
+ "actix-multipart",
  "actix-web",
  "ant-build-info",
  "ant-logging",
@@ -2664,6 +2665,7 @@ dependencies = [
  "parking_lot",
  "port_check",
  "prettytable",
+ "qstring",
  "rand 0.8.5",
  "regex",
  "reqwest",

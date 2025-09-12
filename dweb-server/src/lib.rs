@@ -26,7 +26,7 @@ use std::thread::JoinHandle;
 
 use actix_web::{dev::ServerHandle, web, Result};
 
-use crate::services::{init_dweb_server, init_dweb_server_blocking};
+use crate::services::{init_dweb_server_blocking, init_dweb_server_non_blocking};
 use dweb::client::{DwebClient, DwebClientConfig};
 
 // Note: some of this code was modelled on the OAuth2PkceService implementation
@@ -92,7 +92,12 @@ impl DwebService {
         let mut client_config = self.client_config.clone();
         client_config.port = Some(port);
         self.server = Some(std::thread::spawn(move || {
-            init_dweb_server(&client_config, dweb_client, Some(cloned_stop_handle), None)
+            init_dweb_server_non_blocking(
+                &client_config,
+                dweb_client,
+                Some(cloned_stop_handle),
+                None,
+            )
         }));
         self.is_started = true;
         self.stop = Some(stop_handle);

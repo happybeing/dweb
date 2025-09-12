@@ -27,7 +27,6 @@ use std::io::Error;
 use std::io::ErrorKind::NotConnected;
 use std::time::Duration;
 
-use actix_web::dev::HttpServiceFactory;
 use actix_web::{dev::Service, middleware::Logger, web, web::Data, App, HttpServer};
 use utoipa::OpenApi;
 use utoipa_actix_web::scope::scope;
@@ -44,15 +43,14 @@ pub const CONNECTION_TIMEOUT: u64 = 75;
 #[cfg(feature = "development")]
 pub const DWEB_SERVICE_DEBUG: &str = "debug-dweb.au";
 
-/// init_dweb_service() may be called as follows:
+/// init_dweb_service_blocking() and init_dweb_service_non_blocking()
 ///
-/// DDDDDD TODO move to lib.rs
-/// DDDDDD TODO review this...
+/// Two init functions are provided below to allow a server to be started as blocking or non-blocking.
 ///
-/// Note: The presence of DirectoryVersionWithPort indicates a server on the port for a directory/website.
+/// Note: Some(directory_version_with_port) indicates a server on the port for a directory/website.
 ///
 /// Via CLI 'dweb serve': start (NOT spawn) the main 'with ports' server on the supplied port with
-///     DirectoryVersionsWithPort as None this server stays alive until killed on the command line. Its job is to:
+///     directory_version_with_port as None this server stays alive until killed on the command line. Its job is to:
 ///       1) respond to /dweb-open URLs (e.g. when opened by 'dweb open') by looking up the directory
 ///     version and if no server is running, call serve_with_ports() to start one before redirecting the link;
 ///       2) manage DirectoryVersionsWithPort servers by killing them when it shuts down and supporting a web API
@@ -64,10 +62,10 @@ pub const DWEB_SERVICE_DEBUG: &str = "debug-dweb.au";
 /// Via any URL handler of a /dweb-open URL, and behave as above to look for a server and if no DirectoryVersionsWithPort
 ///     is found, call serve_with_ports() to spawn a new one. Then redirect the link.
 ///
-// Tweaking for:
-// 1. Simpler flow: leave spawn and blocking outside to be controlled by DwebService::start()
+/// See DwebService::start() for example usage.
+
 #[actix_web::main]
-pub async fn init_dweb_server(
+pub async fn init_dweb_server_non_blocking(
     client_config: &DwebClientConfig,
     dweb_client: Option<DwebClient>,
     stop_handle: Option<Data<StopHandle>>,
@@ -89,7 +87,6 @@ pub async fn init_dweb_server_blocking(
     stop_handle: Option<Data<StopHandle>>,
     directory_version_with_port: Option<DirectoryVersionWithPort>,
 ) -> Result<(), std::io::Error> {
-    println!("DEBUG init_dweb_server_blocking()...");
     let client = if let Some(dweb_client) = dweb_client {
         dweb_client
     } else {

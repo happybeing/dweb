@@ -23,7 +23,7 @@ use dweb::helpers::convert::tuple_from_address_or_name;
 use dweb::web::fetch::response_redirect;
 
 use crate::services::helpers::*;
-use crate::services::init_dweb_server;
+use crate::services::init_dweb_server_non_blocking;
 
 use super::make_error_response_page;
 
@@ -177,7 +177,7 @@ pub async fn handle_dweb_open(
                 let mut client_config = client.client_config.clone();
                 client_config.port = Some(directory_version.port);
                 std::thread::spawn(move || {
-                    let _ = init_dweb_server(
+                    let _ = init_dweb_server_non_blocking(
                         &client_config,
                         Some(client.clone()),
                         None,

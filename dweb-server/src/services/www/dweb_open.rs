@@ -22,11 +22,8 @@ use dweb::cache::directory_with_port::*;
 use dweb::helpers::convert::tuple_from_address_or_name;
 use dweb::web::fetch::response_redirect;
 
-// use crate::demo_service::simple_init_dweb_server as init_dweb_server;
-// use crate::demo_service::tauri_init_dweb_server as init_dweb_server;
-use crate::services::init_dweb_server;
-
 use crate::services::helpers::*;
+use crate::services::init_dweb_server;
 
 use super::make_error_response_page;
 
@@ -60,7 +57,6 @@ pub async fn dweb_open(
     client: Data<dweb::client::DwebClient>,
     our_directory_version: Data<Option<DirectoryVersionWithPort>>,
     is_local_network: Data<bool>,
-    start_blocking: Data<bool>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
 
@@ -82,7 +78,6 @@ pub async fn dweb_open(
         client,
         our_directory_version,
         is_local_network,
-        start_blocking,
         &decoded_params,
     )
     .await
@@ -113,7 +108,6 @@ pub async fn dweb_open_as(
     client: Data<dweb::client::DwebClient>,
     our_directory_version: Data<Option<DirectoryVersionWithPort>>,
     is_local_network: Data<bool>,
-    start_blocking: Data<bool>,
 ) -> HttpResponse {
     println!("DEBUG {}", request.path());
 
@@ -135,7 +129,6 @@ pub async fn dweb_open_as(
         client,
         our_directory_version,
         is_local_network,
-        start_blocking,
         &decoded_params,
     )
     .await
@@ -145,10 +138,11 @@ pub async fn handle_dweb_open(
     request: &HttpRequest,
     client: Data<dweb::client::DwebClient>,
     _our_directory_version: Data<Option<DirectoryVersionWithPort>>,
-    is_local_network: Data<bool>,
-    start_blocking: Data<bool>,
+    _is_local_network: Data<bool>,
     decoded_params: &(Option<u64>, String, String, String),
 ) -> HttpResponse {
+    println!("DEBUG handle_dweb_open()...");
+
     let (version, as_name, address_or_name, remote_path) = decoded_params;
     let version = version.clone();
 
@@ -182,16 +176,12 @@ pub async fn handle_dweb_open(
                 // Not in the cache so spawn a server to handle it
                 let mut client_config = client.client_config.clone();
                 client_config.port = Some(directory_version.port);
-                let start_blocking = **start_blocking;
-                println!("DEBUG handle_dweb_open() NON-BLOCKING...");
                 std::thread::spawn(move || {
                     let _ = init_dweb_server(
                         &client_config,
                         Some(client.clone()),
                         None,
                         Some(directory_version.clone()),
-                        true,
-                        start_blocking,
                     );
                 });
 

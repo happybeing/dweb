@@ -57,8 +57,8 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             service.start_blocking(port).await;
         }
 
-        /// DDDDDD TODO remove this in favour of dweb open openinig a URL and if needed starting a server without returning
-        /// DDDDDD TODO note for imp of service proper https://github.com/jamesgober/proc-daemon
+        /// TODO remove this in favour of dweb open openinig a URL and if needed starting a server without returning
+        /// TODO note for imp of service proper https://github.com/jamesgober/proc-daemon
         Some(Subcommands::Server { command }) => match command {
             ServerCommands::Start {
                 host,

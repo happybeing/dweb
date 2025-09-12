@@ -92,14 +92,7 @@ impl DwebService {
         let mut client_config = self.client_config.clone();
         client_config.port = Some(port);
         self.server = Some(std::thread::spawn(move || {
-            init_dweb_server(
-                &client_config,
-                dweb_client,
-                Some(cloned_stop_handle),
-                None,
-                false,
-                false,
-            )
+            init_dweb_server(&client_config, dweb_client, Some(cloned_stop_handle), None)
         }));
         self.is_started = true;
         self.stop = Some(stop_handle);
@@ -147,15 +140,8 @@ impl DwebService {
         client_config.port = Some(port);
         self.is_started = true;
         self.stop = Some(stop_handle);
-        let _ = init_dweb_server_blocking(
-            &client_config,
-            None,
-            Some(cloned_stop_handle),
-            None,
-            false,
-            true,
-        )
-        .await;
+        let _ =
+            init_dweb_server_blocking(&client_config, None, Some(cloned_stop_handle), None).await;
     }
 }
 

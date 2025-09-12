@@ -72,18 +72,12 @@ pub async fn init_dweb_server(
     dweb_client: Option<DwebClient>,
     stop_handle: Option<Data<StopHandle>>,
     directory_version_with_port: Option<DirectoryVersionWithPort>,
-    // Either spawn a thread for the server and return, or do server.await
-    // DDDDDD TODO remove these...
-    spawn_server: bool,
-    start_blocking: bool,
 ) -> io::Result<()> {
     let _ = init_dweb_server_blocking(
         client_config,
         dweb_client,
         stop_handle,
         directory_version_with_port,
-        spawn_server,
-        start_blocking,
     )
     .await;
     Ok(())
@@ -94,12 +88,8 @@ pub async fn init_dweb_server_blocking(
     dweb_client: Option<DwebClient>,
     stop_handle: Option<Data<StopHandle>>,
     directory_version_with_port: Option<DirectoryVersionWithPort>,
-    // Either spawn a thread for the server and return, or do server.await
-    // DDDDDD TODO remove these...
-    spawn_server: bool,
-    start_blocking: bool,
 ) -> Result<(), std::io::Error> {
-    println!("DDDDDD V1 init_dweb_server()...");
+    println!("DEBUG init_dweb_server_blocking()...");
     let client = if let Some(dweb_client) = dweb_client {
         dweb_client
     } else {
@@ -135,25 +125,6 @@ pub async fn init_dweb_server_blocking(
     let port = client_config.port.unwrap_or(SERVER_PORTS_MAIN_PORT);
     let client = client.clone();
 
-    // let http_server = HttpServer::new(move || App::new().service(handle_get).service(handle_spawn))
-    //     .bind(("127.0.0.1", port));
-
-    // match http_server {
-    //     Ok(server) => {
-    //         println!("*** Started DwebService listener at 127.0.0.1:{port} ***");
-    //         let running_server = server.run();
-    //         if let Some(stop_handle) = stop_handle {
-    //             stop_handle.register(running_server.handle());
-    //         }
-    //         running_server.await
-    //     }
-    //     Err(err) => {
-    //         eprintln!("Unable to start server at http://127.0.0.1:{port}, {err}");
-    //         Err(err)
-    //     }
-    // }
-
-    println!("DDDDDD HttpServer::new()...");
     let server = HttpServer::new(move || {
         App::new()
             .wrap(
@@ -250,13 +221,10 @@ pub async fn init_dweb_server_blocking(
             .app_data(Data::new(history_address.clone()))
             .app_data(Data::new(archive_address.clone()))
             .app_data(Data::new(directory_version_with_port.clone()))
-            .app_data(Data::new(start_blocking))
             .app_data(Data::new(is_main_server))
             .into_app()
     })
     .keep_alive(Duration::from_secs(crate::services::CONNECTION_TIMEOUT));
-
-    println!("DDDDDD HttpServer::new() OK");
 
     let http_server = server.bind((host.clone(), port));
     match http_server {

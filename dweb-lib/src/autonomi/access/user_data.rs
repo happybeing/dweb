@@ -9,13 +9,13 @@
 use std::collections::HashMap;
 
 use autonomi::{
+    Pointer, PointerAddress, Scratchpad, ScratchpadAddress,
     client::{
         files::{archive_private::PrivateArchiveDataMap, archive_public::ArchiveAddress},
         register::RegisterAddress,
         vault::UserData,
     },
     data::DataAddress,
-    PointerAddress, ScratchpadAddress,
 };
 use color_eyre::eyre::Context;
 use color_eyre::eyre::Result;
@@ -30,9 +30,23 @@ struct PrivateFileArchive {
     secret_access: String,
 }
 
+#[derive(Serialize, Deserialize)]
+struct PrivateFile {
+    name: String,
+    secret_access: String,
+}
+
+#[derive(Serialize, Deserialize)]
+struct PublicFile {
+    name: String,
+    data_address: String,
+}
+
 pub fn get_local_user_data() -> Result<UserData> {
     let file_archives = get_local_public_file_archives()?;
     let private_file_archives = get_local_private_file_archives()?;
+    let public_files = get_local_public_files()?;
+    let private_files = get_local_private_files()?;
     let registers = get_local_registers()?;
     let register_key = super::keys::get_register_signing_key()
         .map(|k| k.to_hex())
@@ -51,6 +65,8 @@ pub fn get_local_user_data() -> Result<UserData> {
         register_key,
         scratchpad_key,
         pointer_key,
+        public_files,
+        private_files,
     };
     Ok(user_data)
 }
@@ -86,6 +102,17 @@ pub fn get_local_private_archive_access(local_addr: &str) -> Result<PrivateArchi
     let private_file_archive_access =
         PrivateArchiveDataMap::from_hex(&private_file_archive.secret_access)?;
     Ok(private_file_archive_access)
+}
+
+pub fn get_local_private_file_access(local_addr: &str) -> Result<PrivateArchiveDataMap> {
+    let data_dir = get_client_data_dir_path()?;
+    let user_data_path = data_dir.join("user_data");
+    let private_files_path = user_data_path.join("private_files");
+    let file_path = private_files_path.join(local_addr);
+    let file_content = std::fs::read_to_string(file_path)?;
+    let private_file: PrivateFile = serde_json::from_str(&file_content)?;
+    let private_file_access = PrivateArchiveDataMap::from_hex(&private_file.secret_access)?;
+    Ok(private_file_access)
 }
 
 pub fn get_local_registers() -> Result<HashMap<RegisterAddress, String>> {
@@ -146,6 +173,8 @@ pub fn write_local_user_data(user_data: &UserData) -> Result<()> {
         register_key,
         scratchpad_key,
         pointer_key,
+        public_files,
+        private_files,
     } = user_data;
 
     for (archive, name) in file_archives.iter() {
@@ -154,6 +183,14 @@ pub fn write_local_user_data(user_data: &UserData) -> Result<()> {
 
     for (archive, name) in private_file_archives.iter() {
         write_local_private_file_archive(archive.to_hex(), archive.address(), name)?;
+    }
+
+    for (data_address, name) in public_files.iter() {
+        write_local_public_file(data_address.to_hex(), name)?;
+    }
+
+    for (private_datamap, name) in private_files.iter() {
+        write_local_private_file(private_datamap.to_hex(), private_datamap.address(), name)?;
     }
 
     for (register, name) in register_addresses.iter() {
@@ -223,6 +260,88 @@ pub fn write_local_private_file_archive(
     Ok(())
 }
 
+pub fn write_local_private_file(datamap_hex: String, local_addr: String, name: &str) -> Result<()> {
+    let data_dir = get_client_data_dir_path()?;
+    let user_data_path = data_dir.join("user_data");
+    let private_files_path = user_data_path.join("private_files");
+    std::fs::create_dir_all(&private_files_path)?;
+    let file_name = local_addr;
+    let content = serde_json::to_string(&PrivateFile {
+        name: name.to_string(),
+        secret_access: datamap_hex.to_string(),
+    })?;
+    std::fs::write(private_files_path.join(file_name), content)?;
+    Ok(())
+}
+
+pub fn get_local_private_files() -> Result<HashMap<PrivateArchiveDataMap, String>> {
+    let data_dir = get_client_data_dir_path()?;
+    let user_data_path = data_dir.join("user_data");
+    let private_files_path = user_data_path.join("private_files");
+    let mut files = HashMap::new();
+    if !private_files_path.exists() {
+        return Ok(files);
+    }
+
+    for entry in walkdir::WalkDir::new(private_files_path)
+        .min_depth(1)
+        .max_depth(1)
+    {
+        let entry = entry?;
+        let content = match std::fs::read_to_string(entry.path()) {
+            Ok(content) => content,
+            Err(_) => {
+                continue;
+            }
+        };
+        let private_file: PrivateFile = match serde_json::from_str(&content) {
+            Ok(file) => file,
+            Err(_) => {
+                continue;
+            }
+        };
+        let datamap = PrivateArchiveDataMap::from_hex(&private_file.secret_access)?;
+        files.insert(datamap, private_file.name);
+    }
+    Ok(files)
+}
+
+pub fn write_local_public_file(data_address: String, name: &str) -> Result<()> {
+    let data_dir = get_client_data_dir_path()?;
+    let user_data_path = data_dir.join("user_data");
+    let public_files_path = user_data_path.join("public_files");
+    std::fs::create_dir_all(&public_files_path)?;
+    let file_name = data_address.clone();
+    let content = serde_json::to_string(&PublicFile {
+        name: name.to_string(),
+        data_address,
+    })?;
+    std::fs::write(public_files_path.join(file_name), content)?;
+    Ok(())
+}
+
+pub fn get_local_public_files() -> Result<HashMap<DataAddress, String>> {
+    let data_dir = get_client_data_dir_path()?;
+    let user_data_path = data_dir.join("user_data");
+    let public_files_path = user_data_path.join("public_files");
+    let mut files = HashMap::new();
+    if !public_files_path.exists() {
+        return Ok(files);
+    }
+
+    for entry in walkdir::WalkDir::new(public_files_path)
+        .min_depth(1)
+        .max_depth(1)
+    {
+        let entry = entry?;
+        let content = std::fs::read_to_string(entry.path())?;
+        let public_file: PublicFile = serde_json::from_str(&content)?;
+        let data_address = DataAddress::from_hex(&public_file.data_address)?;
+        files.insert(data_address, public_file.name);
+    }
+    Ok(files)
+}
+
 pub fn write_local_scratchpad(address: ScratchpadAddress, name: &str) -> Result<()> {
     let data_dir = get_client_data_dir_path()?;
     let user_data_path = data_dir.join("user_data");
@@ -277,4 +396,102 @@ pub fn get_local_pointers() -> Result<HashMap<String, String>> {
         pointers.insert(file_name.to_string(), pointer_address);
     }
     Ok(pointers)
+}
+
+/// Write a pointer value to local user data for caching
+pub fn write_local_pointer_value(name: &str, pointer: &Pointer) -> Result<()> {
+    let data_dir = get_client_data_dir_path()?;
+    let user_data_path = data_dir.join("user_data");
+    let pointer_values_path = user_data_path.join("pointer_values");
+    std::fs::create_dir_all(&pointer_values_path)?;
+
+    let filename = format!("{name}.json");
+    let serialized = serde_json::to_string(pointer)?;
+    std::fs::write(pointer_values_path.join(filename), serialized)?;
+    Ok(())
+}
+
+/// Get cached pointer value from local storage
+pub fn get_local_pointer_value(name: &str) -> Result<Pointer> {
+    let data_dir = get_client_data_dir_path()?;
+    let user_data_path = data_dir.join("user_data");
+    let pointer_values_path = user_data_path.join("pointer_values");
+    std::fs::create_dir_all(&pointer_values_path)?;
+
+    let filename = format!("{name}.json");
+    let file_content = std::fs::read_to_string(pointer_values_path.join(filename))?;
+    let pointer: Pointer = serde_json::from_str(&file_content)?;
+    Ok(pointer)
+}
+
+/// Get cached pointer values from local storage
+pub fn get_local_pointer_values() -> Result<std::collections::HashMap<String, Pointer>> {
+    let data_dir = get_client_data_dir_path()?;
+    let user_data_path = data_dir.join("user_data");
+    let pointer_values_path = user_data_path.join("pointer_values");
+    std::fs::create_dir_all(&pointer_values_path)?;
+
+    let mut pointer_values = std::collections::HashMap::new();
+    for entry in walkdir::WalkDir::new(pointer_values_path)
+        .min_depth(1)
+        .max_depth(1)
+    {
+        let entry = entry?;
+        let file_name = entry.file_name().to_string_lossy();
+        let name = file_name.strip_suffix(".json").unwrap_or(&file_name);
+        let file_content = std::fs::read_to_string(entry.path())?;
+        if let Ok(pointer) = serde_json::from_str::<Pointer>(&file_content) {
+            pointer_values.insert(name.to_string(), pointer);
+        }
+    }
+    Ok(pointer_values)
+}
+
+/// Write a scratchpad value to local user data for caching
+pub fn write_local_scratchpad_value(name: &str, scratchpad: &Scratchpad) -> Result<()> {
+    let data_dir = get_client_data_dir_path()?;
+    let user_data_path = data_dir.join("user_data");
+    let scratchpad_values_path = user_data_path.join("scratchpad_values");
+    std::fs::create_dir_all(&scratchpad_values_path)?;
+
+    let filename = format!("{name}.json");
+    let serialized = serde_json::to_string(scratchpad)?;
+    std::fs::write(scratchpad_values_path.join(filename), serialized)?;
+    Ok(())
+}
+
+/// Get cached scratchpad value from local storage
+pub fn get_local_scratchpad_value(name: &str) -> Result<Scratchpad> {
+    let data_dir = get_client_data_dir_path()?;
+    let user_data_path = data_dir.join("user_data");
+    let scratchpad_values_path = user_data_path.join("scratchpad_values");
+    std::fs::create_dir_all(&scratchpad_values_path)?;
+
+    let filename = format!("{name}.json");
+    let file_content = std::fs::read_to_string(scratchpad_values_path.join(filename))?;
+    let scratchpad: Scratchpad = serde_json::from_str(&file_content)?;
+    Ok(scratchpad)
+}
+
+/// Get cached scratchpad values from local storage
+pub fn get_local_scratchpad_values() -> Result<std::collections::HashMap<String, Scratchpad>> {
+    let data_dir = get_client_data_dir_path()?;
+    let user_data_path = data_dir.join("user_data");
+    let scratchpad_values_path = user_data_path.join("scratchpad_values");
+    std::fs::create_dir_all(&scratchpad_values_path)?;
+
+    let mut scratchpad_values = std::collections::HashMap::new();
+    for entry in walkdir::WalkDir::new(scratchpad_values_path)
+        .min_depth(1)
+        .max_depth(1)
+    {
+        let entry = entry?;
+        let file_name = entry.file_name().to_string_lossy();
+        let name = file_name.strip_suffix(".json").unwrap_or(&file_name);
+        let file_content = std::fs::read_to_string(entry.path())?;
+        if let Ok(scratchpad) = serde_json::from_str::<Scratchpad>(&file_content) {
+            scratchpad_values.insert(name.to_string(), scratchpad);
+        }
+    }
+    Ok(scratchpad_values)
 }

@@ -15,8 +15,8 @@
 *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-pub mod demo_service; // For Tauri demo app (migrating to here)
-pub mod local_server2; // For Tauri demo app (migrating to here)
+// pub mod demo_service; // For Tauri demo app (migrating to here)
+// pub mod local_server2; // For Tauri demo app (migrating to here)
 
 mod helpers;
 pub mod services;
@@ -29,6 +29,9 @@ use actix_web::{dev::ServerHandle, web, Result};
 use crate::services::{init_dweb_server, init_dweb_server_blocking};
 use dweb::client::{DwebClient, DwebClientConfig};
 
+// Note: some of this code was modelled on the OAuth2PkceService implementation
+// in https://github.com/apicize/app/blob/64ca56852aea48032f8125a674f6af47eb56f9a4/app/src-tauri/src/pkce.rs#L240
+// The StopHandle feature been left in place in case they are wanted later, but is not yet used by dweb.
 pub struct DwebService {
     client_config: DwebClientConfig,
     is_started: bool,

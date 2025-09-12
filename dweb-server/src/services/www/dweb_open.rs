@@ -25,9 +25,8 @@ use dweb::web::fetch::response_redirect;
 // use crate::demo_service::simple_init_dweb_server as init_dweb_server;
 // use crate::demo_service::tauri_init_dweb_server as init_dweb_server;
 use crate::services::init_dweb_server;
-use crate::DwebService;
 
-use crate::services::{helpers::*, old_serve_with_ports};
+use crate::services::helpers::*;
 
 use super::make_error_response_page;
 
@@ -184,59 +183,17 @@ pub async fn handle_dweb_open(
                 let mut client_config = client.client_config.clone();
                 client_config.port = Some(directory_version.port);
                 let start_blocking = **start_blocking;
-                if false {
-                    //start_blocking {
-                    // println!("DDDDDD handle_dweb_open() BLOCKING...");
-                    // match init_dweb_server(
-                    //     &client_config,
-                    //     Some(client.clone()),
-                    //     None,
-                    //     Some(directory_version.clone()),
-                    //     true,
-                    //     start_blocking,
-                    // ) {
-                    //     Ok(_) => (),
-                    //     Err(e) => {
-                    //         return make_error_response_page(
-                    //             None,
-                    //             &mut HttpResponse::BadGateway(),
-                    //             "/dweb-open error".to_string(),
-                    //             &format!("{e}. Address: {address_or_name}"),
-                    //         )
-                    //     }
-                    // };
-                } else {
-                    println!("DDDDDD handle_dweb_open() NON-BLOCKING...");
-                    std::thread::spawn(move || {
-                        // tauri_init_dweb_server(&client_config, None, None, None, false, false)
-                        let _ = init_dweb_server(
-                            &client_config,
-                            Some(client.clone()),
-                            None,
-                            Some(directory_version.clone()),
-                            true,
-                            start_blocking,
-                        );
-                    });
-                    // match init_dweb_server(
-                    //     &client_config,
-                    //     Some(client.clone()),
-                    //     None,
-                    //     Some(directory_version.clone()),
-                    //     true,
-                    //     start_blocking,
-                    // ) {
-                    //     Ok(_) => (),
-                    //     Err(e) => {
-                    //         return make_error_response_page(
-                    //             None,
-                    //             &mut HttpResponse::BadGateway(),
-                    //             "/dweb-open error".to_string(),
-                    //             &format!("{e}. Address: {address_or_name}"),
-                    //         )
-                    //     }
-                    // };
-                }
+                println!("DEBUG handle_dweb_open() NON-BLOCKING...");
+                std::thread::spawn(move || {
+                    let _ = init_dweb_server(
+                        &client_config,
+                        Some(client.clone()),
+                        None,
+                        Some(directory_version.clone()),
+                        true,
+                        start_blocking,
+                    );
+                });
 
                 // Register a valid 'as_name' unless:
                 // - the as_name given is AS_NAME_NONE ('anonymous')

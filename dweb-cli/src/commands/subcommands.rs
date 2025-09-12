@@ -49,18 +49,12 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                 api_control,
                 ..DwebClientConfig::default()
             };
+            // Make builtin names such as 'awesome' available (in addition to opening xor addresses)
+            dweb::web::name::register_builtin_names(false);
+
             let port = client_config.port.unwrap_or(SERVER_PORTS_MAIN_PORT);
             let mut service = dweb_server::DwebService::new(client_config);
             service.start_blocking(port).await;
-            // let _ = super::server::start_in_foreground(
-            //     opt.local,
-            //     opt.alpha,
-            //     api_control,
-            //     host,
-            //     port,
-            //     None,
-            // )
-            // .await;
         }
 
         /// DDDDDD TODO remove this in favour of dweb open openinig a URL and if needed starting a server without returning

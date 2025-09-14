@@ -103,30 +103,15 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             remote_path,
             host,
             port,
-            experimental,
         }) => {
-            if !experimental {
-                crate::commands::cmd_browse::handle_browse_with_ports(
-                    &address_name_or_link,
-                    version,
-                    as_name,
-                    remote_path,
-                    host,
-                    port,
-                );
-            } else {
-                let default_host = dweb::web::DWEB_SERVICE_API.to_string();
-                let host = host.unwrap_or(default_host);
-                let port = port.unwrap_or(SERVER_HOSTS_MAIN_PORT);
-                crate::commands::cmd_browse::handle_browse_with_ports(
-                    &address_name_or_link,
-                    version,
-                    as_name,
-                    remote_path,
-                    Some(host),
-                    Some(port),
-                );
-            }
+            crate::commands::cmd_browse::handle_browse_with_ports(
+                &address_name_or_link,
+                version,
+                as_name,
+                remote_path,
+                host,
+                port,
+            );
         }
 
         Some(Subcommands::Name {
@@ -134,63 +119,30 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             history_address,
             host,
             port,
-            experimental,
         }) => {
-            if !experimental {
-                let default_host = LOCALHOST_STR.to_string();
-                let host = host.unwrap_or(default_host);
-                let port = port.unwrap_or(SERVER_PORTS_MAIN_PORT);
-                match crate::commands::cmd_name::handle_name_register(
-                    dweb_name,
-                    history_address,
-                    Some(&host),
-                    Some(port),
-                )
-                .await
-                {
-                    Ok(_) => (),
-                    Err(_) => (),
-                };
-            } else {
-                let default_host = dweb::web::DWEB_SERVICE_API.to_string();
-                let host = host.unwrap_or(default_host);
-                let port = port.unwrap_or(SERVER_HOSTS_MAIN_PORT);
-                match crate::commands::cmd_name::handle_name_register(
-                    dweb_name,
-                    history_address,
-                    Some(&host),
-                    Some(port),
-                )
-                .await
-                {
-                    Ok(_) => (),
-                    Err(_) => (),
-                };
-            }
+            let default_host = LOCALHOST_STR.to_string();
+            let host = host.unwrap_or(default_host);
+            let port = port.unwrap_or(SERVER_PORTS_MAIN_PORT);
+            match crate::commands::cmd_name::handle_name_register(
+                dweb_name,
+                history_address,
+                Some(&host),
+                Some(port),
+            )
+            .await
+            {
+                Ok(_) => (),
+                Err(_) => (),
+            };
         }
 
-        Some(Subcommands::List_names {
-            experimental,
-            host,
-            port,
-        }) => {
-            if !experimental {
-                let default_host = LOCALHOST_STR.to_string();
-                let host = host.unwrap_or(default_host);
-                let port = port.unwrap_or(SERVER_PORTS_MAIN_PORT);
-                match crate::commands::cmd_name::handle_list_names(Some(&host), Some(port)).await {
-                    Ok(_) => (),
-                    Err(_) => (),
-                }
-            } else {
-                let default_host = dweb::web::DWEB_SERVICE_API.to_string();
-                let host = host.unwrap_or(default_host);
-                let port = port.unwrap_or(SERVER_HOSTS_MAIN_PORT);
-                println!("host: {host} port: {port}");
-                match crate::commands::cmd_name::handle_list_names(Some(&host), Some(port)).await {
-                    Ok(_) => (),
-                    Err(_) => (),
-                };
+        Some(Subcommands::List_names { host, port }) => {
+            let default_host = LOCALHOST_STR.to_string();
+            let host = host.unwrap_or(default_host);
+            let port = port.unwrap_or(SERVER_PORTS_MAIN_PORT);
+            match crate::commands::cmd_name::handle_list_names(Some(&host), Some(port)).await {
+                Ok(_) => (),
+                Err(_) => (),
             }
         }
 

@@ -18,49 +18,13 @@
 use std::u16;
 
 use dweb::cache::spawn::is_main_server_with_ports_running;
-use dweb::web::{DWEB_SERVICE_API, LOCALHOST_STR};
-
-/// Open a browser to view a website on Autonomi.
-///
-/// A 'with hosts' server must be running and a local DNS has been set up.
-/// (Start the server with 'dweb serve --experimental')
-//
-// TODO support --register-as?
-pub(crate) fn handle_browse_with_hosts(
-    _dweb_name: Option<String>,
-    address_name_or_link: &String,
-    version: Option<u64>,
-    remote_path: Option<String>,
-    host: Option<&String>,
-    port: Option<u16>,
-) {
-    let default_host = DWEB_SERVICE_API.to_string();
-    let host = host.unwrap_or(&default_host);
-    let port = port.unwrap_or(dweb::web::SERVER_HOSTS_MAIN_PORT);
-    let version = if version.is_some() {
-        &format!("{}", version.unwrap())
-    } else {
-        ""
-    };
-    let mut remote_path = remote_path.unwrap_or(String::from(""));
-    if !remote_path.is_empty() && !remote_path.starts_with("/") {
-        remote_path = format!("/{remote_path}");
-    }
-
-    // open a browser on a localhost URL at that port
-    let route = format!("/dweb-open/v{version}/{address_name_or_link}/{remote_path}");
-
-    let url = format!("http://{host}:{port}{route}");
-    println!("DEBUG url: {url}");
-
-    let _ = open::that(url);
-}
+use dweb::web::LOCALHOST_STR;
 
 /// Open a browser to view a website on Autonomi.
 /// Requires a 'dweb serve' to be running which avoids the need for a local DNS to have been set up.
 /// Note: the serve spawns a dedicated server per directory/website being accessed, so ports will run out if the servers are never killed.
 //
-// TODO support --register-as or leave that only for --experimental?
+// TODO support --register-as
 pub(crate) fn handle_browse_with_ports(
     address_name_or_link: &String,
     version: Option<u64>,

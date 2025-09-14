@@ -186,7 +186,6 @@ pub async fn handle_dweb_open(
                 // - the address was an Archive
                 if !as_name.is_empty() && as_name != AS_NAME_NONE {
                     if let Some(history_address) = directory_version.history_address {
-                        // Using default port here means this won't work for '--experimental'
                         let _ = name_register(&as_name, history_address, None, None).await;
                     }
                 };

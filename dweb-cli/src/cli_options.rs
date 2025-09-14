@@ -211,12 +211,6 @@ pub enum Subcommands {
         /// This is only needed when not using defaults, so hidden to de-clutter the CLI help
         #[clap(hide = true, long, value_name = "PORT", value_parser = parse_port_number)]
         port: Option<u16>,
-        /// Use the 'with hosts' server rather than the ports based server. May need to use --port to select
-        /// the relevant port for that server (e.g. --port 8081).
-        ///
-        /// Assumes the server was started with '--experimental' and that a local DNS has been set up.
-        #[clap(hide = true, long, default_value = "false")]
-        experimental: bool,
         /// Register a name for the website being opened
         #[clap(long = "as-name", short = 'a', value_name = "DWEB-NAME", value_parser = validate_dweb_name)]
         as_name: Option<String>,
@@ -248,12 +242,6 @@ pub enum Subcommands {
         /// This is only needed when not using defaults, so hidden to de-clutter the CLI help
         #[clap(hide = true, long, value_name = "PORT", value_parser = parse_port_number)]
         port: Option<u16>,
-        /// Use the 'with hosts' server rather than the ports based server. May need to use --port to select
-        /// the relevant port for that server (e.g. --port 8081).
-        ///
-        /// Assumes the server was started with '--experimental' and that a local DNS has been set up.
-        #[clap(hide = true, long, default_value = "false")]
-        experimental: bool,
     },
 
     /// List all names currently recognised by the dweb server (requires 'dweb serve' running)
@@ -267,12 +255,6 @@ pub enum Subcommands {
         /// This is only needed when not using defaults, so hidden to de-clutter the CLI help
         #[clap(hide = true, long, value_name = "PORT", value_parser = parse_port_number)]
         port: Option<u16>,
-        /// Use the 'with hosts' server rather than the ports based server. May need to use --port to select
-        /// the relevant port for that server (e.g. --port 8081).
-        ///
-        /// Assumes the server was started with '--experimental' and that a local DNS has been set up.
-        #[clap(hide = true, long, default_value = "false")]
-        experimental: bool,
     },
 
     // TODO add an example or two to each command section

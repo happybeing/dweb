@@ -19,9 +19,7 @@ Web apps are easy and quick to build:
 You can use any **static site generator** that does what you need.
 
 ### Status
-**IMPORTANT:** **dweb** and **Autonomi** are at an early stage so regard this as experimental (pre-alpha). Everything here works on a local test network and can be used to try things out or begin building web apps for Autonomi.
-
-Note: instructions below have been written for the public network, so be aware that most things only work on a test network for now. Some have had success publishing on the Autonomi public network, but it will be much easier to begin with a local testnet. To start a local testnet see [Test your App](#test-your-app).
+**IMPORTANT:** **dweb** and **Autonomi** are at an early stage so regard this as experimental / alpha. This is ready for play and for early adoption, and to help those wanting to create websites and web apps on the Autonomi network.
 
 ### Quickstart dweb Browsing
 If you have Rust installed you can view websites live on Autonomi in two steps:

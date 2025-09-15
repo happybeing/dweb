@@ -3,14 +3,16 @@ The **dweb-server** library allows Rust apps to incorporate a REST server into t
 
 - Capabilities and roadmap: see the features section of the **dweb-cli** [README.md](https://codeberg.org/happybeing/dweb/src/branch/main/dweb-cli#current-features-and-future-plans).
 
-- Add dweb to your Rust project:
+- Add dweb-server to your Rust project:
 
   ```
     cargo add dweb-server
   ```
 
-### Status: proof of concept
-This library contains only a minimal REST API to demonstrate the capability in combination with Tauri app which uses it:
+Example apps using this library:
+- [dweb-cli](https://codeberg.org/happybeing/dweb/src/branch/main/dweb-cli): the dweb command line interface which includes commands which start the server. See 'dweb' and 'dweb open'
+- [dweb-server-tauri-app](https://codeberg.org/happybeing/dweb-server-tauri-app): a Tauri app which supports opening websites on Autonomi
+
 
 ## Contributions
 Contributions under the AGPL3.0 license are welcome and any contributions or PRs submitted will be assumed to be offered under that license unless clearly and prominently specified otherwise. Any contributions are accepted on the condition they conform to that license and the following conditions:

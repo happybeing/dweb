@@ -11,7 +11,12 @@
     cargo add dweb
   ```
 
-### Status
+## dweb REST services
+
+If you wish to include the dweb REST services in your app, see the module:
+- [dweb-server](https://codeberg.org/happybeing/dweb/src/branch/main/dweb-server): a Rust crate for embedding dweb web browsing in a command line app or a Tauri app
+
+## Status
 The dweb library is a work in progress so expect breaking changes expecially in newly added features. The web publishing format and command line interface are more stable but breaking changes are still possible.
 
 ## Contributions

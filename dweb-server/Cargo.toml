@@ -42,7 +42,7 @@ evmlib = { version = "0.4.3" }
 #ant-logging = { version = "0.2.51" }
 #evmlib = { version = "0.4.2" }
 
-dweb = { path = "../dweb-lib", version = "0.11.0", features = ["development"]}
+dweb = { version = "0.11.0", features = ["development"]}
 
 ## Everything else
 actix-cors = "0.7.1"

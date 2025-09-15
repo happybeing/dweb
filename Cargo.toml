@@ -9,6 +9,10 @@ description = "Decentralised web and storage crates for Autonomi"
 license = "AGPL-3.0"
 repository = "https://codeberg.org/happybeing/dweb"
 
+[workspace.dependencies]
+dweb = "./dweb-lib"
+dweb-sever = "./dweb-server"
+
 [workspace.lints.rust]
 arithmetic_overflow = "forbid"
 mutable_transmutes = "forbid"

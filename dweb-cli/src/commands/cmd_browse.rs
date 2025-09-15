@@ -17,32 +17,24 @@
 
 use std::u16;
 
-use dweb::cache::spawn::is_main_server_with_ports_running;
+use dweb::client::DwebClientConfig;
 use dweb::web::LOCALHOST_STR;
 
-/// Open a browser to view a website on Autonomi.
-/// Requires a 'dweb serve' to be running which avoids the need for a local DNS to have been set up.
-/// Note: the serve spawns a dedicated server per directory/website being accessed, so ports will run out if the servers are never killed.
-//
+/// Open a browser to view a website on Autonomi. Assumes a dweb server is running
+///
+/// Note: the server will spawn a dedicated server per directory/website being accessed, so ports will
+/// run out if the servers are never killed.
+
 // TODO support --register-as
-pub(crate) fn handle_browse_with_ports(
+pub(crate) fn dweb_create_and_open_url(
     address_name_or_link: &String,
     version: Option<u64>,
     as_name: Option<String>,
     remote_path: Option<String>,
-    host: Option<String>,
-    port: Option<u16>,
+    host: String,
+    port: u16,
 ) {
-    if !is_main_server_with_ports_running() {
-        println!("Please  start the dweb server before using 'dweb open'");
-        println!("For help, type 'dweb serve --help");
-        return;
-    }
-
-    // If the main server is running it will handle the URL and spawn a new server one is not already running
-
-    let host = host.unwrap_or(LOCALHOST_STR.to_string());
-    let port = port.unwrap_or(dweb::web::SERVER_PORTS_MAIN_PORT);
+    println!("DEBUG dweb_create_and_open_url()...");
     let version = if version.is_some() {
         &format!("{}", version.unwrap())
     } else {
@@ -63,4 +55,55 @@ pub(crate) fn handle_browse_with_ports(
     println!("DEBUG url: {url}");
 
     let _ = open::that(url);
+}
+
+pub(crate) async fn open_in_browser(
+    address_name_or_link: &String,
+    version: Option<u64>,
+    as_name: Option<String>,
+    remote_path: Option<String>,
+    client_config: Option<DwebClientConfig>,
+) {
+    println!("DEBUG open_in_browser()...");
+    let mut client_config = if let Some(client_config) = client_config {
+        client_config
+    } else {
+        DwebClientConfig::default()
+    };
+
+    let host = client_config.host.unwrap_or(LOCALHOST_STR.to_string());
+    let port = client_config
+        .port
+        .unwrap_or(dweb::web::SERVER_PORTS_MAIN_PORT);
+
+    client_config.host = Some(host.clone());
+    client_config.port = Some(port);
+
+    // Open the URL in the browser
+    dweb_create_and_open_url(
+        &address_name_or_link,
+        version,
+        as_name,
+        remote_path,
+        host.clone(),
+        port,
+    );
+
+    // Check if there's a dweb server to handle it
+    let is_dweb_server_running = if !port_check::is_local_ipv4_port_free(port) {
+        // The port is in use
+        // TODO check if it is a dweb server (but for now assume it is)
+        true
+    } else {
+        false
+    };
+
+    if !is_dweb_server_running {
+        // Make builtin names such as 'awesome' available (in addition to opening xor addresses)
+        dweb::web::name::register_builtin_names(false);
+
+        println!("Starting main dweb server at {host}:{port}...");
+        let mut service = dweb_server::DwebService::new(client_config);
+        service.start_blocking(port).await;
+    }
 }

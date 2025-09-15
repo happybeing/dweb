@@ -62,6 +62,7 @@ utoipa-actix-web = "0.1.2"
 utoipa-swagger-ui = { version = "9.0.1", features = ["reqwest", "actix-web"] }
 qstring = "0.7.2"
 actix-multipart = "0.7.2"
+port_check = "0.3.0"
 
 # patched
 #utoipa = { path = "../../utoipa-patch/utoipa", features = ["actix_extras", "non_strict_integers"] } # "5.3.1"

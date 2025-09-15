@@ -1,34 +1,54 @@
 # dweb
-**dweb** is both an app for the Autonomi peer-to-peer network and a Rust library for others wanting to build decentralised web, desktop and command line applications.
+**dweb** is a project for publishing and browsing of websites and dynamic web apps in a standard browser on the Autonomi peer-to-peer network. It includes:
+- [dweb-cli](https://codeberg.org/happybeing/dweb/src/branch/main/dweb-cli): a command line app for opening and publishing websites, as well as utility features
+- [dweb-server](https://codeberg.org/happybeing/dweb/src/branch/main/dweb-server): a Rust library for embedding dweb features and REST server in desktop and mobile apps including Tauri apps. This enables the user to use the app, and access websites and other websites without installing dweb separately
+- [dweb-lib](https://codeberg.org/happybeing/dweb/src/branch/main/dweb-lib): a Rust crate containing core dweb features
 
-If you have Rust installed you can take a look at the early dweb right now:
-```
-cargo install --locked dweb-cli
-dweb open awesome
-```
-
-This is an active project with lots of ideas and potential, but already supports publishing and viewing decentralised websites without the need to setup hosting or domains, where every version of every website will be available for the lifetime of the Autonomi network.
+In addition, [dweb-server-tauri-app](https://codeberg.org/happybeing/dweb-server-tauri-app) shows how to embed the dweb-server in a Tauri app:
 
 **dweb's** capabilities and roadmap are described in the features section of the **dweb-cli** [README.md](https://github.com/happybeing/dweb/tree/main/dweb-cli/README.md#Features).
 
+This is an active project with lots of ideas and potential, but already supports publishing and viewing decentralised websites without the need to setup hosting or domains, where every version of every website will be available for the lifetime of the Autonomi network.
+
+You can 'Get dweb' either by installing Rust or downloading `dweb` for Windows, Mac OS and Linux.
+
+Bug reports and a note for developers: feature requests and issues should be opened on Codeberg [here](https://codeberg.org/happybeing/dweb/issues). The github repository is a mirror, only used to build releases.
+
+## Get dweb
+You can download the latest binaries Windows, MacOS and Linux from [here](https://github.com/happybeing/dweb/releases).
+
+Or you can install using Rust:
+```
+cargo install dweb-cli
+```
+Notes:
+- If you don't yet have Rust see [Get Rust](#get-rust)
+- If `cargo install dweb-cli` fails, try `cargo install --locked dweb-cli`
+
+
 ## Command Line Usage
-To get the **dweb** command line app and view a website live on Autonomi:
+To browse websites on Autonomi, you can open a default website (awesome) like this:
 ```
-cargo install --locked dweb-cli
-dweb open awesome
+dweb
 ```
-After installing dweb this will open your web browser to show a website stored on Autonomi which contains links to other websites also on Autonomi. If you don't yet have Rust see [Get Rust](#get-rust).
+Notes:
+- When the browser opens it reports an error but the page will load after the server has fetched the default website (awesome) from Autonomi.
 
-In time, to avoid the need to install Rust, downloads will be made available for Windows, Mac OS and Linux.
-
-## Library Usage
-Browse the features of dweb on [docs.rs](https://docs.rs/dweb/latest/dweb/) and add dweb to your Rust project as normal with:
-
+dweb has many subcommands which you can view using `dweb --help`. Here's one which let's you go directly to a particular website:
 ```
-cargo add dweb
+dweb open gameboy
 ```
-### Status
+You can provide the address of a website on Autonomi (as a long hexadecimal string) or for some sites, a name such as 'awesome' or 'friends'.
+
+To see the list of website names available:
+```
+dweb list-names
+```
+
+## Status and Documentation
 The dweb library is a work in progress so expect breaking changes expecially in newly added features. The web publishing format and command line interface are more stable but breaking changes are still possible.
+
+Each module contains its own README but the dweb-cli README (see [Contents](https://codeberg.org/happybeing/dweb/src/branch/main/dweb-cli#contents)) provides the most comprehensive documentation at the present time, including a roadmap of possible features. Requests, feedback and bug reports are welcome - please open an issues on Codeberg [here](https://codeberg.org/happybeing/dweb/issues).
 
 ## Contributing
 Contributions under the AGPL3.0 license are welcome and any contributions or PRs submitted will be assumed to be offered under that license unless clearly and prominently specified otherwise.

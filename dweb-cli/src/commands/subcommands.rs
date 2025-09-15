@@ -24,7 +24,7 @@ use dweb::history::HistoryAddress;
 use dweb::storage::{publish_or_update_files, report_content_published_or_updated};
 use dweb::token::{show_spend_return_value, Spends};
 use dweb::web::request::{main_server_request, make_main_server_url};
-use dweb::web::{LOCALHOST_STR, SERVER_HOSTS_MAIN_PORT, SERVER_PORTS_MAIN_PORT};
+use dweb::web::{LOCALHOST_STR, SERVER_PORTS_MAIN_PORT};
 
 use crate::cli_options::{Opt, ServerCommands, Subcommands};
 use crate::commands::server::connect_and_announce;
@@ -57,8 +57,8 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             service.start_blocking(port).await;
         }
 
-        /// TODO remove this in favour of dweb open openinig a URL and if needed starting a server without returning
-        /// TODO note for imp of service proper https://github.com/jamesgober/proc-daemon
+        // TODO remove this in favour of dweb open openinig a URL and if needed starting a server without returning
+        // TODO note for imp of service proper https://github.com/jamesgober/proc-daemon
         Some(Subcommands::Server { command }) => match command {
             ServerCommands::Start {
                 host,
@@ -104,14 +104,21 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             host,
             port,
         }) => {
-            crate::commands::cmd_browse::handle_browse_with_ports(
+            let client_config = DwebClientConfig {
+                host,
+                port,
+                api_control,
+                ..DwebClientConfig::default()
+            };
+
+            crate::commands::cmd_browse::open_in_browser(
                 &address_name_or_link,
                 version,
                 as_name,
                 remote_path,
-                host,
-                port,
-            );
+                Some(client_config),
+            )
+            .await;
         }
 
         Some(Subcommands::Name {
@@ -512,8 +519,20 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
 
         // Default is not to return, but open the browser by continuing
         None {} => {
-            println!("No command provided, try 'dweb --help'");
-            return Ok(false); // Command not yet complete, is the signal to start browser
+            let client_config = DwebClientConfig {
+                api_control,
+                ..DwebClientConfig::default()
+            };
+
+            println!("Opening browser,please wait while website is loaded from Autonomi...");
+            crate::commands::cmd_browse::open_in_browser(
+                &String::from("awesome"),
+                None,
+                None,
+                None,
+                Some(client_config),
+            )
+            .await;
         }
     }
     Ok(true)

@@ -18,6 +18,8 @@ Web apps are easy and quick to build:
 
 You can use any **static site generator** that does what you need.
 
+Bug reports and a note for developers: feature requests and issues should be opened on Codeberg [here](https://codeberg.org/happybeing/dweb/issues). The github repository is a mirror, only used to build releases.
+
 ### Status
 **IMPORTANT:** **dweb** and **Autonomi** are at an early stage so regard this as experimental / alpha. This is ready for play and for early adoption, and to help those wanting to create websites and web apps on the Autonomi network.
 
@@ -25,12 +27,9 @@ You can use any **static site generator** that does what you need.
 If you have Rust installed you can view websites live on Autonomi in two steps:
 ```
 cargo install dweb-cli
-dweb serve
-
-# And in a different terminal
-dweb open awesome
+dweb
 ```
-The above opens your browser and loads a website from Autonomi containing links to other sites you can view. Just a taste of things to come. More demo sites are welcome, and will be included to help people get started on the dweb.
+The above opens your browser (which will show an error until the server responds) and then will loads a website from Autonomi. This is a default website called 'awesome' which contains links to other websites and dynamic websites.
 
 ## Contents
 - [Browse the DWeb](#browse-the-dweb)
@@ -43,24 +42,40 @@ The above opens your browser and loads a website from Autonomi containing links 
 
 ## Browse the dweb
 
+- [Get dweb](#get-dweb)
 - [Get Rust](#get-rust)
 - [Install dweb-cli](#install-dweb-cli)
 - [Browse websites on Autonomi](#browse-websites-on-autonomi)
 - [Advanced Browsing](#advanced-browsing)
 
+### Get dweb
+You can download the latest binaries for Windows, MacOS and Linux from [here](https://github.com/happybeing/dweb/releases).
+
+Or you can install using Rust:
+```
+cargo install dweb-cli
+```
+Notes:
+- If you don't yet have Rust see [Get Rust](#get-rust)
+- If `cargo install dweb-cli` fails, try `cargo install --locked dweb-cli`
+
+
 ### Get Rust
 
-In time, downloads will be provided to avoid the need to install Rust, but until then:
+You only need to have Rust if you want to install dweb using `cargo`. To get Rust:
 
 - **MacOS and Linux:** use `rustup` as explained here: [Install Rust](https://www.rust-lang.org/tools/install)
 
 - **Windows users:** visit [Install Rust](https://www.rust-lang.org/tools/install) and see "Other Installation Methods" link on that page. For most Windows users I suggest scrolling down to find the first `x86_64-pc-windows-msvc` link and click on that.
 
 ### Install dweb-cli
+If you have Rust and don't want to download the dweb binary:
 ```
 cargo install dweb-cli
 ```
-Note: when installing dweb on Ubuntu, you may encounter missing openssl libraries. Do a `sudo apt update` and then `sudo apt install librust-openssl-dev`, and finally restart the dweb install.
+Notes:
+- If `cargo install dweb-cli` fails, try `cargo install --locked dweb-cli`
+- When installing dweb on Ubuntu, you may encounter missing openssl libraries. Do a `sudo apt update` and then `sudo apt install librust-openssl-dev`, and finally restart the dweb install
 
 Once you have `dweb` installed you'll be able to find other websites and apps in the **awesome index** with `dweb open awesome`.
 
@@ -70,13 +85,26 @@ dweb help
 ```
 
 ### Browse websites on Autonomi
-To browse the dweb, first start the server. This only needs to be done once until you reboot or shut it down:
+To start browsing you only need to type:
 ```
-dweb serve
+dweb
 ```
-Until you know some websites on Autonomi you can start at the *dweb-awesome-links* website which contains links to websites built by the community. Type:
+Notes:
+- When the browser opens it reports an error but the page will load after the server has fetched the default website (awesome) from Autonomi
+- It takes a while to load, but your browser will open 'awesome', a website with links to other websites and dynamic apps you can try
+- The above will start a dweb server automatically, but you can also use the `dweb serve` command in a separate terminal (see `dweb --help`)
+
+All this activity is end-to-end encrypted even though it is using a standard browser.
+
+dweb has many subcommands which you can view using `dweb --help`. Here's one which let's you go directly to a particular website:
 ```
-dweb open awesome
+dweb open gameboy
+```
+You can provide the address of a website on Autonomi (as a long hexadecimal string) or for some sites, a name such as 'awesome' or 'friends'.
+
+To see the list of website names available:
+```
+dweb list-names
 ```
 
 If you know the xor address of a website you can browse it like this:
@@ -412,6 +440,7 @@ The following are things I would like to support, in no particular order. This i
 
 If you have **web front-end skills** there are plenty of things to improve or write from scratch here, which will make my part much easier and speed everything in this list up.
 
+- [ ] **dweb-app** - a desktop and mobile version of the dweb server to allow browsing on any device using a user friendly "icon tray" style app
 - [ ] **api-rclone** - a RESTful HTTP API for an [rclone](https://github.com/rclone/rclone/) backend for Autonomi to support backup, mounting of decentralised storage, sync and copy between devices and other storage backends (e.g. cloud storage).
 
 - [ ] **dweb upload |download | share | sync** - commands to upload and download data to/from your permanent decentralised storage on Autonomi. **dweb upload** stores data privately, although you can **dweb share** to override this and share files or directories with others, or with everyone. As with websites, uploaded data is versioned as well as permanent, so you will always be able to access every version of every file you have ever uploaded.

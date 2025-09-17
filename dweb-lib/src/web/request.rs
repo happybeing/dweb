@@ -35,17 +35,30 @@ pub async fn main_server_request(
     url_path: &str,
 ) -> Result<String> {
     let url_string = make_main_server_url(host, port, url_path);
-    println!("main_server_request() request: {url_string}");
+    println!("DEBUG main_server_request() request: {url_string}");
 
-    let response: reqwest::Response = reqwest::Client::builder()
+    let response: reqwest::Response = match reqwest::Client::builder()
         .build()?
         .get(&url_string)
         .header("Accept", "application/json")
         .send()
-        .await?;
+        .await
+    {
+        Ok(response) => response,
+        Err(e) => {
+            println!("Unable to access dweb server - is it running?");
+            println!("\nIf not, you can start it in another terminal using 'dweb serve' or by starting the dweb app if you have that installed.");
+            return Err(e.into());
+        }
+    };
 
-    let body = response.text().await?;
-    Ok(body)
+    match response.text().await {
+        Ok(body) => Ok(body),
+        Err(e) => {
+            println!("Failed to get text from server response: {e}");
+            Err(e.into())
+        }
+    }
 }
 
 // Default to 'with ports' server

@@ -28,11 +28,9 @@ pub(crate) async fn handle_name_register(
     dweb::api::name_register(&dweb_name, history_address, host, port).await
 }
 
-/// Open a browser to view a website on Autonomi.
+/// Print the name and address of names registered with the dweb server
 ///
-/// Requires a 'dweb serve' to be running which avoids the need for a local DNS to have been set up.
-///
-/// Note: 'dweb' serve' spawns a server for each directory/website being accessed, so ports will run out if the servers are never killed. However, you can release all ports by restarting the server.
+/// Requires a 'dweb serve' to be running
 pub(crate) async fn handle_list_names(host: Option<&String>, port: Option<u16>) -> Result<()> {
     match dweb::api::name_list(host, port).await {
         Ok(names_vec) => {

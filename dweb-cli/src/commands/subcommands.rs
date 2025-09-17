@@ -500,7 +500,8 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             };
 
             if print {
-                match main_server_request(host_ref, port, crate::services::openapi::JSON_PATH).await
+                match main_server_request(host_ref, port, dweb_server::services::openapi::JSON_PATH)
+                    .await
                 {
                     Ok(json) => {
                         println!("{json}");
@@ -510,8 +511,11 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
                     }
                 }
             } else {
-                let url =
-                    make_main_server_url(host_ref, port, crate::services::openapi::SWAGGER_UI);
+                let url = make_main_server_url(
+                    host_ref,
+                    port,
+                    dweb_server::services::openapi::SWAGGER_UI,
+                );
                 let _ = open::that(url);
             }
             return Ok(true);

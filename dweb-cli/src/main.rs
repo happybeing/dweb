@@ -20,8 +20,6 @@ extern crate tracing;
 
 mod cli_options;
 mod commands;
-mod helpers;
-mod services;
 mod web;
 
 use clap::Parser;

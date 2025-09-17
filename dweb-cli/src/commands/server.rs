@@ -18,8 +18,8 @@
 
 use color_eyre::{eyre::eyre, Result};
 
-use crate::services::api_dweb::v0::name::register_builtin_names;
 use dweb::client::{ApiControl, DwebClient, DwebClientConfig};
+use dweb::web::name::register_builtin_names;
 
 pub(crate) async fn connect_and_announce(
     local_network: bool,
@@ -54,6 +54,8 @@ pub(crate) async fn connect_and_announce(
     (client, local_network)
 }
 
+use dweb_server::DwebService;
+
 pub(crate) async fn start_in_foreground(
     local: bool,
     alpha: bool,
@@ -62,20 +64,21 @@ pub(crate) async fn start_in_foreground(
     port: Option<u16>,
     logdir: Option<String>,
 ) -> Result<bool> {
-    let (client, is_local_network) =
-        connect_and_announce(local, alpha, host, port, api_control, true).await;
+    register_builtin_names(local);
 
     // Start the main server (for port based browsing), which will handle /dweb-open URLs  opened by 'dweb open'
-    let host = client.host.clone();
-    let port = client.port;
-    register_builtin_names(is_local_network);
-    match crate::services::serve_with_ports(&client, None, false).await {
-        Ok(_) => return Ok(true),
-        Err(e) => {
-            println!("{e:?}");
-            return Err(eyre!(e));
-        }
-    }
+
+    let port = port.unwrap_or(dweb::web::DEFAULT_HTTP_PORT);
+    let client_config = DwebClientConfig {
+        host,
+        port: Some(port),
+        ..Default::default()
+    };
+
+    let mut dweb_service = DwebService::new(client_config);
+    // dweb_service.start(port);
+    dweb_service.start_blocking(port).await;
+    Ok(true)
 }
 
 pub async fn start_in_background(

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = [ "dweb-cli" , "dweb-lib", "dweb-server"]
+members = ["dweb-cli" , "dweb-lib", "dweb-server"]
 
 [workspace.package]
 version = "0.11.0"
@@ -10,8 +10,8 @@ license = "AGPL-3.0"
 repository = "https://codeberg.org/happybeing/dweb"
 
 [workspace.dependencies]
-dweb = "./dweb-lib"
-dweb-sever = "./dweb-server"
+dweb = { path = "./dweb-lib", version = "0.11.0", features = ["development"] }
+dweb-server = { path = "./dweb-server", version = "0.11.0", features = ["development"] }
 
 [workspace.lints.rust]
 arithmetic_overflow = "forbid"

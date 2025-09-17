@@ -6,6 +6,7 @@ version.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
+dependencies.workspace = true
 
 [lib]
 name = "dweb_server"
@@ -42,7 +43,7 @@ evmlib = { version = "0.4.3" }
 #ant-logging = { version = "0.2.51" }
 #evmlib = { version = "0.4.2" }
 
-dweb = { version = "0.11.0", features = ["development"]}
+dweb = { workspace = true }
 
 ## Everything else
 actix-cors = "0.7.1"

@@ -28,6 +28,17 @@ use color_eyre::{eyre::eyre, Result};
 pub const DATA_ADDRESS_LEN: usize = 64;
 pub const HISTORY_ADDRESS_LEN: usize = 96;
 
+/// Check if the main dweb server is running on the given port
+pub fn is_main_dweb_server_running(main_port: u16) -> bool {
+    if !port_check::is_local_ipv4_port_free(main_port) {
+        // The port is in use
+        // TODO check if it is a dweb server (but for now assume it is)
+        true
+    } else {
+        false
+    }
+}
+
 /// Get the maini secret key. This is currently derived from a key set in the environment
 /// TODO ?provide a primary method with environment setting as a backup
 pub fn get_app_secret_key() -> Result<SecretKey> {

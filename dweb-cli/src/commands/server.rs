@@ -76,7 +76,6 @@ pub(crate) async fn start_in_foreground(
     };
 
     let mut dweb_service = DwebService::new(client_config);
-    // dweb_service.start(port);
     dweb_service.start_blocking(port).await;
     Ok(true)
 }

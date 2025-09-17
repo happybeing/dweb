@@ -483,7 +483,8 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
         }
 
         Some(Subcommands::Openapi_docs { print, host, port }) => {
-            if !dweb::cache::spawn::is_main_server_with_ports_running() {
+            let port = port.unwrap_or(dweb::web::DEFAULT_HTTP_PORT);
+            if !dweb::helpers::is_main_dweb_server_running(port) {
                 println!("Please  start the dweb server before using 'dweb openapi-docs'");
                 println!("For help, type 'dweb serve --help");
                 return Ok(true);
@@ -500,8 +501,12 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             };
 
             if print {
-                match main_server_request(host_ref, port, dweb_server::services::openapi::JSON_PATH)
-                    .await
+                match main_server_request(
+                    host_ref,
+                    Some(port),
+                    dweb_server::services::openapi::JSON_PATH,
+                )
+                .await
                 {
                     Ok(json) => {
                         println!("{json}");
@@ -513,7 +518,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             } else {
                 let url = make_main_server_url(
                     host_ref,
-                    port,
+                    Some(port),
                     dweb_server::services::openapi::SWAGGER_UI,
                 );
                 let _ = open::that(url);

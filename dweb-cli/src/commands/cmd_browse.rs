@@ -89,16 +89,7 @@ pub(crate) async fn open_in_browser(
         port,
     );
 
-    // Check if there's a dweb server to handle it
-    let is_dweb_server_running = if !port_check::is_local_ipv4_port_free(port) {
-        // The port is in use
-        // TODO check if it is a dweb server (but for now assume it is)
-        true
-    } else {
-        false
-    };
-
-    if !is_dweb_server_running {
+    if !dweb::helpers::is_main_dweb_server_running(port) {
         // Make builtin names such as 'awesome' available (in addition to opening xor addresses)
         dweb::web::name::register_builtin_names(false);
 

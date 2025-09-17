@@ -52,7 +52,7 @@ pub const DWEB_SERVICE_DEBUG: &str = "debug-dweb.au";
 /// Via CLI 'dweb serve': start (NOT spawn) the main 'with ports' server on the supplied port with
 ///     directory_version_with_port as None this server stays alive until killed on the command line. Its job is to:
 ///       1) respond to /dweb-open URLs (e.g. when opened by 'dweb open') by looking up the directory
-///     version and if no server is running, call serve_with_ports() to start one before redirecting the link;
+///     version and if no server is running, call init_dweb_server_non_blocking() to start one before redirecting the link;
 ///       2) manage DirectoryVersionsWithPort servers by killing them when it shuts down and supporting a web API
 ///     for listing and killing other DirectoryVersionsWithPort servers.
 ///
@@ -60,7 +60,7 @@ pub const DWEB_SERVICE_DEBUG: &str = "debug-dweb.au";
 ///     has been found.
 ///
 /// Via any URL handler of a /dweb-open URL, and behave as above to look for a server and if no DirectoryVersionsWithPort
-///     is found, call serve_with_ports() to spawn a new one. Then redirect the link.
+///     is found, call init_dweb_server_non_blocking() to spawn a new one. Then redirect the link.
 ///
 /// See DwebService::start() for example usage.
 

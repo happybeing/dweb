@@ -486,7 +486,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             let port = port.unwrap_or(dweb::web::DEFAULT_HTTP_PORT);
             if !dweb::helpers::is_main_dweb_server_running(port) {
                 println!("Please  start the dweb server before using 'dweb openapi-docs'");
-                println!("For help, type 'dweb serve --help");
+                println!("For help, type 'dweb serve --help'");
                 return Ok(true);
             }
 

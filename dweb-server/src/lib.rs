@@ -15,9 +15,6 @@
 *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-// pub mod demo_service; // For Tauri demo app (migrating to here)
-// pub mod local_server2; // For Tauri demo app (migrating to here)
-
 mod helpers;
 pub mod services;
 mod web_extras; // TODO remove

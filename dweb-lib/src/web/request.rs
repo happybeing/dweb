@@ -26,7 +26,7 @@ use color_eyre::eyre::Result;
 ///
 /// This function assumes some defaults to save having to build the request from scratch
 /// but it is fine to do that and not use this function. If doing that yourself, it is
-/// recommended that you use the helper function make_serve_with_ports_host() to construct
+/// recommended that you use the helper function make_main_server_url() to construct
 /// the host/port part of the URL.
 ///
 pub async fn main_server_request(

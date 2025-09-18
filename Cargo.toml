@@ -2,6 +2,16 @@
 resolver = "2"
 members = ["dweb-cli" , "dweb-lib", "dweb-server"]
 
+# Including "dweb-app/src-tauri" breaks compilation in all packages with error:
+#  error[E0433]: failed to resolve: could not find `__private` in `serde`
+#    --> /home/mrh/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/alloy-consensus-0.15.11/src/transaction/envelope.rs:916:34
+#     |
+# 916 |             let content = serde::__private::de::Content::deserialize(deserializer)?;
+#     |                                  ^^^^^^^^^ could not find `__private` in `serde`
+
+# ... so exclude it:
+exclude = ["dweb-app"]
+
 [workspace.package]
 version = "0.11.1"
 authors = ["happybeing <git@happybeing.com>"]

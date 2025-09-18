@@ -1,8 +1,9 @@
 # dweb
 **dweb** is a project for publishing and browsing of websites and dynamic web apps in a standard browser on the Autonomi peer-to-peer network. It includes:
-- [dweb-cli](https://codeberg.org/happybeing/dweb/src/branch/main/dweb-cli): a command line app for opening and publishing websites, as well as utility features
-- [dweb-server](https://codeberg.org/happybeing/dweb/src/branch/main/dweb-server): a Rust library for embedding dweb features and REST server in desktop and mobile apps including Tauri apps. This enables the user to use the app, and access websites and other websites without installing dweb separately
-- [dweb-lib](https://codeberg.org/happybeing/dweb/src/branch/main/dweb-lib): a Rust crate containing core dweb features
+- [dweb-app](https://codeberg.org/happybeing/dweb/src/branch/main/dweb-app): an app for browsing the Autonomi dweb
+- [dweb-cli](https://codeberg.org/happybeing/dweb/src/branch/main/dweb-cli): a command line app for publishing websites and many utility features
+- [dweb-server](https://codeberg.org/happybeing/dweb/src/branch/main/dweb-server): a Rust lib so your app can open Autonomi dweb apps and websites in a standard browser
+- [dweb-lib](https://codeberg.org/happybeing/dweb/src/branch/main/dweb-lib): a Rust lib containing core dweb features
 
 In addition, [dweb-server-tauri-app](https://codeberg.org/happybeing/dweb-server-tauri-app) shows how to embed the dweb-server in a Tauri app:
 

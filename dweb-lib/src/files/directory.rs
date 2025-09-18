@@ -38,10 +38,13 @@ use crate::storage::DwebType;
 const FILE_TREE_TYPE: &str = "89d56e1dd78941e18b36d75d339014aa845bee4d8cce2ca9d608c0e8e432308a";
 
 // Default favicon.ico file, fixed by content addressing
-//
-// Safe dotted blue cube
+
+// "dw padlock" logo: dweb-logo-01.ico
 const ADDRESS_DEFAULT_FAVICON: &str =
-    "35cae9297780dcc0fe2d328dd1dc8060ec352eb54cc8192faaf3aedd803c119d";
+    "53f6bcd9bfe04d128c90f28309bfb97964dc80c6f96f921fa4bb65f26b1f6a72";
+// Safe dotted blue cube
+// const ADDRESS_DEFAULT_FAVICON: &str =
+//     "35cae9297780dcc0fe2d328dd1dc8060ec352eb54cc8192faaf3aedd803c119d";
 // Safe quill inkpot
 // const ADDRESS_DEFAULT_FAVICON: &str =
 //     "164ea083d71e6e756e81244840b9bb46bd6284ce3316af91acf018a62a1c2af7";

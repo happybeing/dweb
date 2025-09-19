@@ -7,7 +7,6 @@ on:
 
 jobs:
   build-dweb-cli:
-    name: ${{ matrix.platform.os_name }} with rust ${{ matrix.toolchain }}
     runs-on: ${{ matrix.platform.os }}
     strategy:
       fail-fast: false
@@ -16,23 +15,24 @@ jobs:
 #          - os_name: Linux-aarch64
 #            os: ubuntu-24.04
 #            target: aarch64-unknown-linux-musl
-#            bin: dweb-linux-arm64
+#            cli-bin: dweb-linux-arm64
           - os_name: Linux-x86_64
             os: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
-            bin: dweb-linux-amd64
+            cli-bin: dweb-linux-amd64
           - os_name: Windows-x86_64
             os: windows-latest
             target: x86_64-pc-windows-msvc
-            bin: dweb-amd64.exe
+            cli-bin: dweb-amd64.exe
           - os_name: macOS-x86_64
             os: macOS-latest
             target: x86_64-apple-darwin
-            bin: dweb-darwin-amd64
+            cli-bin: dweb-darwin-amd64
           - os_name: macOS-aarch64
             os: macOS-latest
             target: aarch64-apple-darwin
-            bin: dweb-darwin-arm64
+            cli-bin: dweb-darwin-arm64
+
         toolchain:
           - stable
     steps:
@@ -46,41 +46,48 @@ jobs:
           args: "--locked --release"
           strip: true
       - name: Rename binary (linux and macos)
-        run: mv target/${{ matrix.platform.target }}/release/dweb target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }}
+        run: mv target/${{ matrix.platform.target }}/release/dweb target/${{ matrix.platform.target }}/release/${{ matrix.platform.cli-bin }}
         if: matrix.platform.os_name != 'Windows-x86_64'
       - name: Rename binary (windows)
-        run: mv target/${{ matrix.platform.target }}/release/dweb.exe target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }}
+        run: mv target/${{ matrix.platform.target }}/release/dweb.exe target/${{ matrix.platform.target }}/release/${{ matrix.platform.cli-bin }}
         if: matrix.platform.os_name == 'Windows-x86_64'
       - name: Generate SHA-256
-        run: shasum -a 256 target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }} | cut -d ' ' -f 1 > target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }}.sha256
-      - name: Release binary and SHA-256 checksum to GitHub
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }}
-            target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }}.sha256
+        run: shasum -a 256 target/${{ matrix.platform.target }}/release/${{ matrix.platform.cli-bin }} | cut -d ' ' -f 1 > target/${{ matrix.platform.target }}/release/${{ matrix.platform.cli-bin }}.sha256
+      - name: Tag with v0.1.0 (TODO undo hack for gh-releases@v1)
+        run: git tag v0.1.0 && git tag --list
+      # - name: Release binary and SHA-256 checksum to GitHub
+      #   uses: softprops/action-gh-release@v1
+      #   with:
+      #     files: |
+      #       target/${{ matrix.platform.target }}/release/${{ matrix.platform.cli-bin }}
+      #       target/${{ matrix.platform.target }}/release/${{ matrix.platform.cli-bin }}.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-dweb-app:
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: 'macos-latest'
-            args: '--target x86_64-apple-darwin'
-            target: 'x86_64-apple-darwin'
-            os_name: 'macos-intel'
-          - platform: 'macos-latest'
-            args: '--target aarch64-apple-darwin'
-            target: 'aarch64-apple-darwin'
-            os_name: 'macos-silicon'
-          - platform: 'ubuntu-22.04'
+          - platform: macos-latest
+            args: --target x86_64-apple-darwin
+            target: x86_64-apple-darwin
+            cli-bin: dweb-darwin-amd64
+            os_name: macos-intel
+          - platform: macos-latest
+            args: --target aarch64-apple-darwin
+            target: aarch64-apple-darwin
+            os_name: macos-silicon
+          - platform: ubuntu-22.04
             args: ''
-            target: 'x86_64-unknown-linux-gnu'
-            os_name: 'linux'
-          - platform: 'windows-latest'
+            target: x86_64-unknown-linux-gnu
+            cli-bin: dweb-linux-amd64
+            os_name: linux
+          - platform: windows-latest
             args: ''
-            target: 'x86_64-pc-windows-msvc'
-            os_name: 'windows'
+            target: x86_64-pc-windows-msvc
+            cli-bin: dweb-amd64.exe
+            os_name: windows
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -256,5 +263,7 @@ jobs:
           prerelease: false
           files: |
             release-assets/*
+            target/${{ matrix.platform.target }}/release/${{ matrix.platform.cli-bin }}
+            target/${{ matrix.platform.target }}/release/${{ matrix.platform.cli-bin }}.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

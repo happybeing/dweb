@@ -39,7 +39,7 @@ const FILE_TREE_TYPE: &str = "89d56e1dd78941e18b36d75d339014aa845bee4d8cce2ca9d6
 
 // Default favicon.ico file, fixed by content addressing
 
-// "dw padlock" logo: dweb-logo-01.ico
+// "dw padlock" logo: dweb-logo-02.ico
 const ADDRESS_DEFAULT_FAVICON: &str =
     "53f6bcd9bfe04d128c90f28309bfb97964dc80c6f96f921fa4bb65f26b1f6a72";
 // Safe dotted blue cube

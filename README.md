@@ -46,6 +46,21 @@ To see the list of website names available:
 dweb list-names
 ```
 
+### Server concurrency (workers)
+
+The dweb HTTP server (Actix) runs with a configurable number of worker threads.
+
+- Environment variable: `DWEB_WORKERS`
+- Default: `12`
+- Example:
+  ```bash
+  DWEB_WORKERS=24 dweb
+  ```
+
+Notes:
+- More workers can increase throughput for I/O-bound workloads at the cost of CPU/RAM/file descriptors.
+- A good starting point is near the number of logical CPU cores. Measure and adjust.
+
 ## Status and Documentation
 The dweb library is a work in progress so expect breaking changes expecially in newly added features. The web publishing format and command line interface are more stable but breaking changes are still possible.
 

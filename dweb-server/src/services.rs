@@ -122,7 +122,10 @@ pub async fn init_dweb_server_blocking(
     let port = client_config.port.unwrap_or(SERVER_PORTS_MAIN_PORT);
     let client = client.clone();
 
-    let server = HttpServer::new(move || {
+    // Determine number of Actix workers from env var DWEB_WORKERS (default 12)
+    let workers = get_worker_count_from_env();
+
+    let http_server = HttpServer::new(move || {
         App::new()
             .wrap(
                 actix_cors::Cors::default()
@@ -221,9 +224,9 @@ pub async fn init_dweb_server_blocking(
             .app_data(Data::new(is_main_server))
             .into_app()
     })
-    .keep_alive(Duration::from_secs(crate::services::CONNECTION_TIMEOUT));
-
-    let http_server = server.bind((host.clone(), port));
+    .keep_alive(Duration::from_secs(crate::services::CONNECTION_TIMEOUT))
+    .workers(workers)
+    .bind((host.clone(), port));
     match http_server {
         Ok(server) => {
             match directory_version_with_port_copy2 {
@@ -251,4 +254,18 @@ pub async fn init_dweb_server_blocking(
             Err(err)
         }
     }
+}
+
+const DEFAULT_WORKERS: usize = 12;
+
+fn parse_workers(value: Option<String>) -> usize {
+    match value.and_then(|s| s.trim().parse::<usize>().ok()) {
+        Some(n) if n >= 1 => n,
+        Some(_) => 1, // clamp to minimum of 1
+        None => DEFAULT_WORKERS,
+    }
+}
+
+fn get_worker_count_from_env() -> usize {
+    parse_workers(std::env::var("DWEB_WORKERS").ok())
 }

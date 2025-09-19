@@ -85,9 +85,12 @@ jobs:
         # You can remove the one that doesn't apply to your app to speed up the workflow a bit.
 
       - name: install frontend dependencies
+        # change this to yarn, npm, pnpm or bun depending on which one you use.
         run:
           cd dweb-app
-          npm install # change this to yarn, npm, pnpm or bun depending on which one you use.
+          npm add -D @tauri-apps/cli
+          npm install
+          . "$HOME/.cargo/env"
 
       - uses: tauri-apps/tauri-action@v0
         env:

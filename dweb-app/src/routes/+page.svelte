@@ -20,6 +20,7 @@ import {onMount} from 'svelte';
 onMount(async () => {
   console.log("onMount() starting dweb server...");
   await startServer();
+  await refreshWallet();
 });
 
 let dwebHost = "http://127.0.0.1";
@@ -27,17 +28,96 @@ let dwebPort = 5537;
 let dwebServer = dwebHost + ":" + dwebPort;
 let dwebWebsite = "awesome";
 
+// Wallet info state
+let walletAddress = "";
+let antBalance = "";
+let ethBalance = "";
+let walletLoading = false;
+let walletError = "";
+
+// Open by address state
+let openAddress = "";
+
+function formatAmount(amount) {
+  if (!amount) return "";
+  const s = String(amount);
+  const parts = s.split(".");
+  if (parts.length === 1) return parts[0];
+  const intPart = parts[0];
+  const fracPart = parts[1] || "";
+  const shown = fracPart.slice(0, 5);
+  const needsDots = fracPart.length > 5;
+  return `${intPart}.${shown}${needsDots ? "…" : ""}`;
+}
+
 async function startServer() {
-  await invoke("start_server", {port: dwebPort});
+  try {
+    await invoke("start_server", {port: dwebPort});
+  } catch (e) {
+    console.error("Failed to start server", e);
+  }
 }
 
 async function browseAutonomi() {
   console.log("browseAutonomi()");
   invoke("dweb_open", {addressNameOrLink: dwebWebsite});
 }
+
+async function openByAddress() {
+  const addr = (openAddress || "").trim();
+  if (!addr) return;
+  invoke("dweb_open", {addressNameOrLink: addr});
+}
+
+/** @param {KeyboardEvent} ev */
+function handleEnter(ev) {
+  if (ev.key === 'Enter') {
+    openByAddress();
+  }
+}
+
+async function refreshWallet() {
+  walletLoading = true;
+  walletError = "";
+  try {
+    // Retry a few times in case the server isn't ready yet
+    const url = `${dwebServer}/dweb-0/wallet-balance`;
+    for (let i = 0; i < 5; i++) {
+      try {
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          walletAddress = data.wallet_address || "";
+          antBalance = data.ant_balance || "";
+          ethBalance = data.eth_balance || "";
+          walletLoading = false;
+          return;
+        }
+      } catch (_) {}
+      await new Promise(r => setTimeout(r, 500));
+    }
+    walletError = "Unable to fetch wallet info";
+  } finally {
+    walletLoading = false;
+  }
+}
 </script>
 
 <main class="container">
+  <div class="topbar">
+    <div class="wallet center" title="Current wallet balances">
+      {#if walletLoading}
+        <span>Loading wallet…</span>
+      {:else if walletError}
+        <span>{walletError}</span>
+      {:else}
+        <span class="wallet-item"><strong>Wallet</strong>: {walletAddress}</span>
+        <span class="wallet-item" title={antBalance}><strong>ANT</strong>: {formatAmount(antBalance)}</span>
+        <span class="wallet-item" title={ethBalance}><strong>ETH</strong>: {formatAmount(ethBalance)}</span>
+      {/if}
+    </div>
+  </div>
+
   <h1>Autonomi dweb     <a href="https://codeberg.org/happybeing/dweb#dweb" target="_blank">
       <img src="/dweb-logo.svg" class="logo dweb" alt="dweb Logo" />
     </a>
@@ -48,6 +128,17 @@ async function browseAutonomi() {
 
   <p><button onclick={browseAutonomi}>Browse Autonomi dweb</button></p>
   <p>Explore the secure peer-to-peer web on the Autonomi network</p>
+
+  <div class="open-input">
+    <input
+      type="text"
+      bind:value={openAddress}
+      placeholder="Open dweb app via address or name"
+      onkeydown={handleEnter}
+      aria-label="Open dweb app via address or name"
+    />
+    <button onclick={openByAddress}>Open</button>
+  </div>
 </main>
 
 <style>
@@ -76,6 +167,28 @@ async function browseAutonomi() {
   text-align: center;
 }
 
+.topbar {
+  position: fixed;
+  top: 0.75rem;
+  left: 0;
+  right: 0;
+}
+
+.wallet {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  align-items: center;
+}
+
+.wallet.center {
+  justify-content: center;
+}
+
+.wallet-item {
+  white-space: nowrap;
+}
+
 .logo {
   height: 40px;
   padding-left: .5em;
@@ -90,6 +203,21 @@ async function browseAutonomi() {
 .row {
   display: flex;
   justify-content: center;
+}
+
+.open-input {
+  margin-top: 1rem;
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.open-input input[type="text"] {
+  padding: 0.55em 0.8em;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  min-width: 22rem;
 }
 
 a {

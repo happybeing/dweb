@@ -1,13 +1,18 @@
 name: "publish dweb-app-daved"
 
 on:
-  workflow_dispatch:
-  release:
-    types: [ created ]
+  tag:
+    branches:
+      main
+      ci-testing
+
+# on:
+#   workflow_dispatch:
+#   release:
+#     types: [ created ]
 
 jobs:
   build-dweb-cli:
-    name: ${{ matrix.platform.os_name }} with rust ${{ matrix.toolchain }}
     runs-on: ${{ matrix.platform.os }}
     strategy:
       fail-fast: false
@@ -16,23 +21,24 @@ jobs:
 #          - os_name: Linux-aarch64
 #            os: ubuntu-24.04
 #            target: aarch64-unknown-linux-musl
-#            bin: dweb-linux-arm64
+#            cli-bin: dweb-linux-arm64
           - os_name: Linux-x86_64
             os: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
-            bin: dweb-linux-amd64
+            cli-bin: dweb-linux-amd64
           - os_name: Windows-x86_64
             os: windows-latest
             target: x86_64-pc-windows-msvc
-            bin: dweb-amd64.exe
+            cli-bin: dweb-amd64.exe
           - os_name: macOS-x86_64
             os: macOS-latest
             target: x86_64-apple-darwin
-            bin: dweb-darwin-amd64
+            cli-bin: dweb-darwin-amd64
           - os_name: macOS-aarch64
             os: macOS-latest
             target: aarch64-apple-darwin
-            bin: dweb-darwin-arm64
+            cli-bin: dweb-darwin-arm64
+
         toolchain:
           - stable
     steps:
@@ -46,41 +52,73 @@ jobs:
           args: "--locked --release"
           strip: true
       - name: Rename binary (linux and macos)
-        run: mv target/${{ matrix.platform.target }}/release/dweb target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }}
+        run: mv target/${{ matrix.platform.target }}/release/dweb target/${{ matrix.platform.target }}/release/${{ matrix.platform.cli-bin }}
         if: matrix.platform.os_name != 'Windows-x86_64'
       - name: Rename binary (windows)
-        run: mv target/${{ matrix.platform.target }}/release/dweb.exe target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }}
+        run: mv target/${{ matrix.platform.target }}/release/dweb.exe target/${{ matrix.platform.target }}/release/${{ matrix.platform.cli-bin }}
         if: matrix.platform.os_name == 'Windows-x86_64'
       - name: Generate SHA-256
-        run: shasum -a 256 target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }} | cut -d ' ' -f 1 > target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }}.sha256
-      - name: Release binary and SHA-256 checksum to GitHub
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }}
-            target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }}.sha256
+        run: shasum -a 256 target/${{ matrix.platform.target }}/release/${{ matrix.platform.cli-bin }} | cut -d ' ' -f 1 > target/${{ matrix.platform.target }}/release/${{ matrix.platform.cli-bin }}.sha256
+      - name: Tag with v0.1.0 (TODO undo hack for gh-releases@v1)
+        run: git tag v0.1.0 && git tag --list
+      # - name: Release binary and SHA-256 checksum to GitHub
+      #   uses: softprops/action-gh-release@v1
+      #   with:
+      #     files: |
+      #       target/${{ matrix.platform.target }}/release/${{ matrix.platform.cli-bin }}
+      #       target/${{ matrix.platform.target }}/release/${{ matrix.platform.cli-bin }}.sha256
+      #     env:
+      #       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # - name: Upload artifacts (macOS)
+      #   if: matrix.platform == 'macos-latest'
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: ${{ matrix.os_name }}-${{ matrix.target }}
+      #     path: |
+      #       dweb-app/src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+
+      # - name: Upload artifacts (Linux)
+      #   if: startsWith(matrix.platform, 'ubuntu')
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: ${{ matrix.os_name }}-${{ matrix.target }}
+      #     path: |
+      #       dweb-app/src-tauri/target/release/bundle/deb/*.deb
+      #       dweb-app/src-tauri/target/release/bundle/appimage/*.AppImage
+
+      # - name: Upload artifacts (Windows)
+      #   if: matrix.platform == 'windows-latest'
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: ${{ matrix.os_name }}-${{ matrix.target }}
+      #     path: |
+      #       dweb-app/src-tauri/target/release/*.exe
 
   build-dweb-app:
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: 'macos-latest'
-            args: '--target x86_64-apple-darwin'
-            target: 'x86_64-apple-darwin'
-            os_name: 'macos-intel'
-          - platform: 'macos-latest'
-            args: '--target aarch64-apple-darwin'
-            target: 'aarch64-apple-darwin'
-            os_name: 'macos-silicon'
-          - platform: 'ubuntu-22.04'
+          - platform: macos-latest
+            args: --target x86_64-apple-darwin
+            target: x86_64-apple-darwin
+            cli-bin: dweb-darwin-amd64
+            os_name: macos-intel
+          - platform: macos-latest
+            args: --target aarch64-apple-darwin
+            target: aarch64-apple-darwin
+            os_name: macos-silicon
+          - platform: ubuntu-22.04
             args: ''
-            target: 'x86_64-unknown-linux-gnu'
-            os_name: 'linux'
-          - platform: 'windows-latest'
+            target: x86_64-unknown-linux-gnu
+            cli-bin: dweb-linux-amd64
+            os_name: linux
+          - platform: windows-latest
             args: ''
-            target: 'x86_64-pc-windows-msvc'
-            os_name: 'windows'
+            target: x86_64-pc-windows-msvc
+            cli-bin: dweb-amd64.exe
+            os_name: windows
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -224,10 +262,10 @@ jobs:
         id: create_release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: app-v${{ steps.get_version.outputs.VERSION }}
-          name: dweb App v${{ steps.get_version.outputs.VERSION }}
+          tag_name: dweb-app-v${{ steps.get_version.outputs.VERSION }}
+          name: dweb v${{ steps.get_version.outputs.VERSION }}
           body: |
-            Download Autonomi dweb for your platform:
+            # Download the Autonomi dweb App for your platform:
 
             ## 🍎 macOS
             - **Intel**: [`dweb-app_${{ steps.get_version.outputs.VERSION }}_macos-x86_64-apple-darwin.dmg`](https://github.com/${{ github.repository }}/releases/download/app-v${{ steps.get_version.outputs.VERSION }}/dweb-app_${{ steps.get_version.outputs.VERSION }}_macos-x86_64-apple-darwin.dmg)
@@ -240,7 +278,7 @@ jobs:
             ## 🪟 Windows
             - **x64 Executable**: [`dweb-app_${{ steps.get_version.outputs.VERSION }}_windows-x86_64-pc-windows-msvc.exe`](https://github.com/${{ github.repository }}/releases/download/app-v${{ steps.get_version.outputs.VERSION }}/dweb-app_${{ steps.get_version.outputs.VERSION }}_windows-x86_64-pc-windows-msvc.exe)
 
-            Download Autonomi dweb-cli for your platform:
+            # Download the dweb-cli for your platform:
 
             ## 🍎 macOS
             - **Intel**: [`dweb-app_${{ steps.get_version.outputs.VERSION }}_macos-x86_64-apple-darwin.dmg`](https://github.com/${{ github.repository }}/releases/download/app-v${{ steps.get_version.outputs.VERSION }}/dweb-app_${{ steps.get_version.outputs.VERSION }}_macos-x86_64-apple-darwin.dmg)
@@ -256,5 +294,11 @@ jobs:
           prerelease: false
           files: |
             release-assets/*
+            target/${{ matrix.platform.target }}/release/${{ matrix.platform.cli-bin }}
+            target/${{ matrix.platform.target }}/release/${{ matrix.platform.cli-bin }}.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+# TODO:
+# remove the filies:target lines and implement up/download to get them in release-assets/
+# look at what needing a tag means (gh-release source?)

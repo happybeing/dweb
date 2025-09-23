@@ -1,64 +1,313 @@
-name: build and release
+name: "build and release"
 
 on:
+  push:
+    tags:
+      - "*v*.*.*"
+    branches:
+      main
+      ci-testing
   workflow_dispatch:
   release:
     types: [ created ]
 
-permissions:
-  contents: write
 
 jobs:
   build-dweb-cli:
-    name: ${{ matrix.platform.os_name }} with rust ${{ matrix.toolchain }}
     runs-on: ${{ matrix.platform.os }}
     strategy:
       fail-fast: false
       matrix:
         platform:
-#          - os_name: Linux-aarch64
-#            os: ubuntu-24.04
-#            target: aarch64-unknown-linux-musl
-#            bin: dweb-linux-arm64
-          - os_name: Linux-x86_64
-            os: ubuntu-24.04
+          - os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
-            bin: dweb-linux-amd64
-          - os_name: Windows-x86_64
-            os: windows-latest
+            os_name: linux
+          - os: windows-latest
             target: x86_64-pc-windows-msvc
-            bin: dweb-amd64.exe
-          - os_name: macOS-x86_64
-            os: macOS-latest
+            os_name: windows
+          - os: macos-latest
             target: x86_64-apple-darwin
-            bin: dweb-darwin-amd64
-          - os_name: macOS-aarch64
-            os: macOS-latest
+            os_name: macos-intel
+          - os: macos-latest
             target: aarch64-apple-darwin
-            bin: dweb-darwin-arm64
+            os_name: macos-silicon
+
         toolchain:
           - stable
+
     steps:
       - uses: actions/checkout@v3
-      - name: Build dweb-cli
+      - name: Build dweb-cli for
         uses: houseabsolute/actions-rust-cross@v0
         with:
-          command: "build"
+          command: build
           target: ${{ matrix.platform.target }}
           toolchain: ${{ matrix.toolchain }}
-          args: "--locked --release"
+          args: --locked --release
           strip: true
-      - name: Rename binary (linux and macos)
-        run: mv target/${{ matrix.platform.target }}/release/dweb target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }}
-        if: matrix.platform.os_name != 'Windows-x86_64'
-      - name: Rename binary (windows)
-        run: mv target/${{ matrix.platform.target }}/release/dweb.exe target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }}
-        if: matrix.platform.os_name == 'Windows-x86_64'
-      - name: Generate SHA-256
-        run: shasum -a 256 target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }} | cut -d ' ' -f 1 > target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }}.sha256
-      - name: Release binary and SHA-256 checksum to GitHub
-        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # - name: Rename binary (linux and macos)
+      #   run: mv target/${{ matrix.platform.target }}/release/dweb target/${{ matrix.platform.target }}/release/${{ matrix.platform.cli-bin }}
+      #   if: matrix.platform.os_name != 'windows'
+      # - name: Rename binary (windows)
+      #   run: mv target/${{ matrix.platform.target }}/release/dweb.exe target/${{ matrix.platform.target }}/release/${{ matrix.platform.cli-bin }}
+      #   if: matrix.platform.os_name == 'windows'
+      # - name: Generate SHA-256
+      #   run: shasum -a 256 target/${{ matrix.platform.target }}/release/${{ matrix.platform.cli-bin }} | cut -d ' ' -f 1 > target/${{ matrix.platform.target }}/release/${{ matrix.platform.cli-bin }}.sha256
+      # - name: Tag with v0.1.0 (TODO undo hack for gh-releases@v1)
+      #   run: git tag v0.1.0 && git tag --list
+      # - name: Release binary and SHA-256 checksum to GitHub
+      #   uses: softprops/action-gh-release@v1
+      #   with:
+      #     files: |
+      #       target/${{ matrix.platform.target }}/release/${{ matrix.platform.cli-bin }}
+      #       target/${{ matrix.platform.target }}/release/${{ matrix.platform.cli-bin }}.sha256
+
+      - name: Upload artifacts (Linux)
+        if: matrix.platform.os == 'ubuntu-22.04'
+        uses: actions/upload-artifact@v4
         with:
+          name: ${{ matrix.platform.os_name }}-dweb-cli-${{ matrix.platform.target }}
+          path: |
+            target/${{ matrix.platform.target }}/release/dweb
+
+      - name: Upload artifacts (Windows)
+        if: matrix.platform.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform.os_name }}-dweb-cli-${{ matrix.platform.target }}
+          path: |
+            target/${{ matrix.platform.target }}/release/*.exe
+
+      - name: List MacOS target/${{ matrix.platform.target }}/release/
+        if: matrix.platform.os == 'macos-latest'
+        run:
+          ls -laR target/${{ matrix.platform.target }}/release/
+
+      - name: Upload artifacts (macOS)
+        if: matrix.platform.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform.os_name }}-dweb-cli-${{ matrix.platform.target }}
+          path: |
+            target/${{ matrix.platform.target }}/release/dweb
+
+  build-dweb-app:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-22.04
+            args: ''
+            target: x86_64-unknown-linux-gnu
+            cli-bin: dweb-linux-amd64
+            os_name: linux
+          - platform: windows-latest
+            args: ''
+            target: x86_64-pc-windows-msvc
+            cli-bin: dweb-amd64.exe
+            os_name: windows
+          - platform: macos-latest
+            args: --target x86_64-apple-darwin
+            target: x86_64-apple-darwin
+            cli-bin: dweb-darwin-amd64
+            os_name: macos-intel
+          - platform: macos-latest
+            args: --target aarch64-apple-darwin
+            target: aarch64-apple-darwin
+            os_name: macos-silicon
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install Linux dependencies
+        if: startsWith(matrix.platform, 'ubuntu')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf \
+            libgl1-mesa-dev libgles2-mesa-dev libegl1-mesa-dev
+
+      - name: Install frontend dependencies
+        run:
+          cd dweb-app &&
+          npm install
+
+      # - name: Import Apple Developer Certificate
+      #   if: matrix.platform == 'macos-latest'
+      #   env:
+      #     APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      #     APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      #     KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+      #   run: |
+      #     echo $APPLE_CERTIFICATE | base64 --decode > certificate.p12
+      #     security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+      #     security default-keychain -s build.keychain
+      #     security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+      #     security set-keychain-settings -t 3600 -u build.keychain
+      #     security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+      #     security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+      #     security find-identity -v -p codesigning build.keychain
+
+      # - name: Verify Certificate
+      #   if: matrix.platform == 'macos-latest'
+      #   run: |
+      #     CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep "Apple Development")
+      #     CERT_ID=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
+      #     echo "CERT_ID=$CERT_ID" >> $GITHUB_ENV
+      #     echo "Certificate imported."
+
+      - name: Build Tauri app
+        run:
+          cd dweb-app &&
+          npm install @tauri-apps/cli@latest @tauri-apps/api@latest &&
+          npm run tauri build -- ${{ matrix.args }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          # APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          # APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          # APPLE_SIGNING_IDENTITY: ${{ env.CERT_ID }}
+          # APPLE_ID: ${{ secrets.APPLE_ID }}
+          # APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Upload artifacts (macOS)
+        if: matrix.platform == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os_name }}-${{ matrix.target }}
+          path: |
+           dweb-app/src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+
+      - name: Upload artifacts (Linux)
+        if: startsWith(matrix.platform, 'ubuntu')
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os_name }}-${{ matrix.target }}
+          path: |
+            dweb-app/src-tauri/target/release/bundle/deb/*.deb
+            dweb-app/src-tauri/target/release/bundle/appimage/*.AppImage
+
+      - name: Upload artifacts (Windows)
+        if: matrix.platform == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os_name }}-${{ matrix.target }}
+          path: |
+            dweb-app/src-tauri/target/release/*.exe
+
+  release:
+    needs: [ build-dweb-cli, build-dweb-app ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version
+        id: get_version
+        run: |
+          VERSION=$(node -p "require('./dweb-app/src-tauri/tauri.conf.json').version")
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Display structure of downloaded files
+        run: ls -laR artifacts
+
+      - name: Create properly named assets
+        run: |
+          VERSION="${{ steps.get_version.outputs.VERSION }}"
+
+          # Create release directory
+          mkdir -p release-assets
+
+          # #### Tauri App
+          # # Windows EXE
+          # mkdir -p release-assets/dweb-app_${VERSION}_windows-x86_64-pc-windows-msvc
+          find artifacts/windows-x86_64-pc-windows-msvc -name "*.exe" -exec cp {} release-assets/dweb-app.exe \;
+
+          # macOS Intel DMG
+          find artifacts/macos-intel-x86_64-apple-darwin -name "*.dmg" -exec cp {} release-assets/dweb-app_${VERSION}_macos-x86_64-apple-darwin.dmg \;
+
+          # macOS Silicon DMG
+          find artifacts/macos-silicon-aarch64-apple-darwin -name "*.dmg" -exec cp {} release-assets/dweb-app_${VERSION}_macos-aarch64-apple-darwin.dmg \;
+
+          # Linux AppImage
+          find artifacts/linux-x86_64-unknown-linux-gnu -name "*.AppImage" -exec cp {} release-assets/dweb-app_${VERSION}_linux-x86_64-unknown-linux-gnu.AppImage \;
+
+          # Linux Deb
+          find artifacts/linux-x86_64-unknown-linux-gnu -name "*.deb" -exec cp {} release-assets/dweb-app_${VERSION}_linux-x86_64-unknown-linux-gnu.deb \;
+
+          #### dweb-cli
+          # Windows EXE
+          find artifacts/windows-dweb-cli-x86_64-pc-windows-msvc -name "*.exe" -exec cp {} release-assets/dweb.exe \;
+
+          # macOS Intel DMG
+          find artifacts/macos-intel-dweb-cli-x86_64-apple-darwin -name "dweb" -exec cp {} release-assets/dweb-cli_${VERSION}_macos-x86_64-apple-darwin.dmg \;
+
+          # macOS Silicon DMG
+          find artifacts/macos-silicon-dweb-cli-aarch64-apple-darwin -name "dweb" -exec cp {} release-assets/dweb-cli_${VERSION}_macos-aarch64-apple-darwin.dmg \;
+
+          # Linux Executable
+          find artifacts/linux-dweb-cli-x86_64-unknown-linux-gnu -name "dweb" -exec cp {} release-assets/dweb \;
+
+          # List final assets
+          echo "Release assets created:"
+          ls -la release-assets/
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: AutonomiDweb App and CLI v${{ steps.get_version.outputs.VERSION }}
+          body: |
+            # Download the AutonomiDweb App
+            ## or see below for the Dweb Command Line (CLI)
+
+            ### 🪟 Dweb App for Windows
+            - **x64 Executable**: [`dweb-app.exe`](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dweb-app.exe)
+
+            ### 🍎 Dweb App for Mac
+            - **Intel**: [`dweb-app_${{ steps.get_version.outputs.VERSION }}_macos-x86_64-apple-darwin.dmg`](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dweb-app_${{ steps.get_version.outputs.VERSION }}_macos-x86_64-apple-darwin.dmg)
+            - **Apple Silicon**: [`dweb-app_${{ steps.get_version.outputs.VERSION }}_macos-aarch64-apple-darwin.dmg`](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dweb-app_${{ steps.get_version.outputs.VERSION }}_macos-aarch64-apple-darwin.dmg)
+
+            ### 🐧 Dweb App for Linux
+            - **x64 AppImage**: [`dweb-app_${{ steps.get_version.outputs.VERSION }}_linux-x86_64-unknown-linux-gnu.AppImage`](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dweb-app_${{ steps.get_version.outputs.VERSION }}_linux-x86_64-unknown-linux-gnu.AppImage)
+            - **x64 Debian Package**: [`dweb-app_${{ steps.get_version.outputs.VERSION }}_linux-x86_64-unknown-linux-gnu.deb`](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dweb-app_${{ steps.get_version.outputs.VERSION }}_linux-x86_64-unknown-linux-gnu.deb)
+
+            # Download Dweb Command Line (CLI):
+
+            ### 🪟 Dweb CLI for Windows
+            - **x64 Executable**: [`dweb.exe`](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dweb.exe)
+
+            ### 🍎 Dweb CLI for Mac
+            - **Intel**: [`dweb-cli_${{ steps.get_version.outputs.VERSION }}_macos-x86_64-apple-darwin.dmg`](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dweb-cli_${{ steps.get_version.outputs.VERSION }}_macos-x86_64-apple-darwin.dmg)
+            - **Apple Silicon**: [`dweb-cli_${{ steps.get_version.outputs.VERSION }}_macos-aarch64-apple-darwin.dmg`](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dweb-cli_${{ steps.get_version.outputs.VERSION }}_macos-aarch64-apple-darwin.dmg)
+
+            ### 🐧 Dweb CLI for Linux
+            - **x64 Executable**: [`dweb`](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/dweb)
+
+          generate_release_notes: true
+          draft: false
+          prerelease: false
           files: |
-            target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }}
-            target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }}.sha256
+            release-assets/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

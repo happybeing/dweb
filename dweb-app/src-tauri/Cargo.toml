@@ -1,7 +1,7 @@
 [package]
 name = "dweb-app"
 version = "0.1.0"
-description = "Autonomi dweb app"
+description = "AutonomiDweb App"
 authors = ["git@happybeing.com"]
 edition = "2021"
 

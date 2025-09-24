@@ -16,9 +16,14 @@
 <script>
 import { invoke } from "@tauri-apps/api/core";
 import {onMount} from 'svelte';
+import { getVersion } from '@tauri-apps/api/app';
+
+let appVersion;
+
 
 onMount(async () => {
   console.log("onMount() starting dweb server...");
+  appVersion = await getVersion();
   await startServer();
   await refreshWallet();
 });
@@ -90,6 +95,13 @@ async function refreshWallet() {
           walletAddress = data.wallet_address || "";
           antBalance = data.ant_balance || "";
           ethBalance = data.eth_balance || "";
+
+          // If a random wallet, hide the address to prevent user sending funds to it
+          if (antBalance == 0 && ethBalance == 0) {
+              walletAddress = "no wallet found on device"
+              antBalance = "-"
+              ethBalance = "-"
+          }
           walletLoading = false;
           return;
         }
@@ -118,26 +130,26 @@ async function refreshWallet() {
     </div>
   </div>
 
-  <h1>Autonomi dweb     <a href="https://codeberg.org/happybeing/dweb#dweb" target="_blank">
+  <h1>AutonomiDweb    <a href="https://codeberg.org/happybeing/dweb#dweb" target="_blank">
       <img src="/dweb-logo.svg" class="logo dweb" alt="dweb Logo" />
     </a>
-</h1>
+  </h1>
+  v{appVersion}
 
-  <div class="row">
-  </div>
+  <p>
+  <button title="Explore the secure web on Autonomi" onclick={browseAutonomi}>Browse the Autonomi dweb</button>
+  </p>
 
-  <p><button onclick={browseAutonomi}>Browse Autonomi dweb</button></p>
-  <p>Explore the secure peer-to-peer web on the Autonomi network</p>
-
+  Or open a website you know...<br/>
   <div class="open-input">
     <input
       type="text"
       bind:value={openAddress}
-      placeholder="Open dweb app via address or name"
+      placeholder="Enter an address or name to open"
       onkeydown={handleEnter}
-      aria-label="Open dweb app via address or name"
+      aria-label="Enter an address or name to open"
     />
-    <button onclick={openByAddress}>Open</button>
+    <button title="Go directly to a website or app" onclick={openByAddress}>Open</button>
   </div>
 </main>
 
@@ -206,7 +218,7 @@ async function refreshWallet() {
 }
 
 .open-input {
-  margin-top: 1rem;
+  margin-top: 0;
   display: inline-flex;
   gap: 0.5rem;
   align-items: center;
@@ -232,9 +244,11 @@ a:hover {
 
 h1 {
   text-align: center;
+  margin-bottom: 0;
 }
 
 button {
+  margin-top: 0;
   border-radius: 8px;
   border: 1px solid transparent;
   padding: 0.6em 1.2em;

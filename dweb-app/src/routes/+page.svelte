@@ -18,13 +18,31 @@ import { invoke } from "@tauri-apps/api/core";
 import {onMount} from 'svelte';
 import { getVersion } from '@tauri-apps/api/app';
 
-let appVersion;
+// Autostart (see https://tauri.app/plugin/autostart/#setup)
+import { enable, isEnabled, disable } from '@tauri-apps/plugin-autostart';
+let autoStartUI;
 
+async function onClickAutoStart() {
+  if (autoStartUI) {
+    autoStartUI = false;
+    disable();
+  } else {
+    autoStartUI = true;
+    enable();
+  }
+
+  console.log(`registered for autostart? ${await isEnabled()}`);
+}
+
+let appVersion;
 
 onMount(async () => {
   console.log("onMount() starting dweb server...");
   appVersion = await getVersion();
   await startServer();
+
+  autoStartUI = await isEnabled();  // run dweb-app on boot?
+
   await refreshWallet();
 });
 
@@ -151,6 +169,7 @@ async function refreshWallet() {
     />
     <button title="Go directly to a website or app" onclick={openByAddress}>Open</button>
   </div>
+  <p><input type="checkbox" bind:checked={autoStartUI} onclick={onClickAutoStart}/>Auto-start on reboot</p>
 </main>
 
 <style>

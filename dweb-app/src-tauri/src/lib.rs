@@ -39,10 +39,10 @@ struct ServerState {
     dweb_service: Mutex<DwebService>,
 }
 
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_autostart::Builder::new().build())
         .setup(|app| {
             // Make builtin names such as 'awesome' available (in addition to opening xor addresses)
             dweb::web::name::register_builtin_names(false);

@@ -20,7 +20,7 @@ import { getVersion } from '@tauri-apps/api/app';
 
 // Autostart (see https://tauri.app/plugin/autostart/#setup)
 import { enable, isEnabled, disable } from '@tauri-apps/plugin-autostart';
-let autoStartUI;
+let autoStartUI = $state(true);
 
 async function onClickAutoStart() {
   if (autoStartUI) {
@@ -34,7 +34,7 @@ async function onClickAutoStart() {
   console.log(`registered for autostart? ${await isEnabled()}`);
 }
 
-let appVersion;
+let appVersion = $state("");
 
 onMount(async () => {
   console.log("onMount() starting dweb server...");
@@ -52,14 +52,14 @@ let dwebServer = dwebHost + ":" + dwebPort;
 let dwebWebsite = "awesome";
 
 // Wallet info state
-let walletAddress = "";
-let antBalance = "";
-let ethBalance = "";
-let walletLoading = false;
-let walletError = "";
+let walletAddress = $state("");
+let antBalance = $state("");
+let ethBalance = $state("");
+let walletLoading = $state(true);
+let walletError = $state("");
 
 // Open by address state
-let openAddress = "";
+let openAddress = $state("");
 
 function formatAmount(amount) {
   if (!amount) return "";

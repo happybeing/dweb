@@ -4,6 +4,9 @@
   "description": "Capability for the main window",
   "windows": ["main"],
   "permissions": [
+    "autostart:allow-enable",
+    "autostart:allow-disable",
+    "autostart:allow-is-enabled",
     "core:default",
     "opener:default"
   ]

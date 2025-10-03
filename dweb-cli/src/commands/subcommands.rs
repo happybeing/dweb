@@ -299,8 +299,8 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             let network = client.network.identifier();
             let address = client.wallet.address();
             println!("Address: {address}");
-            println!("    Gas: {:.28}", f32::from(gas) / 10e18);
-            println!("    ANT: {:.28}", f32::from(tokens) / 10e18);
+            println!("    Gas: {:.28}", f32::from(gas) / 1e18);
+            println!("    ANT: {:.28}", f32::from(tokens) / 1e18);
             println!("network: {network}");
         }
 

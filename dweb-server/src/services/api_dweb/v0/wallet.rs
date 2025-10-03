@@ -50,12 +50,12 @@ pub async fn wallet_balance_get(
 
     let wallet_address = client.wallet.address().to_string();
     let ant_balance = match client.wallet.balance_of_tokens().await {
-        Ok(ant) => format!("{:.28}", f32::from(ant) / 10e18),
+        Ok(ant) => format!("{:.28}", f32::from(ant) / 1e18),
         Err(_e) => "error".to_string(),
     };
 
     let eth_balance = match client.wallet.balance_of_gas_tokens().await {
-        Ok(gas) => format!("{:.28}", f32::from(gas) / 10e18),
+        Ok(gas) => format!("{:.28}", f32::from(gas) / 1e18),
         Err(_e) => "error".to_string(),
     };
 

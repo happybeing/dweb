@@ -348,9 +348,11 @@ dweb cost --files-root blog
 At the time of writing the cost is not accurately reported by the Autonomi network, but is usually very cheap compared to cloud storage. Especially as your data will be stored for the lifetime of the Autonomi network at no extra cost.
 
 #### SECRET_KEY variable
-By default dweb will use the wallet you created or imported with the `ant` command (see above). If you have set a password for this, dweb will ask you for that so it can unlock the wallet when you run `dweb serve`. For some users and developers you can use a different wallet by setting the `SECRET_KEY` environment variable to the value of a wallet secret key. When `SECRET_KEY` is set, dweb will use this instead.
+By default dweb will use the wallet you created or imported with the `ant` command (see above). If you have set a password for this, dweb will ask you for that so it can unlock the wallet when you run `dweb serve`.
 
-On Linux and MacOS you can either put `export SECRET_KEY=<PRIVATE-KEY>` in your `.bashrc` and then *open a new terminal*, or pass it when you start the dweb server with:
+Some users and developers can choose to use a different wallet by setting the `SECRET_KEY` environment variable to the value of a wallet secret key. When `SECRET_KEY` is set, dweb will use this instead.
+
+On **MacOS** and **Linux** you can either put `export SECRET_KEY=<PRIVATE-KEY>` in your `.profile` so that it will be set next time you login. It is recommended you use `.profile` rather than `.bashrc` so that it will be set for apps started using the file manager such as [AutonomiDweb App](https://codeberg.org/happybeing/dweb/src/branch/main/dweb-app). You can also set the key immediately when you start the dweb server with:
    ```
    export SECRET_KEY=<PRIVATE-KEY> dweb serve
    ```

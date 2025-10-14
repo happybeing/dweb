@@ -1,15 +1,21 @@
 # dweb Command Line App
-**dweb** is for use with the Autonomi peer-to-peer network. Features are being added all the time, but already include:
+The dweb project is for use with the Autonomi peer-to-peer network and includes an easy to use GUI ([dweb-app](https://codeberg.org/happybeing/dweb/src/branch/main/dweb-app)), a command line interface with extra capabilities (dweb-cli) and two libraries. The libraries are only needed for development of desktop or mobile apps.
 
-- viewing the decentralised web in any standard browser, directly on Autonomi over end-to-end encrypted connections
+For viewing websites on Autonomi only the GUI ([dweb-app](https://codeberg.org/happybeing/dweb/src/branch/main/dweb-app)) is needed.
+
+For publishing websites and apps you only need the command line interface (dweb-cli). You can then use standard web tooling to create a static website, including a web framework such as Svelte or a static generator such as Publii.
+
+**dweb** . Features so far include:
+
+- viewing the decentralised web in a standard browser, directly from Autonomi over end-to-end encrypted connections
 
 - publishing of decentralised websites created using standard web tooling (e.g. Publii, Svelte, static site generators or plain HTML/CSS)
 
-- a local web server/service for websites on Autonomi, and will provide built in web apps for things like file management.
+- publishing of dynamic web apps
 
-- RESTful and Rust APIs for dynamic websites and desktop apps
+- example dynamic web apps created using SvelteKit
 
-- backup and sync using [rclone](https://github.com/rclone/rclone/) (is planned)
+- a REST API for Autonomi data operations is provided by the dweb server (dweb-app or dweb-cli) which runs on the user's device
 
 Web apps are easy and quick to build:
 - **Publii** - build blogs and websites using this third party desktop app
@@ -18,7 +24,7 @@ Web apps are easy and quick to build:
 
 You can use any **static site generator** that does what you need.
 
-Bug reports and a note for developers: feature requests and issues should be opened on Codeberg [here](https://codeberg.org/happybeing/dweb/issues). The github repository is a mirror, only used to build releases.
+Bug reports and a note for developers: feature requests and issues should be opened on **Codeberg** [here](https://codeberg.org/happybeing/dweb/issues). The github repository is a mirror, only used to build releases.
 
 ### Status
 **IMPORTANT:** **dweb** and **Autonomi** are at an early stage so regard this as experimental / alpha. This is ready for play and for early adoption, and to help those wanting to create websites and web apps on the Autonomi network.
@@ -30,6 +36,8 @@ cargo install dweb-cli
 dweb
 ```
 The above opens your browser (which will show an error until the server responds) and then will loads a website from Autonomi. This is a default website called 'awesome' which contains links to other websites and dynamic websites.
+
+See also the GUI (dweb-app) which is even easier.
 
 ## Contents
 - [Browse the DWeb](#browse-the-dweb)
@@ -375,11 +383,17 @@ For more about future possibilities, see  [Roadmap](https://codeberg.org/happybe
 
 ### Current Features
 
+#### GUI App
+- **AutonomiDweb App ([dweb-app](https://codeberg.org/happybeing/dweb/src/branch/main/dweb-app))** - is how most users will experience the AutonomiDweb. To visit a website: open the app and click browse (or enter the address or name of a website or app).
+Since websites are versioned, you can view every version of every website published using **dweb-cli**.
+
 #### Command Line
+
+See `dweb --help` for more.
 
 - **dweb publish-new** | **publish-update** - commands to publish and update directories or websites on a decentralised web. Directories are versioned and stored permanently. So all versions of the files or website will always be available, no expiring domains or 'link rot' (links that stop working because a domain expires etc). Permanence is a unique feature of data stored on Autonomi. By default websites are accessible to anyone (public data).
 
-- **dweb serve** - run a local server for viewing dweb websites in a standard web browser. Since websites are versioned, you can view every version of every website published using **dweb**.
+- **dweb serve** - run a local server for viewing dweb websites in a standard web browser. This is what the GUI app does, but with additional features for developers and advanced use cases.
 
 - **dweb open awesome** - loads an 'awesome list' website, and serves as a demonstration. It links to websites created by dweb users who send them to be included, and shows how to use the dweb API to register a DWEB-NAME for a website stored on Autonomi. This forms part of the URL displayed in the browser address bar and will work until the server is shut down. Later these names and the sites they point to will be made persistant using storage on Autonomi.
 
@@ -417,10 +431,10 @@ Example APIs designed for manual input in the browser address bar:
 Note: /dweb-open and /dweb-open-as are also used inside a website to link to other websites on Autonomi.
 
 Example APIs intended for access by apps (Autonomi RESTful API):
-- **/ant-0/chunk**           - individual chunks (up to 4MB)
-- **/ant-0/data**           - arbitrary data (unlimited size)
-- **/ant-0/archive-public** - metadata for stored (see also /archive-private)
-- **/ant-0/scratchpad-public**    - re-writeable storage (see also /scratchpad-private)
+- **/dweb-0/chunk**           - individual chunks (up to 4MB)
+- **/dweb-0/data**           - arbitrary data (unlimited size)
+- **/dweb-0/archive-public** - metadata for stored (see also /archive-private)
+- **/dweb-0/scratchpad-public**    - re-writeable storage (see also /scratchpad-private)
 
 Example APIs intended for access by apps (dweb extensions):
 - **/dweb-0/form-upload-file-list** - multi-part upload of one or more files
@@ -442,16 +456,18 @@ The following are things I would like to support, in no particular order. This i
 
 If you have **web front-end skills** there are plenty of things to improve or write from scratch here, which will make my part much easier and speed everything in this list up.
 
-- [ ] **dweb-app** - a desktop and mobile version of the dweb server to allow browsing on any device using a user friendly "icon tray" style app
+- [ ] **A No-Wallet GUI** - although the GUI (dweb-app) supports a wallet needed for posting data to Autonomi, this could be made much easier for regular folk. I have several ideas for how to make the wallet and tokens invisible to regular users who want to use web apps, most of which only need to post small amounts of data to Autonomi. This would involve earning tokens behind the scenes and adding a 'fuel gauge' to show when the dweb-app has enough 'fuel' to save small amounts of data to the network.
+
+- [ ] **Dweb Publisher** - a web app hosted on Autonomi that supports publishing of websites without the CLI. This requires exposing some of the dweb-cli features via the dweb REST API and a simple to use web user interface. Files can be read directly from the local disk by the dweb server, so the REST API will only need to handle path selection and other parameters needed by the publishing feature. This will be pretty easy if you have web skills and some familiarity with Rust and a big win for regular people wanting to create a website.
+- [ ] **mobile** - a mobile version of the GUI. The dweb-app GUI is already initialised for Tauri Android - I've just not tried building it yet.
 - [ ] **api-rclone** - a RESTful HTTP API for an [rclone](https://github.com/rclone/rclone/) backend for Autonomi to support backup, mounting of decentralised storage, sync and copy between devices and other storage backends (e.g. cloud storage).
 
-- [ ] **dweb upload |download | share | sync** - commands to upload and download data to/from your permanent decentralised storage on Autonomi. **dweb upload** stores data privately, although you can **dweb share** to override this and share files or directories with others, or with everyone. As with websites, uploaded data is versioned as well as permanent, so you will always be able to access every version of every file you have ever uploaded.
+- [ ] **dweb upload |download | share | sync** - CLI commands to upload and download data to/from your permanent decentralised storage on Autonomi. **dweb upload** stores data privately, although you can **dweb share** to override this and share files or directories with others, or with everyone. As with websites, uploaded data is versioned as well as permanent, so you will always be able to access every version of every file you have ever uploaded.
 
 - [ ] **dweb service** - install, start, stop and remove one or more **dweb** APIs including the website server.
 - [ ] **files-browser** - a built-in web app for managing your files stored on Autonomi.
 - [ ] **api-solid** - a RESTful HTTP API for a [Solid](https://solidproject.org/about) 'Pod' using Autonomi to provide decentralised personal data storage.
-- [ ] **api-webdav** - [tentative] a RESTful HTTP API giving access to Autonomi storage over the WebDAV protocol. This allow any app which supports WebDAV to access Autonomi decentralised storage. It is tentative because I think it might be a good first step towards creating the rclone backend API, rather than a priority itself.
-- [ ] **autonomi-api** - [tentative] a RESTful HTTP version of part or all of the Autonomi API. It is tentative because Autonomi already support WASM for browser apps which may make this unnecessary.
+- [ ] **api-webdav** - [tentative] a RESTful HTTP API giving access to Autonomi storage over the WebDAV protocol. This allow any app which supports WebDAV to access Autonomi decentralised storage. It is tentative because I think it might be a good first step towards creating the rclone backend API, rather than a priority itself
 
 That's a long list for a one-person project so each area is available for others to contribute to, so if a feature is not implemented yet and you want it faster you might be able to make that happen! See 'Contributing' below.
 

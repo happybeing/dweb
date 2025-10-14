@@ -33,17 +33,17 @@ utoipa-swagger-ui-vendored = "0.1.2"
 
 [dependencies]
 #
-# Generated using: dw-dependencies --branch stable-2025.9.1.2
-autonomi = { version = "0.6.0" }
+# Generated using: dw-dependencies --branch stable-2025.9.2.1
+autonomi = { version = "0.6.1" }
 ant-build-info = { version = "0.1.29" }
 ant-logging = { version = "0.2.52" }
-evmlib = { version = "0.4.3" }
+evmlib = { version = "0.4.4" }
 #
-# Generated using: dw-dependencies --branch stable-2025.7.1.5
-#autonomi = { version = "0.5.3" }
+# Generated using: dw-dependencies --branch stable-2025.9.1.2
+#autonomi = { version = "0.6.0" }
 #ant-build-info = { version = "0.1.29" }
-#ant-logging = { version = "0.2.51" }
-#evmlib = { version = "0.4.2" }
+#ant-logging = { version = "0.2.52" }
+#evmlib = { version = "0.4.3" }
 
 ## Everything else
 http = "1.1.0"

@@ -6,9 +6,9 @@
 // KIND, either express or implied. Please review the Licences for the specific language governing
 // permissions and limitations relating to use of the SAFE Network Software.
 
-use super::super::wallet::encryption::{decrypt_private_key, encrypt_private_key};
-use super::super::wallet::input::{get_password_input, get_wallet_selection_input};
-use super::super::wallet::DUMMY_NETWORK;
+use crate::autonomi::wallet::encryption::{decrypt_private_key, encrypt_private_key};
+use crate::autonomi::wallet::input::{get_password_input, get_wallet_selection_input};
+use crate::autonomi::wallet::DUMMY_NETWORK;
 use autonomi::{Network, RewardsAddress, Wallet};
 use color_eyre::eyre::{bail, eyre, Context};
 use color_eyre::{Result, Section};
@@ -25,7 +25,7 @@ pub static SELECTED_WALLET_ADDRESS: OnceLock<String> = OnceLock::new();
 
 /// Creates the wallets folder if it is missing and returns the folder path.
 pub(crate) fn get_client_wallet_dir_path() -> Result<PathBuf> {
-    let mut home_dirs = super::super::access::data_dir::get_client_data_dir_path()
+    let mut home_dirs = crate::autonomi::access::data_dir::get_client_data_dir_path()
         .wrap_err("Failed to get wallet directory")?;
     home_dirs.push("wallets");
 
@@ -138,7 +138,7 @@ pub(crate) fn select_local_wallet_address() -> Result<String> {
     let wallet_address = match wallet_files.len() {
         0 => {
             return Err(eyre!("No local wallets found."))
-                .with_suggestion(|| "Providing SECRET_KEY as an environment variable also works!")
+                .with_suggestion(|| "Providing SECRET_KEY as an environment variable also works!");
         }
         1 => Ok(filter_wallet_file_extension(&wallet_files[0])),
         _ => get_wallet_selection(wallet_files),

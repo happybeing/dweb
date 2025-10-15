@@ -146,7 +146,9 @@ fn greater_than_0(s: &str) -> Result<u64, String> {
 #[derive(Subcommand, Debug)]
 pub enum Subcommands {
     /// Start a server to view Autonomi websites in your browser. Also required for some dweb subcommands.
-    #[command(after_help = "Server concurrency: set maximum number of parallel requests via DWEB_WORKERS (default: 12). Example: DWEB_WORKERS=24 dweb serve")]
+    #[command(
+        after_help = "Server concurrency: set maximum number of parallel requests via DWEB_WORKERS (default: 12). Example: DWEB_WORKERS=24 dweb serve"
+    )]
     ///
     /// Afterwards, if you open a new terminal you can view a website in your browser
     /// by typing 'dweb open awesome'. The 'awesome' website contains links to other websites.

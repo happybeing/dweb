@@ -15,14 +15,14 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-use color_eyre::{eyre::eyre, Report, Result};
+use color_eyre::{Report, Result, eyre::eyre};
 
 use autonomi::AttoTokens;
 
 use dweb::client::{ApiControl, DwebClientConfig};
 use dweb::history::HistoryAddress;
 use dweb::storage::{publish_or_update_files, report_content_published_or_updated};
-use dweb::token::{show_spend_return_value, Spends};
+use dweb::token::{Spends, show_spend_return_value};
 use dweb::web::request::{main_server_request, make_main_server_url};
 use dweb::web::{LOCALHOST_STR, SERVER_PORTS_MAIN_PORT};
 
@@ -32,18 +32,20 @@ use crate::commands::server::connect_and_announce;
 // Returns true if command complete, false to start the browser
 pub async fn cli_commands(opt: Opt) -> Result<bool> {
     let api_control = ApiControl {
+        file_retries: opt.retry_file_uploads,
         api_tries: opt.retry_api,
-        chunk_retries: opt.retry_failed,
-        upload_file_by_file: opt.upload_file_by_file,
+        use_public_archive: opt.use_old_archive,
         ignore_pointers: opt.ignore_pointers,
         max_fee_per_gas: opt.transaction_opt.max_fee_per_gas,
-        use_public_archive: opt.use_old_archive,
+        disable_single_node_payment: opt.disable_single_node_payment,
         ..Default::default()
     };
 
     match opt.cmd {
         Some(Subcommands::Serve { host, port }) => {
             let client_config = DwebClientConfig {
+                local_network: opt.local,
+                alpha_network: opt.alpha,
                 host,
                 port,
                 api_control,

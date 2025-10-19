@@ -36,14 +36,8 @@ use cli_options::Opt;
 #[actix_web::main]
 async fn main() -> Result<()> {
     color_eyre::install().expect("Failed to initialise error handler");
-    if std::env::var("RUST_SPANTRACE").is_err() {
-        std::env::set_var("RUST_SPANTRACE", "0");
-    }
 
     let opt = Opt::parse();
-    if let Some(network_id) = opt.network_id {
-        autonomi::version::set_network_id(network_id);
-    }
 
     // TODO Keep up-to-date with autonomi/ant-cli/src/main.rs init_logging_and_metrics()
     let _gaurds;
@@ -65,10 +59,6 @@ async fn main() -> Result<()> {
         log_builder.output_dest(opt.log_output_dest.clone());
         log_builder.format(opt.log_format.unwrap_or(LogFormat::Default));
         _gaurds = log_builder.initialize().unwrap();
-    }
-
-    if std::env::var("RUST_SPANTRACE").is_err() {
-        std::env::set_var("RUST_SPANTRACE", "0");
     }
 
     subcommands::cli_commands(opt).await?;

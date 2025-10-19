@@ -18,19 +18,19 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use bytes::Bytes;
-use color_eyre::eyre::{eyre, Result};
+use color_eyre::eyre::{Result, eyre};
 use http::status::StatusCode;
 use mime_guess;
 
 use autonomi::chunk::DataMapChunk;
 use autonomi::client::data::DataAddress;
+use autonomi::client::files::Metadata as FileMetadata;
 use autonomi::client::files::archive_private::PrivateArchive;
 use autonomi::client::files::archive_public::PublicArchive;
-use autonomi::client::files::Metadata as FileMetadata;
 use autonomi::files::archive_public::ArchiveAddress;
 
 use crate::client::DwebClient;
-use crate::files::archive::{DualArchive, ARCHIVE_PATH_SEPARATOR};
+use crate::files::archive::{ARCHIVE_PATH_SEPARATOR, DualArchive};
 use crate::history::{History, Trove};
 use crate::storage::DwebType;
 
@@ -103,19 +103,18 @@ impl JsonSettings {
 }
 
 /// A JSON file used for dweb settings for website and other apps
-pub const DWEB_SETTINGS_PATH: &str = "/.dweb/dweb-settings.json";
+pub const DWEB_SETTINGS_PATH: &str = ".dweb/dweb-settings.json";
 
 /// Archives which are part of a History can indicate the address by including
 /// a file whose name is the history address at this locaion using DWEB_HISTORY_CONTENT_ADDRESS
 /// as the address to avoid needing to load any content
 ///
 /// The directory which holds a single file whose name is the address of a History of this directory
-pub const DWEB_HISTORY_DIRECTORY: &str = "/.dweb/history-address";
+pub const DWEB_HISTORY_DIRECTORY: &str = ".dweb/history-address";
 /// The address of existing content that can be re-used to avoid uploading any content for the History address file
 pub const DWEB_DIRECTORY_HISTORY_CONTENT: &str =
     "0a2768c3ebbb3651cfb4219222ddef9feafd485e07ed9cf1b27b8f97afa4595d";
-pub const DWEB_DIRECTORY_HISTORY_DATAMAPCHUNK: &str =
-    "81a54669727374939400dc00204f71ccc3ccdb7bcc95ccbaccd80a6eccd6125a2dccab2acc9657ccb5ccd9ccf518ccc4ccc455ccb311cc96ccd3ccf6cca139dc0020ccdbccf2cce1cccdccd03bccfccce4ccbe563220cca74a7fcca6cca13c2f21cc8e0248ccbaccc967cc87ccabcce65ecc99ccdcce000123179401dc0020cc8064cc8112cc9fcca6ccbcccf5151e4a4ccc87ccfc6d455650cc980dcc9a11cc8c7ccc83cced01cc90ccdbccc8cca341dc0020cc891d5677cc8267ccd7ccf6ccaf7acccb75ccde01ccb3cc81cc88cc82cc8c354f135cccd9cc836b48cc85ccf601ccebcce6ce000123179402dc00206accd622cccf50ccf5ccb4ccbccca738027bccd1ccceccc95f222173020921ccb000cc82ccd43a1ecc80cce2cce3ccfedc0020386cccc344360619157d6541ccd2ccbf7dcc866ecca812ccc424cc841c43cc81ccf1cc8563ccab353bccc3ccf4ce00012318";
+pub const DWEB_DIRECTORY_HISTORY_DATAMAPCHUNK: &str = "81a54669727374939400dc00204f71ccc3ccdb7bcc95ccbaccd80a6eccd6125a2dccab2acc9657ccb5ccd9ccf518ccc4ccc455ccb311cc96ccd3ccf6cca139dc0020ccdbccf2cce1cccdccd03bccfccce4ccbe563220cca74a7fcca6cca13c2f21cc8e0248ccbaccc967cc87ccabcce65ecc99ccdcce000123179401dc0020cc8064cc8112cc9fcca6ccbcccf5151e4a4ccc87ccfc6d455650cc980dcc9a11cc8c7ccc83cced01cc90ccdbccc8cca341dc0020cc891d5677cc8267ccd7ccf6ccaf7acccb75ccde01ccb3cc81cc88cc82cc8c354f135cccd9cc836b48cc85ccf601ccebcce6ce000123179402dc00206accd622cccf50ccf5ccb4ccbccca738027bccd1ccceccc95f222173020921ccb000cc82ccd43a1ecc80cce2cce3ccfedc0020386cccc344360619157d6541ccd2ccbf7dcc866ecca812ccc424cc841c43cc81ccf1cc8563ccab353bccc3ccf4ce00012318";
 
 /// A set of default settings for use with a website when dweb_settings is none
 #[derive(Clone)]
@@ -751,10 +750,10 @@ pub async fn get_content(
             }
             None => {
                 return Err(eyre!(
-                "DEBUG get_content_using_hex() failed to decode data_address: '{:?}' and datamap_chunk: '{:?}'",
-                data_address,
-                datamap_chunk,
-            ))
+                    "DEBUG get_content_using_hex() failed to decode data_address: '{:?}' and datamap_chunk: '{:?}'",
+                    data_address,
+                    datamap_chunk,
+                ));
             }
         },
     };
@@ -762,10 +761,10 @@ pub async fn get_content(
     match autonomi_result {
         Ok(bytes) => Ok(bytes),
         Err(e) => {
-            let message = format!("get_content_using_hex() failed to access data from network using data_address: '{:?}' or datamap_chunk: '{:?}' - {e}",
-            data_address,
-            datamap_chunk,
-                );
+            let message = format!(
+                "get_content_using_hex() failed to access data from network using data_address: '{:?}' or datamap_chunk: '{:?}' - {e}",
+                data_address, datamap_chunk,
+            );
             println!("DEBUG {message}");
             Err(eyre!(message))
         }

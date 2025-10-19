@@ -18,23 +18,26 @@ use std::path::PathBuf;
 
 use autonomi::chunk::DataMapChunk;
 use blsttc::SecretKey;
-use color_eyre::eyre::{eyre, Result};
+use color_eyre::eyre::{Result, eyre};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use walkdir::WalkDir;
 
+use autonomi::AttoTokens;
 use autonomi::client::files::archive_public::PublicArchive;
+use autonomi::client::payment::PaymentOption;
 use autonomi::data::DataAddress;
 use autonomi::files::archive_public::ArchiveAddress;
 use autonomi::files::{Metadata as FileMetadata, PrivateArchive};
-use autonomi::AttoTokens;
+
+use crate::autonomi::access::cached_payments;
 
 use crate::client::DwebClient;
 use crate::files::archive::ARCHIVE_PATH_SEPARATOR;
-use crate::files::directory::{osstr_to_string, Tree, DWEB_DIRECTORY_HISTORY_DATAMAPCHUNK};
 use crate::files::directory::{
     DWEB_DIRECTORY_HISTORY_CONTENT, DWEB_HISTORY_DIRECTORY, DWEB_SETTINGS_PATH,
 };
+use crate::files::directory::{DWEB_DIRECTORY_HISTORY_DATAMAPCHUNK, Tree, osstr_to_string};
 use crate::helpers::retry::retry_until_ok;
 use crate::history::{History, HistoryAddress};
 
@@ -176,7 +179,15 @@ pub async fn publish_or_update_files(
             .inspect_err(|e| println!("{}", e))?;
 
         let datamap_chunk = DataMapChunk::from_hex(DWEB_DIRECTORY_HISTORY_DATAMAPCHUNK).unwrap();
-        archive.add_file(history_file_path, datamap_chunk, autonomi_metadata);
+        archive.add_file(history_file_path.clone(), datamap_chunk, autonomi_metadata);
+
+        // TODO: when autonomi issue (https://github.com/maidsafe/autonomi/issues/3260) is fixed
+        //       change DWEB_HISTORY_DIRECTORY to include the leading slash and remove this:
+        let slash_path = Path::new("/");
+        let _ = archive.rename_file(
+            history_file_path.clone().as_path(),
+            slash_path.join(history_file_path).as_path(),
+        );
 
         let bytes = archive
             .to_bytes()
@@ -269,18 +280,32 @@ pub fn report_content_published_or_updated(
         &history_address.to_hex()
     );
     if is_awe {
-        println!("\nNOTE:\n- To update thiscontent, use:\n\n    awe publish-update --name \"{name}\" --files-root {files_root:?}\n");
+        println!(
+            "\nNOTE:\n- To update thiscontent, use:\n\n    awe publish-update --name \"{name}\" --files-root {files_root:?}\n"
+        );
         println!("- To browse the content use:\n\n    awe awv://{files_history}\n");
         println!("- For help use 'awe --help'\n");
     } else {
-        println!("\nNOTE:\n- To update this content use:\n\n    dweb publish-update --name \"{name}\" --files-root {files_root:?}\n");
-        println!("- To browse the content (after starting the server with 'dweb serve'):\n\n    dweb open {files_history}\n\n");
+        println!(
+            "\nNOTE:\n- To update this content use:\n\n    dweb publish-update --name \"{name}\" --files-root {files_root:?}\n"
+        );
+        println!(
+            "- To browse the content (after starting the server with 'dweb serve'):\n\n    dweb open {files_history}\n\n"
+        );
         println!("- For help use 'dweb --help'\n");
     }
 }
 
 /// Upload a directory tree to Autonomi and store the PrivateArchive
 /// Returns the network address of the PrivateArchive (which can be used to initialise a Tree).
+///
+/// Note: unlike the 'ant file upload' command, the root path of each
+/// entry in the archive is '/' rather than '/<PARENT>' where PARENT is
+/// the name of the directory being uploaded. This is both
+/// historical (ie how 'ant file upload' originally behaved), and because
+/// it makes sense for an Archive for a website to use paths which start at '/'
+/// rather than include the name of the directory from which the uploaded
+/// files were stored on the publisher's device.
 pub async fn publish_directory(
     client: &DwebClient,
     files_root: &PathBuf,
@@ -349,6 +374,14 @@ pub async fn publish_directory(
 /// network. Does not store the PrivateArchive.
 ///
 /// Returns the autonomi PrivateArchive if all files have been uploaded.
+///
+/// Note: unlike the 'ant file upload' command, the root path of each
+/// entry in the archive is '/' rather than '/<PARENT>' where PARENT is
+/// the name of the directory being uploaded. This is both
+/// historical (ie how 'ant file upload' originally behaved), and because
+/// it makes sense for an Archive for a website to use paths which start at '/'
+/// rather than include the name of the directory from which the uploaded
+/// files were stored on the publisher's device.
 pub async fn publish_files_private(
     client: &DwebClient,
     files_root: &PathBuf,
@@ -397,7 +430,16 @@ pub async fn publish_files_private(
             Ok((cost, datamap_chunk)) => {
                 let autonomi_metadata =
                     crate::helpers::file::metadata_for_file(&dweb_settings_file);
-                archive.add_file(dweb_settings_path, datamap_chunk, autonomi_metadata);
+                archive.add_file(dweb_settings_path.clone(), datamap_chunk, autonomi_metadata);
+
+                // TODO: when autonomi issue (https://github.com/maidsafe/autonomi/issues/3260) is fixed
+                //       change DWEB_SETTINGS_PATH to include the leading slash and remove this:
+                let slash_path = Path::new("/");
+                let _ = archive.rename_file(
+                    dweb_settings_path.clone().as_path(),
+                    slash_path.join(dweb_settings_path).as_path(),
+                );
+
                 cost
             }
             Err(e) => {
@@ -428,6 +470,14 @@ pub async fn publish_files_private(
 /// Upload the tree of files with the option to include a dweb settings file
 ///
 /// Return the autonomi PublicArchive if all files have been uploaded. Does not store the PublicArchive.
+///
+/// Note: unlike the 'ant file upload' command, the root path of each
+/// entry in the archive is '/' rather than '/<PARENT>' where PARENT is
+/// the name of the directory being uploaded. This is both
+/// historical (ie how 'ant file upload' originally behaved), and because
+/// it makes sense for an Archive for a website to use paths which start at '/'
+/// rather than include the name of the directory from which the uploaded
+/// files were stored on the publisher's device.
 pub async fn publish_files_public(
     client: &DwebClient,
     files_root: &PathBuf,
@@ -476,7 +526,20 @@ pub async fn publish_files_public(
             Ok((cost, upload_address)) => {
                 let autonomi_metadata =
                     crate::helpers::file::metadata_for_file(&dweb_settings_file);
-                archive.add_file(dweb_settings_path, upload_address, autonomi_metadata);
+                archive.add_file(
+                    dweb_settings_path.clone(),
+                    upload_address,
+                    autonomi_metadata,
+                );
+
+                // TODO: when autonomi issue (https://github.com/maidsafe/autonomi/issues/3260) is fixed
+                //       change DWEB_SETTINGS_PATH to include the leading slash and remove this:
+                let slash_path = Path::new("/");
+                let _ = archive.rename_file(
+                    dweb_settings_path.clone().as_path(),
+                    slash_path.join(dweb_settings_path).as_path(),
+                );
+
                 cost
             }
             Err(e) => {
@@ -504,199 +567,152 @@ pub async fn publish_files_public(
     Ok((total_cost, archive))
 }
 
-/// Upload a directory either using the Autonomi directory upload API or
-/// do each file separately if file_by_file is true. Each file's datamap is
-/// not stored in the PrivateArchive but not on the network.
+/// Upload a directory and retun the PrivateArchive and total cost
 pub async fn directory_upload_private(
     client: &DwebClient,
     files_root: &PathBuf,
 ) -> Result<(AttoTokens, PrivateArchive)> {
-    let file_by_file = client.api_control.upload_file_by_file;
+    println!("Uploading files from directory: {files_root:?}");
+    // The following file-by-file upload code is modelled on autonomi ant-cli commands::file::upload()
 
-    let method = if file_by_file { " (file by file)" } else { "" };
-
-    println!("Uploading files from directory{method}: {files_root:?}");
-    if !file_by_file {
-        return retry_until_ok(
-            client.api_control.api_tries,
-            &"dir_content_upload_public()",
-            (client, files_root.clone(), client.payment_option()),
-            async move |(client, files_root, payment_option)| match client
-                .client
-                .dir_content_upload(files_root.clone(), payment_option)
-                .await
-            {
-                Ok((cost, archive)) => Ok((cost, archive)),
-                Err(e) => return Err(eyre!("Failed to upload directory tree: {e}")),
-            },
-        )
-        .await;
-    };
-
-    let mut archive = PrivateArchive::new();
-    let mut total_cost = AttoTokens::zero();
-    for entry in walkdir::WalkDir::new(files_root) {
-        let entry = match entry {
-            Ok(entry) => entry,
-            Err(e) => {
-                let msg = format!("Error walking directory {files_root:?} - {e}");
-                println!("{msg}");
-                return Err(eyre!(msg));
-            }
+    let files_root_str = files_root.to_str().unwrap_or("");
+    let payment_option =
+        if let Ok(Some(receipt)) = cached_payments::load_payment_for_file(files_root_str) {
+            println!("Using cached payment: no need to re-pay");
+            PaymentOption::Receipt(receipt)
+        } else {
+            PaymentOption::Wallet(client.wallet.clone())
         };
 
-        if !entry.file_type().is_file() {
-            continue;
-        };
-        let file = entry;
+    println!("Uploading data to network...");
 
-        println!("file: {:?}", file.file_name());
-        let file_path = file.into_path();
-        let file_path_str;
-        match file_path.clone().into_os_string().into_string() {
-            Ok(path_str) => file_path_str = path_str.clone(),
-            Err(os_str) => {
-                let msg = format!("Error converting file os_str to str - {os_str:?}");
-                println!("{msg}");
-                return Err(eyre!(msg));
-            }
-        };
-
-        let cost = match retry_until_ok(
-            client.api_control.api_tries,
-            &"file_content_upload_public()",
-            (client, file_path.clone(), client.payment_option()),
-            async move |(client, file_path, payment_option)| match client
-                .client
-                .file_content_upload(file_path, payment_option)
-                .await
-            {
-                Ok(result) => Ok(result),
-                Err(e) => {
-                    println!("Failed to upload file - {e}");
-                    return Err(e.into());
-                }
-            },
-        )
+    match client
+        .client
+        .dir_content_upload(files_root.clone(), payment_option)
         .await
-        {
-            Ok((cost, datamap_chunk)) => {
-                let relative_path = match file_path.strip_prefix(&files_root) {
-                    Ok(p) => p.to_path_buf(),
-                    Err(_) => PathBuf::from(file_path_str.clone()),
-                };
-                let relative_path: String = relative_path.to_string_lossy().into_owned();
-
-                let autonomi_metadata = crate::helpers::file::metadata_for_file(&file_path_str);
-                archive.add_file(relative_path.into(), datamap_chunk, autonomi_metadata);
-                cost
-            }
-            Err(e) => {
-                println!("Error max tries reached - {e}");
-                0.into()
-            }
-        };
-        total_cost = total_cost.checked_add(cost).unwrap_or(total_cost);
+    {
+        Ok((cost, mut archive)) => {
+            webify_private_archive(&mut archive);
+            Ok((cost, archive))
+        }
+        Err(e) => return Err(eyre!("Failed to upload directory tree: {e}")),
     }
-
-    Ok((total_cost, archive))
 }
 
-/// Upload a directory either using the Autonomi directory upload API or
-/// do each file separately if file_by_file is true.
+/// Upload a directory and retun the PublicArchive and total cost
 pub async fn directory_upload_public(
     client: &DwebClient,
     files_root: &PathBuf,
 ) -> Result<(AttoTokens, PublicArchive)> {
-    let file_by_file = client.api_control.upload_file_by_file;
+    println!("Uploading files from directory: {files_root:?}");
+    // The following file-by-file upload code is modelled on autonomi ant-cli commands::file::upload()
 
-    let method = if file_by_file { " (file by file)" } else { "" };
-
-    println!("Uploading files from directory{method}: {files_root:?}");
-    if !file_by_file {
-        return retry_until_ok(
-            client.api_control.api_tries,
-            &"dir_content_upload_public()",
-            (client, files_root.clone(), client.payment_option()),
-            async move |(client, files_root, payment_option)| match client
-                .client
-                .dir_content_upload_public(files_root.clone(), payment_option)
-                .await
-            {
-                Ok((cost, archive)) => Ok((cost, archive)),
-                Err(e) => return Err(eyre!("Failed to upload directory tree: {e}")),
-            },
-        )
-        .await;
-    };
-
-    let mut archive = PublicArchive::new();
-    let mut total_cost = AttoTokens::zero();
-    for entry in walkdir::WalkDir::new(files_root) {
-        let entry = match entry {
-            Ok(entry) => entry,
-            Err(e) => {
-                let msg = format!("Error walking directory {files_root:?} - {e}");
-                println!("{msg}");
-                return Err(eyre!(msg));
-            }
+    let files_root_str = files_root.to_str().unwrap_or("");
+    let payment_option =
+        if let Ok(Some(receipt)) = cached_payments::load_payment_for_file(files_root_str) {
+            println!("Using cached payment: no need to re-pay");
+            PaymentOption::Receipt(receipt)
+        } else {
+            PaymentOption::Wallet(client.wallet.clone())
         };
 
-        if !entry.file_type().is_file() {
-            continue;
-        };
-        let file = entry;
+    println!("Uploading data to network...");
 
-        println!("file: {:?}", file.file_name());
-        let file_path = file.into_path();
-        let file_path_str;
-        match file_path.clone().into_os_string().into_string() {
-            Ok(path_str) => file_path_str = path_str.clone(),
-            Err(os_str) => {
-                let msg = format!("Error converting file os_str to str - {os_str:?}");
-                println!("{msg}");
-                return Err(eyre!(msg));
-            }
-        };
-
-        let cost = match retry_until_ok(
-            client.api_control.api_tries,
-            &"file_content_upload_public()",
-            (client, file_path.clone(), client.payment_option()),
-            async move |(client, file_path, payment_option)| match client
-                .client
-                .file_content_upload_public(file_path, payment_option)
-                .await
-            {
-                Ok(result) => Ok(result),
-                Err(e) => {
-                    println!("Failed to upload file - {e}");
-                    return Err(e.into());
-                }
-            },
-        )
+    match client
+        .client
+        .dir_content_upload_public(files_root.clone(), payment_option)
         .await
-        {
-            Ok((cost, upload_address)) => {
-                let relative_path = match file_path.strip_prefix(&files_root) {
-                    Ok(p) => p.to_path_buf(),
-                    Err(_) => PathBuf::from(file_path_str.clone()),
-                };
-                let relative_path: String = relative_path.to_string_lossy().into_owned();
-
-                let autonomi_metadata = crate::helpers::file::metadata_for_file(&file_path_str);
-                archive.add_file(relative_path.into(), upload_address, autonomi_metadata);
-                cost
-            }
-            Err(e) => {
-                println!("Error max tries reached - {e}");
-                0.into()
-            }
-        };
-        total_cost = total_cost.checked_add(cost).unwrap_or(total_cost);
+    {
+        Ok((cost, mut archive)) => {
+            webify_public_archive(&mut archive);
+            Ok((cost, archive))
+        }
+        Err(e) => return Err(eyre!("Failed to upload directory tree: {e}")),
     }
+}
 
-    Ok((total_cost, archive))
+use std::path::{Component, Path};
+
+fn webify_private_archive(private_archive: &mut PrivateArchive) {
+    let mut prefix_option = None;
+    for (path, _metadata) in private_archive.files() {
+        // Use the first file path to establish what if any prefix directory to strip from all paths
+        let prefix_to_strip = prefix_option
+            .clone()
+            .unwrap_or(|path: &PathBuf| -> PathBuf {
+                let mut prefix = PathBuf::new();
+                let mut components = path.components();
+                if let Some(first) = components.next() {
+                    if first == Component::RootDir {
+                        prefix = prefix.join(&ARCHIVE_PATH_SEPARATOR.to_string());
+                        if let Some(first_normal) = components.next() {
+                            prefix = prefix.join(first_normal);
+                        }
+                    } else {
+                        prefix = prefix.join(first);
+                    }
+                }
+
+                // If the prefix we found is the file path there is no prefix directory to strip
+                prefix_option = if *path == prefix {
+                    Some(PathBuf::new())
+                } else {
+                    Some(prefix.clone())
+                };
+                prefix
+            }(&path));
+
+        let new_path = Path::new(&ARCHIVE_PATH_SEPARATOR.to_string()).join(
+            path.strip_prefix(prefix_to_strip.as_path())
+                .unwrap_or(&path),
+        );
+
+        println!("DEBUG dwebify renaming {path:?} as {new_path:?}");
+        private_archive
+            .rename_file(&path, &new_path)
+            .expect("failed to rename file in archive");
+    }
+}
+
+fn webify_public_archive(public_archive: &mut PublicArchive) {
+    let mut prefix_option = None;
+    for (path, _metadata) in public_archive.files() {
+        // Use the first file path to establish what if any prefix directory to strip from all paths
+        let prefix_to_strip = prefix_option
+            .clone()
+            .unwrap_or(|path: &PathBuf| -> PathBuf {
+                let mut prefix = PathBuf::new();
+                let mut components = path.components();
+                if let Some(first) = components.next() {
+                    if first == Component::RootDir {
+                        prefix = prefix.join(&ARCHIVE_PATH_SEPARATOR.to_string());
+                        if let Some(first_normal) = components.next() {
+                            prefix = prefix.join(first_normal);
+                        }
+                    } else {
+                        prefix = prefix.join(first);
+                    }
+                }
+
+                // If the prefix we found is the file path there is no prefix directory to strip
+                prefix_option = if *path == prefix {
+                    Some(PathBuf::new())
+                } else {
+                    Some(prefix.clone())
+                };
+                prefix
+            }(&path));
+
+        let new_path = Path::new(&ARCHIVE_PATH_SEPARATOR.to_string()).join(
+            path.strip_prefix(prefix_to_strip.as_path())
+                .unwrap_or(&path),
+        );
+
+        println!("DEBUG dwebify renaming {path:?} as {new_path:?}");
+        public_archive
+            .rename_file(&path, &new_path)
+            .expect("failed to rename file in archive");
+    }
 }
 
 /// Check that the path is a directory tree containing at least one file

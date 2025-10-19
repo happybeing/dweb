@@ -20,14 +20,14 @@ use std::sync::LazyLock;
 use clap::Args;
 use clap::Parser;
 use clap::Subcommand;
-use color_eyre::{eyre::eyre, Result};
+use color_eyre::{Result, eyre::eyre};
 use core::time::Duration;
 
 use ant_logging::{LogFormat, LogOutputDest};
-use autonomi::files::archive_public::ArchiveAddress;
 use autonomi::GraphEntryAddress;
 use autonomi::PointerAddress;
 use autonomi::ScratchpadAddress;
+use autonomi::files::archive_public::ArchiveAddress;
 
 use dweb::autonomi::args::max_fee_per_gas::MaxFeePerGasParam;
 use dweb::helpers::convert::*;
@@ -85,12 +85,6 @@ pub struct Opt {
     #[clap(long, value_parser = LogOutputDest::parse_from_str, verbatim_doc_comment, default_value = "stdout")]
     pub log_output_dest: LogOutputDest,
 
-    /// Specify the network ID to use. This will allow you to run the CLI on a different network.
-    ///
-    /// By default, the network ID is set to 1, which represents the mainnet.
-    #[clap(long, verbatim_doc_comment)]
-    pub network_id: Option<u8>,
-
     /// Enable Autonomi network logging (to the terminal)
     #[clap(long, name = "client-logs", short = 'l', default_value = "false")]
     pub client_logs: bool,
@@ -105,29 +99,30 @@ pub struct Opt {
     /// Show the cost of dweb API calls after each call in tokens, gas, both or none
     #[clap(long, hide = true, default_value = "both")]
     pub show_dweb_costs: ShowCost,
-    /// Retry failed chunk uploads automatically after 1 minute pause.
+    /// Retry failed file uploads automatically after 1 minute pause.
     /// This will persistently retry any failed chunks until all data is successfully uploaded.
     /// 0 for no retries (same as with ant-cli, so different from --retry-api)
     #[arg(long)]
     #[clap(default_value = "0")]
-    pub retry_failed: u64,
-    //
-    #[command(flatten)]
-    pub transaction_opt: TransactionOpt,
+    pub retry_file_uploads: u64,
     //
     /// Control API call retries (0 for unlimited tries - note the difference from --retry-failed)
     #[clap(long, hide = true, default_value = "0")]
     pub retry_api: u32,
-    /// Do upload of directories one file at a time. Without this uploading a directory will start from scratch on each retry.
-    /// When true, uploads may succeed more often but will cost more than if they are succeeding without retries.
-    #[clap(long, hide = true, default_value = "true")]
-    pub upload_file_by_file: bool,
     // Control API use of Pointers for versioned operations (e.g. for History and Registers).
     //
     // Using true can help accessing a History whose pointer has not updated.
     // See also  the 'heal-history' subcommand.
     #[clap(long, hide = true, default_value = "false")]
     pub ignore_pointers: bool,
+    /// Use standard payment mode instead of single-node payment (default).
+    /// Standard mode pays 3 nodes individually, which costs more in gas fees.
+    /// Single-node payment (default) pays only one node with 3x that amount, saving gas fees.
+    /// Data is stored on 5 nodes regardless of payment mode.
+    #[arg(long)]
+    pub disable_single_node_payment: bool,
+    #[command(flatten)]
+    pub transaction_opt: TransactionOpt,
 }
 
 fn greater_than_0(s: &str) -> Result<u64, String> {

@@ -25,12 +25,12 @@ use color_eyre::Result;
 
 use crate::token::{Rate, ShowCost};
 use crate::web::{LOCALHOST_STR, SERVER_PORTS_MAIN_PORT};
-use autonomi::client::{payment::PaymentOption, Client};
-use autonomi::TransactionConfig;
+use autonomi::client::payment::PaymentOption;
+use autonomi::{Client, PaymentMode, TransactionConfig};
 use autonomi::{Network, Wallet};
 
 use crate::autonomi::args::max_fee_per_gas::{
-    get_max_fee_per_gas_from_opt_param, MaxFeePerGasParam,
+    MaxFeePerGasParam, get_max_fee_per_gas_from_opt_param,
 };
 
 /// Control how dweb uses and reports on selected Autonomi APIs
@@ -41,13 +41,11 @@ use crate::autonomi::args::max_fee_per_gas::{
 #[derive(Clone)]
 pub struct ApiControl {
     /// Number of retries on failed chunk upload (0 for none)
-    pub chunk_retries: u64,
+    pub file_retries: u64,
     /// Control number of tries on selected Autonomi calls (0 for unlimited)
     pub api_tries: u32,
     /// Use PublicArchive instead of PrivateArchive when storing directories
     pub use_public_archive: bool,
-    /// Do upload of directories one file at a time. Without this a retry will start from scratch.
-    pub upload_file_by_file: bool,
     /// Control dweb APIs use of pointers.
     ///
     /// For selected APIs, if ignore_pointer is Some(true) the API will find
@@ -65,19 +63,21 @@ pub struct ApiControl {
     pub show_dweb_costs: ShowCost,
     /// Optional control maximum fee paid for a transaction on the Arbitrum network.
     pub max_fee_per_gas: Option<MaxFeePerGasParam>,
+    /// Revert to 'standard' payment instead of paying just one node
+    pub disable_single_node_payment: bool,
 }
 
 impl Default for ApiControl {
     /// Note: some defaults are likely overriden by command line defaults passed when creating an DwebClient.
     fn default() -> Self {
         ApiControl {
-            chunk_retries: 0,
+            file_retries: 0,
             api_tries: 1,
             use_public_archive: false,
-            upload_file_by_file: false,
             ignore_pointers: false,
             show_dweb_costs: ShowCost::Both,
             max_fee_per_gas: None,
+            disable_single_node_payment: false,
         }
     }
 }
@@ -152,18 +152,32 @@ impl DwebClient {
             client_config.clone().client.unwrap()
         } else {
             if client_config.local_network {
+                println!("🏡 Connecting to local testnet...");
                 Client::init_local().await?
             } else if client_config.alpha_network {
+                println!("🧪 Connecting to public alpha testnet...");
                 Client::init_alpha().await?
             } else {
+                println!("🌍 Connecting to Autonomi mainnet...");
                 Client::init().await?
             }
         };
 
         // Configure client for retry of failed chunk uploads
-        if client_config.api_control.chunk_retries != 0 {
-            client = client.with_retry_failed(client_config.api_control.chunk_retries);
-            println!("🔄 Client configured to retry failed chunk uploads until successful or exceeds {} retries", client_config.api_control.chunk_retries);
+        if client_config.api_control.file_retries != 0 {
+            client = client.with_retry_failed(client_config.api_control.file_retries);
+            println!(
+                "🔄 Client configured to retry failed chunk uploads until successful or exceeds {} retries",
+                client_config.api_control.file_retries
+            );
+        }
+
+        // Configure payment mode - default is SingleNode, only override if Standard is requested
+        if client_config.api_control.disable_single_node_payment {
+            client = client.with_payment_mode(PaymentMode::Standard);
+            println!("💳 Using standard payment mode (pays 3 nodes individually)");
+        } else {
+            println!("🎯 Using single node payment mode (default - saves gas fees)");
         }
 
         let (mut wallet, is_wallet_temporary) = if client_config.wallet.is_some() {
@@ -173,7 +187,9 @@ impl DwebClient {
                 Ok(wallet) => (wallet, false),
                 Err(_e) => {
                     let client = client.clone();
-                    println!("Failed to load wallet for payments - client will only have read accesss to Autonomi");
+                    println!(
+                        "Failed to load wallet for payments - client will only have read accesss to Autonomi"
+                    );
                     (
                         Wallet::new_with_random_wallet(client.evm_network().clone()),
                         true,

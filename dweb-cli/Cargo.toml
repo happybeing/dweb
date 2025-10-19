@@ -22,11 +22,12 @@ fixed-dweb-hosts = []
 
 [dependencies]
 #
-# Generated using: dw-dependencies --branch stable-2025.10.1.5
-autonomi = { version = "0.6.2" }
+# Generated using: dw-dependencies --branch stable-2025.10.1.6
+autonomi = { version = "0.6.3" }
 ant-build-info = { version = "0.1.29" }
 ant-logging = { version = "0.2.52" }
 evmlib = { version = "0.4.5" }
+
 dweb = { workspace = true }
 dweb-server = { workspace = true }
 

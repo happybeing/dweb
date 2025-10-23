@@ -29,7 +29,7 @@ use dweb::client::DwebClient;
 use dweb::files::directory::Tree;
 use dweb::helpers::convert::tuple_from_address_or_name;
 use dweb::helpers::graph_entry::graph_entry_get;
-use dweb::history::History;
+use dweb::history::{get_and_verify_pointer, pointer_address_from_history_address, History};
 
 use crate::cli_options::{EntriesRange, FilesArgs};
 
@@ -147,10 +147,10 @@ fn print_history(
 ) {
     println!("history address  : {}", history.history_address().to_hex());
 
-    let mut type_string = format!("{}", hex::encode(History::<Tree>::trove_type().xorname()));
+    let mut type_string = format!("{}", hex::encode(History::<Tree>::trove_type().to_hex()));
 
     let mut pointer_string = if let Ok(pointer_address) =
-        History::<Tree>::pointer_address_from_history_address(history.history_address())
+        pointer_address_from_history_address(history.history_address())
     {
         pointer_address.to_hex()
     } else {
@@ -171,9 +171,9 @@ fn print_history(
     if shorten_hex_strings {
         type_string = format!("{}", History::<Tree>::trove_type());
         pointer_string = if let Ok(pointer_address) =
-            History::<Tree>::pointer_address_from_history_address(history.history_address())
+            pointer_address_from_history_address(history.history_address())
         {
-            format!("{}", pointer_address.xorname())
+            format!("{}", pointer_address.to_hex())
         } else {
             String::from(
                 "history.pointer_address_from_history_address() not valid - probably a bug",
@@ -184,11 +184,11 @@ fn print_history(
             history
                 .history_address()
                 .to_underlying_graph_root()
-                .xorname()
+                .to_hex()
         );
 
         head_string = if let Ok(head) = history.head_entry_address() {
-            format!("{}", head.xorname())
+            format!("{}", head.to_hex())
         } else {
             String::from("history.head_entry_address() not valid - probably a bug")
         };
@@ -225,7 +225,7 @@ pub async fn handle_inspect_pointer(
 
 fn print_pointer(pointer: &Pointer, pointer_address: &PointerAddress) {
     println!("pointer     : {}", pointer_address.to_hex());
-    println!("  target    : {:x}", pointer.target().xorname());
+    println!("  target    : {}", pointer.target().to_hex());
     println!("  counter   : {}", pointer.counter());
 }
 

@@ -16,27 +16,27 @@
 */
 
 use actix_web::{
-    http::{header, StatusCode},
     HttpRequest, HttpResponse, HttpResponseBuilder,
+    http::{StatusCode, header},
 };
-use color_eyre::eyre::{eyre, Result};
+use color_eyre::eyre::{Result, eyre};
 use mime;
 use url::Url;
 
 use autonomi::client::files::archive_public::ArchiveAddress;
 
 use crate::client::DwebClient;
-use crate::files::directory::{get_content_using_hex, Tree};
+use crate::files::directory::{Tree, get_content_using_hex};
 use crate::history::{History, HistoryAddress};
-use crate::web::name::decode_dweb_host;
 use crate::web::name::DwebHost;
+use crate::web::name::decode_dweb_host;
 use crate::{
     cache::directory_with_name::{
-        DirectoryVersionWithName, DIRECTORY_VERSIONS_WITH_NAME, HISTORY_NAMES,
+        DIRECTORY_VERSIONS_WITH_NAME, DirectoryVersionWithName, HISTORY_NAMES,
     },
     cache::directory_with_port::{
-        key_for_directory_versions_with_port, DirectoryVersionWithPort,
-        DIRECTORY_VERSIONS_WITH_PORT,
+        DIRECTORY_VERSIONS_WITH_PORT, DirectoryVersionWithPort,
+        key_for_directory_versions_with_port,
     },
     helpers::convert::address_tuple_from_address,
 };
@@ -57,7 +57,7 @@ pub async fn fetch(client: &DwebClient, url: Url, as_website: bool) -> HttpRespo
         None => {
             return HttpResponseBuilder::new(StatusCode::BAD_REQUEST)
                 .reason("bad host in URL")
-                .finish()
+                .finish();
         }
     };
 
@@ -66,7 +66,7 @@ pub async fn fetch(client: &DwebClient, url: Url, as_website: bool) -> HttpRespo
         Err(_e) => {
             return HttpResponseBuilder::new(StatusCode::NOT_FOUND)
                 .reason("failed to decode web name")
-                .finish()
+                .finish();
         }
     };
 
@@ -199,7 +199,7 @@ pub async fn directory_version_get(
         // TODO so that from_history_address() never has to wait while walking the graph, and
         // TODO can know the pointer is up-to-date from the minimum_entry_index
 
-        // TODO this avoids issue where pointer is not up-to-date but makes the first load take ~20s
+        // TODO this avoids issue where pointer is not up-to-date but makes the first load take a while
         let (ignore_pointer, minimum_entry_index) = if dweb_host.version.is_some() {
             (false, dweb_host.version.unwrap() + 1)
         } else {
@@ -312,7 +312,7 @@ pub async fn get_directory_tree_for_address_string(
         ));
     }
 
-    let ignore_pointer = true; // Fast but may not get most recent version when version is None
+    let ignore_pointer = false; // Fast but may not get most recent version when version is None
     let minimum_entry_index = version.unwrap_or(0);
     match History::<Tree>::from_history_address(
         client.clone(),

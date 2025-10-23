@@ -20,14 +20,14 @@ use std::sync::LazyLock;
 use clap::Args;
 use clap::Parser;
 use clap::Subcommand;
-use color_eyre::{Result, eyre::eyre};
+use color_eyre::{eyre::eyre, Result};
 use core::time::Duration;
 
 use ant_logging::{LogFormat, LogOutputDest};
+use autonomi::files::archive_public::ArchiveAddress;
 use autonomi::GraphEntryAddress;
 use autonomi::PointerAddress;
 use autonomi::ScratchpadAddress;
-use autonomi::files::archive_public::ArchiveAddress;
 
 use dweb::autonomi::args::max_fee_per_gas::MaxFeePerGasParam;
 use dweb::helpers::convert::*;
@@ -400,14 +400,9 @@ pub enum Subcommands {
     #[allow(non_camel_case_types)]
     Heal_history {
         /// The NAME used when the website was first published.
-        /// If you didn't specify a name when doing publish-new, this will
-        /// be the name of the directory that contained the website.
-        #[clap()]
+        /// If none was given then, this will be the name of the website directory (FILES-ROOT)
+        #[clap(long, short = 'n')]
         name: String,
-
-        /// Print a summary of the History including type (the value of entry 0) and number of entries
-        #[clap(long = "full", short = 'f', default_value = "true")]
-        print_history_full: bool,
 
         /// Shorten GraphEntry hex strings to the first six characters plus '..'
         #[clap(long = "brief", short = 'b', default_value = "false")]

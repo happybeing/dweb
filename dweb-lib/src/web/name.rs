@@ -59,15 +59,15 @@
 //! information to aid identification.
 //!
 
-use color_eyre::eyre::{eyre, Result};
+use color_eyre::eyre::{Result, eyre};
 
 use crate::cache::directory_with_name::HISTORY_NAMES;
 use crate::history::HistoryAddress;
 
 // Domain name and subdomain constraints based on IETF RFC1035 with links to relevant sections:
 pub const MAX_SUBDOMAIN_LEN: usize = 63; //  S2.3.4 Size limits (https://datatracker.ietf.org/doc/html/rfc1035#section-2.3.4)
-                                         // A subdomain must start with a letter (a-z) and is followed by one or more letters or numbers
-                                         // which may be separated by a hyphen. S2.3.1. Preferred name syntax (https://datatracker.ietf.org/doc/html/rfc1035#section-2.3.1)
+// A subdomain must start with a letter (a-z) and is followed by one or more letters or numbers
+// which may be separated by a hyphen. S2.3.1. Preferred name syntax (https://datatracker.ietf.org/doc/html/rfc1035#section-2.3.1)
 
 pub const DISAMBIGUATION_LEN: usize = 4; // Number of hexadecimal disambiguation characters to include in a DWEB-NAME
 pub const MEMORABLE_PART_LEN: usize = MAX_SUBDOMAIN_LEN - DISAMBIGUATION_LEN - 1; // Allow 1 for hyphen
@@ -455,14 +455,29 @@ pub fn register_builtin_names(is_local: bool) {
     if is_local {
         let _ = register_name_from_string("awesome", builtins_local::AWESOME_SITE_HISTORY_LOCAL);
     } else {
-        let _ = register_name_from_string("atlas", "99e3b8df52814b379e216caf797426071000905a2cd93a9f5e90eef2b32517a9ec1ef0bfe27d79360014fd97639ac612");
+        let _ = register_name_from_string(
+            "atlas",
+            "99e3b8df52814b379e216caf797426071000905a2cd93a9f5e90eef2b32517a9ec1ef0bfe27d79360014fd97639ac612",
+        );
         let _ = register_name_from_string("awesome", builtins_public::AWESOME_SITE_HISTORY_PUBLIC);
-        let _ = register_name_from_string("billboard", "b6da6740bc5394f9ac0e6a6fa5a42f7f587d3aeaa48fd23ae9a45bef95b571a32429b0353148aa9e04f17cd6da57d179");
-        let _ = register_name_from_string("friends", "a447871043968be2be1628584026cad30b824009a30eab43db3ee6dd8c0990051c27160cc8d1662da763d57c41c091f6");
+        let _ = register_name_from_string(
+            "billboard",
+            "b6da6740bc5394f9ac0e6a6fa5a42f7f587d3aeaa48fd23ae9a45bef95b571a32429b0353148aa9e04f17cd6da57d179",
+        );
+        let _ = register_name_from_string(
+            "friends",
+            "a447871043968be2be1628584026cad30b824009a30eab43db3ee6dd8c0990051c27160cc8d1662da763d57c41c091f6",
+        );
         // Mainnet History is at: a27b3fdb495870ace8f91005223998dc675c8e1bceb50bac66c993bb720a013c9f83d7a46e6d0daecbb3530d5249e587
         // v1 Archive: 40ea2e530a60645363ae561c8a50c165f79d8a034c4458f68f1b848c11386e45
-        let _ = register_name_from_string("scratchchat", "a27b3fdb495870ace8f91005223998dc675c8e1bceb50bac66c993bb720a013c9f83d7a46e6d0daecbb3530d5249e587");
-        let _ = register_name_from_string("toast", "95be239165b7016b7f6dada20134438e038d0456bff04ec37943e95742726854225aa03faeed4e7bbd96f5383a8f9448");
+        let _ = register_name_from_string(
+            "scratchchat",
+            "94592af349cafd579d2ed77da1679306caca7aff9564ecf0f0a5b2eccb76aeb94925a1c9939f392e891378f8c492f4a0",
+        );
+        let _ = register_name_from_string(
+            "toast",
+            "95be239165b7016b7f6dada20134438e038d0456bff04ec37943e95742726854225aa03faeed4e7bbd96f5383a8f9448",
+        );
     }
 }
 use serde::{Deserialize, Serialize};

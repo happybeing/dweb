@@ -22,23 +22,21 @@ use autonomi::{GraphEntry, GraphEntryAddress};
 
 use dweb::client::DwebClient;
 use dweb::files::directory::Tree;
+use dweb::helpers::convert::tuple_from_address_or_name;
 use dweb::history::History;
+use dweb::history::{get_and_verify_pointer, pointer_address_from_history_address};
 
 use crate::cli_options::{EntriesRange, FilesArgs};
 
 /// Implement 'heal-history' subcommand
 ///
-/// Early versions of dweb used pointer_put() to update a pointer which works on
-/// local testnets but not mainnet (based on the early Register/Pointer implementation).
-///
-/// This command walks the History and calls History::heal_pointer() whenever the Pointer
-/// retrieved from the network is out of sync with the current position in the History.
-/// It gives a commentary at each step and a summary at the end.
+/// This command walks the History and if when it reaches the end, the pointer
+/// is not in sync, it attempts to heal history by updating the pointer counter
+/// and target.
 pub async fn handle_heal_history(
     client: DwebClient,
     app_secret_key: SecretKey,
-    name: &String,
-    print_history_full: bool,
+    name: String,
     graph_keys: bool,
     shorten_hex_strings: bool,
 ) -> Result<()> {
@@ -47,25 +45,20 @@ pub async fn handle_heal_history(
         client.clone(),
         app_secret_key.clone(),
         name.clone(),
-        false,
+        true,
         0,
     )
     .await
     {
         Ok(history) => history,
         Err(e) => {
-            let message = format!("Failed to heal history '{name}' - {e}");
+            let message = format!("Failed to heal history for '{name}' - {e}");
             println!("{message}");
             return Err(eyre!(message));
         }
     };
 
-    print_history(
-        &client.clone(),
-        &history,
-        print_history_full,
-        shorten_hex_strings,
-    );
+    print_history(&client.clone(), &history, true, shorten_hex_strings);
     let entries_range = EntriesRange {
         start: Some(0),
         end: None,
@@ -90,12 +83,24 @@ pub async fn handle_heal_history(
         ));
     }
 
+    // Get the actual pointer for counter value needed later
+    let pointer_address = pointer_address_from_history_address(history.history_address().clone())?;
+    let pointer = match get_and_verify_pointer(&client, &pointer_address).await {
+        Ok(pointer) => pointer,
+        Err(e) => {
+            let msg = format!(
+                "failed to get pointer network address {} - {e}",
+                pointer_address.to_hex()
+            );
+            println!("DEBUG History::handle_heal_history() {msg}");
+            return Err(e.into());
+        }
+    };
+
     println!("  entries {first} to {last:2}:");
     let mut index = first;
     let mut entry_iter = history.get_graph_entry(index).await?;
 
-    let mut heal_attempts = 0;
-    let mut heal_successes = 0;
     while index <= last {
         println!(
             "DEBUG INSPECT history.pointer_counter(): {}",
@@ -113,32 +118,11 @@ pub async fn handle_heal_history(
             "    ",
             &entry_iter,
             graph_keys,
-            print_history_full,
+            true,
             shorten_hex_strings,
             Some(&history),
         )
         .await?;
-
-        if history.pointer_counter() < index {
-            heal_attempts += 1;
-            println!(
-                "POINTER BEHIND HISTORY, attempting to heal by updating pointer by one to target:"
-            );
-            println!("GraphEntry: {}", entry_iter.address().to_hex());
-            match history
-                .heal_pointer(app_secret_key.clone(), &entry_iter)
-                .await
-            {
-                Ok(new_counter) => {
-                    println!("Pointer counter updated to {}", new_counter);
-                    heal_successes += 1;
-                }
-                Err(_e) => {
-                    println!("Failed to heal pointer - exiting early");
-                    return Ok(());
-                }
-            }
-        }
 
         index = index + 1;
         if index <= last {
@@ -149,33 +133,80 @@ pub async fn handle_heal_history(
         }
     }
 
-    if heal_attempts == 0 {
-        println!("\nPointer was not in error - no changes were applied.");
+    // Check that the history (pointer target) points to the head entry (most recent entry)
+    let point_target_mismatch = if let Ok(Some(head_entry)) = history.get_head_entry().await {
+        entry_iter.address() != head_entry.address()
     } else {
-        if heal_attempts > heal_successes {
-            println!(
-                "\nWARNING: Pointer was {heal_attempts} steps behind and remains {} steps behind",
-                heal_attempts - heal_successes
-            );
-        }
+        true // Something up so attempt to heal
+    };
+
+    if history.pointer_counter() != last || point_target_mismatch {
         println!(
-            "\nPointer was {heal_attempts} steps behind history and has been updated to fix this."
+            "POINTER MISMATCH, attempting to heal by putting a new pointer with correct counter and target:"
         );
-        println!("\nPrinting History to confirm these have been effective...\n");
-        let _ = super::cmd_inspect::handle_inspect_history(
-            client.clone(),
-            name,
-            true,
-            Some(EntriesRange {
-                start: Some(0),
-                end: None,
-            }),
-            false,
-            true,
-            true,
-            FilesArgs::default(),
-        )
-        .await;
+        println!("GraphEntry: {}", entry_iter.address().to_hex());
+
+        if pointer.counter() == last - 1 {
+            // Use pointer_update() (which is free)
+            match history
+                .heal_pointer_using_update(app_secret_key.clone(), entry_iter.address())
+                .await
+            {
+                Ok(new_counter) => {
+                    println!("Pointer heaing complete");
+                    println!("\nPrinting History to confirm this has been effective...\n");
+                    let _ = super::cmd_inspect::handle_inspect_history(
+                        client.clone(),
+                        &name,
+                        true,
+                        Some(EntriesRange {
+                            start: Some(0),
+                            end: None,
+                        }),
+                        false,
+                        true,
+                        true,
+                        FilesArgs::default(),
+                    )
+                    .await;
+                }
+                Err(e) => {
+                    println!("Failed to heal pointer - {e}");
+                    return Ok(());
+                }
+            }
+        } else {
+            // Use pointer_put() if the counter can't just be bumped by 1 (this has a cost)
+            match history
+                .heal_pointer_using_put(app_secret_key.clone(), last, entry_iter.address())
+                .await
+            {
+                Ok(new_counter) => {
+                    println!("Pointer heaing complete");
+                    println!("\nPrinting History to confirm this has been effective...\n");
+                    let _ = super::cmd_inspect::handle_inspect_history(
+                        client.clone(),
+                        &history.history_address().to_hex(),
+                        true,
+                        Some(EntriesRange {
+                            start: Some(0),
+                            end: None,
+                        }),
+                        false,
+                        true,
+                        true,
+                        FilesArgs::default(),
+                    )
+                    .await;
+                }
+                Err(e) => {
+                    println!("Failed to heal pointer - {e}");
+                    return Ok(());
+                }
+            }
+        }
+    } else {
+        println!("\nPointer was not in error - no changes were applied.");
     }
 
     Ok(())
@@ -189,10 +220,10 @@ fn print_history(
 ) {
     println!("history address  : {}", history.history_address().to_hex());
 
-    let mut type_string = format!("{}", hex::encode(History::<Tree>::trove_type().xorname()));
+    let mut type_string = format!("{}", hex::encode(History::<Tree>::trove_type().to_hex()));
 
     let mut pointer_string = if let Ok(pointer_address) =
-        History::<Tree>::pointer_address_from_history_address(history.history_address())
+        pointer_address_from_history_address(history.history_address())
     {
         pointer_address.to_hex()
     } else {
@@ -213,9 +244,9 @@ fn print_history(
     if shorten_hex_strings {
         type_string = format!("{}", History::<Tree>::trove_type());
         pointer_string = if let Ok(pointer_address) =
-            History::<Tree>::pointer_address_from_history_address(history.history_address())
+            pointer_address_from_history_address(history.history_address())
         {
-            format!("{}", pointer_address.xorname())
+            format!("{}", pointer_address.to_hex())
         } else {
             String::from(
                 "history.pointer_address_from_history_address() not valid - probably a bug",
@@ -226,11 +257,11 @@ fn print_history(
             history
                 .history_address()
                 .to_underlying_graph_root()
-                .xorname()
+                .to_hex()
         );
 
         head_string = if let Ok(head) = history.head_entry_address() {
-            format!("{}", head.xorname())
+            format!("{}", head.to_hex())
         } else {
             String::from("history.head_entry_address() not valid - probably a bug")
         };

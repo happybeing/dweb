@@ -15,14 +15,14 @@
  along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-use color_eyre::{Report, Result, eyre::eyre};
+use color_eyre::{eyre::eyre, Report, Result};
 
 use autonomi::AttoTokens;
 
 use dweb::client::{ApiControl, DwebClientConfig};
 use dweb::history::HistoryAddress;
 use dweb::storage::{publish_or_update_files, report_content_published_or_updated};
-use dweb::token::{Spends, show_spend_return_value};
+use dweb::token::{show_spend_return_value, Spends};
 use dweb::web::request::{main_server_request, make_main_server_url};
 use dweb::web::{LOCALHOST_STR, SERVER_PORTS_MAIN_PORT};
 
@@ -343,7 +343,6 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
 
         Some(Subcommands::Heal_history {
             name,
-            print_history_full,
             shorten_hex_strings,
             graph_keys,
         }) => {
@@ -357,8 +356,7 @@ pub async fn cli_commands(opt: Opt) -> Result<bool> {
             match crate::commands::cmd_heal_history::handle_heal_history(
                 client,
                 app_secret_key,
-                &name,
-                print_history_full,
+                name,
                 graph_keys,
                 shorten_hex_strings,
             )

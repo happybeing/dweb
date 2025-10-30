@@ -1,17 +1,14 @@
 # AutonomiDweb App
 
-The AutonomiDweb App gives access to the dweb on Autonomi using a standard web browser. When running you can browse the dweb, and use dynamic web apps that upload files and save app data securely and privately on the Autonomi network.
+The AutonomiDweb App gives access to websites published on the Autonomi peer-to-peer network. Nothing else is needed because these websites open in your regular browser with end-to-end enctyped data that is only dectrypted once it reaches your device. This means nobody can track what you are uploading or downloading. Privacy is back!
 
-This is somewhat like IPFS and similar projects but on Autonomi data is secured forever. So websites and data will always be available without the need for pinning, seeding or ongoing payments, or the need for users of developers to maintain or pay for servers.
+So long as the app is running you can browse the dweb, and use dynamic web apps that upload files and save app data securely and privately on the Autonomi network.
+
+There are superficial similarities with IPFS and similar projects but on Autonomi data is always encrypted, and secured forever after a one-time-only upload fee. So websites and data will always be available without the need for pinning, seeding or ongoing payments, or the need for users of developers to maintain or pay for servers.
 
 The AutonomiDweb is always there, providing secure access to your data which is always encrypted and can't be accessed, deleted or blocked by anyone else.
 
-### TODO:
-- [x] support browsing and use of dynamic websites
-- [ ] auto start on login
-- [ ] system tray support
-- [ ] visit websites on Autonomi
-- [ ] add screenshot under "Browse the..."
+![Screenshot of the AutonomiDweb App](./misc/screenshot-autonomidweb-app.png?raw=true "Screenshot of the AutonomiDweb App")
 
 ## Browse the Autonomi dweb
 
@@ -20,6 +17,10 @@ The AutonomiDweb is always there, providing secure access to your data which is 
 2. Save the executable (`dweb-app.exe` or `dweb-app`) on your computer.
 
 3. Run the app as normal and click the "Browse" button to begin browsing websites on Autonomi. This will open your browser, and may show an error at first, but once it has connected to Autonomi will load a website showing links to some early websites and apps on Autonomi.
+
+Notes:
+- On **Windows** you should be asked if it is ok to run the app. You will be shown a scary message from Windows Defender: "preventing an unrecognised app from starting. Running this app might put your PC at risk." Don't worry this is fine 🤣so click on "More info" and then "Run anyway". After that the above screen should display and off you go.
+- On **Mac** and **Linux** you will need to make the dweb-app file executable before you can run it. You can right-click and open the properties menu in order to do this, or from the terminal command line, use `chmod +x ./dweb-app` in the directory containing dweb-app. 
 
 ## Web Publishers and Web Developers
 If you wish to publish a website or a dynamic web app on Autonomi you will also need to download the dweb command line interface (dweb CLI).

@@ -1,4 +1,4 @@
-[workspace]
+ [workspace]
 resolver = "2"
 members = ["dweb-cli" , "dweb-lib", "dweb-server"]
 

@@ -13,15 +13,15 @@ members = ["dweb-cli" , "dweb-lib", "dweb-server"]
 exclude = ["dweb-app"]
 
 [workspace.package]
-version = "0.13.2"
+version = "0.13.3"
 authors = ["happybeing <git@happybeing.com>"]
 description = "Decentralised web and storage crates for Autonomi"
 license = "AGPL-3.0"
 repository = "https://codeberg.org/happybeing/dweb"
 
 [workspace.dependencies]
-dweb = { path = "./dweb-lib", version = "0.13.2", features = ["development"] }
-dweb-server = { path = "./dweb-server", version = "0.13.2", features = ["development"] }
+dweb = { path = "./dweb-lib", version = "0.13.3", features = ["development"] }
+dweb-server = { path = "./dweb-server", version = "0.13.3", features = ["development"] }
 
 [workspace.lints.rust]
 arithmetic_overflow = "forbid"
